@@ -1,5 +1,10 @@
 # Conceptualization Sessions
 
+## File contract
+
+**Holds:** Ordered list of steps within the current phase — goal, inputs, outputs, done-when criteria, and decision options pre-canvassed for each step.
+**Update when:** A step is added, split, reordered, or completed; phase restructuring occurs. Canonical step list; `handoff.md`'s next-session pointer references it by section heading.
+
 Ordered plan for the conceptualization phase of `sca-tracker`. Each session is sized to ~30–60 min and is independently runnable by a fresh Claude given `handoff.md` + `decisions.md` + the session prompt.
 
 The first five sessions are deliberately **domain-agnostic** — the goal is an abstract framework for entities, state, transitions, lifecycle/invariants, authorization, and history patterns before the environmental-monitoring domain is layered on.

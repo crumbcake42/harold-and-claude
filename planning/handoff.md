@@ -1,5 +1,10 @@
 # Handoff
 
+## File contract
+
+**Holds:** Session state between Claude Code contexts — current phase, last session summary, next session pointer and prompt, open questions, session execution rules, and pointers to all other planning files.
+**Update when:** A session completes or wraps up (advance next-session pointer, summarize last session, refresh open questions, rewrite prompt); a phase changes; the step list in `sessions.md` is restructured. Full protocol in `planning/_workflow.md` (Case 3, completion protocol).
+
 The single source of truth between sessions. Read this first.
 
 ---
@@ -24,9 +29,7 @@ The single source of truth between sessions. Read this first.
 
 ## How to start a session
 
-If the user says something like _"start the next session"_ / _"run the next session"_ / _"do the next session block"_ / _"vamos"_ / _"yallah"_, treat that as: read this file, read `planning/decisions.md`, read the entry in `planning/sessions.md` matching the **Next session** below — and then **enter the STOP-AND-CONFIRM GATE above**. Deliver the chat-side proposal and wait for approval before executing the prompt in **Prompt for the next session**. No need for the user to paste anything.
-
-When the session's work is done, update this file: move **Next session** → **Last session summary**, advance **Next session** to the following entry in `sessions.md`, refresh **Open questions**, and rewrite **Prompt for the next session**.
+If the user says something like _"resume work"_ / _"start the next session"_ / _"run the next session"_ / _"do the next session block"_ / _"vamos"_ / _"yallah"_: follow `planning/_workflow.md`. That file owns the case-detection logic and the completion protocol.
 
 ---
 
@@ -100,7 +103,9 @@ Original Sessions 3–6 (Domain mapping → Data model & roadmap) shifted to Ses
 
 ## Pointers
 
-- Session plan: `planning/sessions.md`
+- Workflow protocol: `planning/_workflow.md`
+- File rules registry (generated): `planning/_file-rules.md`
+- Step plan: `planning/sessions.md`
 - Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0006)
 - Framework (Session 1 output): `planning/framework.md`
 - Logic (Sessions 2–4 output, not yet written): `planning/logic.md`
