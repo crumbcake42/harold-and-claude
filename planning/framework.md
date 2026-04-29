@@ -2,12 +2,12 @@
 
 ## File contract
 
-**Holds:** Abstract entity/state/relationship/identity vocabulary — the foundational framework established in Session 1. Domain-agnostic.
+**Holds:** Abstract entity/state/relationship/identity vocabulary — the foundational framework established in Step 1. Domain-agnostic.
 **Update when:** A framework-level vocabulary decision is revised (rare; requires a superseding ADR in `decisions.md` before editing this file).
 
-The abstract vocabulary `sca-tracker` is built on. Domain-agnostic by design — domain mapping happens in Session 3. This doc states one position per question; rejected alternatives live in `decisions.md`.
+The abstract vocabulary `sca-tracker` is built on. Domain-agnostic by design — domain mapping happens in Step 6. This doc states one position per question; rejected alternatives live in `decisions.md`.
 
-Read order if you're cold: this doc → `logic.md` (Sessions 2–4 output, transitions/lifecycle/auth) → `history-patterns.md` (Session 5 output, history menu and selection criteria) → `domain-model.md` (Session 6 output, the projection onto the actual domain).
+Read order if you're cold: this doc → `logic.md` (Steps 2–4 output, transitions/lifecycle/auth) → `history-patterns.md` (Step 5 output, history menu and selection criteria) → `domain-model.md` (Step 6 output, the projection onto the actual domain).
 
 ---
 

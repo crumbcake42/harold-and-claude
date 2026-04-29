@@ -2,8 +2,8 @@
 
 ## File contract
 
-**Holds:** Session state between Claude Code contexts — current phase, last session summary, next session pointer and prompt, open questions, session execution rules, and pointers to all other planning files.
-**Update when:** A session completes or wraps up (advance next-session pointer, summarize last session, refresh open questions, rewrite prompt); a phase changes; the step list in `sessions.md` is restructured. Full protocol in `planning/_workflow.md` (Case 3, completion protocol).
+**Holds:** Transient state between Claude Code contexts — current phase pointer, last session summary, next session pointer and prompt, open questions, and pointers to all other planning files. Session execution rules live in `planning/sessions.md`; restructure log lives there too.
+**Update when:** A session completes or wraps up (advance next-session pointer, summarize last session, refresh open questions, rewrite prompt); a phase changes; the step list in `steps.md` is restructured. Full protocol in `planning/_workflow.md` (Case 3, completion protocol).
 
 The single source of truth between sessions. Read this first.
 
@@ -23,7 +23,7 @@ The single source of truth between sessions. Read this first.
 >
 > If two decisions are genuinely inseparable, say so and explain why — but default to splitting. Roadmap length is not a constraint; splitting a session into more sessions is preferred over rushing a decision.
 >
-> **This gate exists because prior sessions (twice on 2026-04-28) stacked or pre-answered decisions.** "The artifact is the deliberation" (rule 1 below) means the doc canvasses options before landing — it does **not** mean writing first and asking later. Agreement on the position is gated on the chat-side proposal; the doc then writes it up.
+> **This gate exists because prior sessions (twice on 2026-04-28) stacked or pre-answered decisions.** "The artifact is the deliberation" (rule 1 in `planning/sessions.md`) means the doc canvasses options before landing — it does **not** mean writing first and asking later. Agreement on the position is gated on the chat-side proposal; the doc then writes it up.
 
 ---
 
@@ -33,58 +33,33 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ---
 
-## Session execution rules
-
-These apply to every conceptualization session, in addition to the per-session prompt. They exist because the session-split structure assumes one decision is deliberated at a time, in the artifact — not pre-picked in chat and then justified.
-
-1. **The artifact is the deliberation.** Do not announce a position in chat before writing. Do not eliminate options before the doc canvasses them. Land positions only as the doc concludes.
-2. **Stay inside the session's scope.** If a justification for the current decision requires reaching into a later session (auth shape, storage choice, lifecycle vocabulary), that is a signal the position is not decidable yet — push back on the session boundary, do not cross it.
-3. **Treat prior ADRs as constraints to address, not exclusions to assume.** If a prior ADR appears to eliminate an option, name the tension inside the doc and deliberate it there. Do not dismiss the option in the pre-amble.
-4. **Push back, do not pre-empt.** If the framework or session prompt seems wrong, say so before writing. Do not compensate by quietly importing other-session reasoning.
-
-Cross-conversation context: an incident on 2026-04-28 (Session 2 startup) produced these rules. Memory entry `feedback_no_preanswering.md` captures the same ground from the assistant's side; this section is the durable in-repo restatement.
-
----
-
 ## Current phase
 
-**Conceptualization** — sessions are planning-only, no code is written. See `planning/sessions.md` for the full session list.
+**Conceptualization** — steps are planning-only, no code is written. See `planning/phases.md` for the full phase roster and `planning/steps.md` for the current step list.
 
 ## Last session summary
 
-**Session 1 — Abstract entity & state framework (2026-04-28).** Wrote `planning/framework.md` with one position per question (entity definition, four-kind state taxonomy, relationship defaults, identity policy). Added ADR-0002 through ADR-0005 capturing the rejected alternatives. Framework is intentionally thin — it commits to vocabulary, not modeling structure, so Session 3 has room to push back when the domain lands. History implementation shape, cross-system identity, soft-delete policy, and concrete lifecycle vocabularies are explicitly deferred (see "Deferred" section in `framework.md`).
+**Step 1 — Abstract entity & state framework (2026-04-28).** Wrote `planning/framework.md` with one position per question (entity definition, four-kind state taxonomy, relationship defaults, identity policy). Added ADR-0002 through ADR-0005 capturing the rejected alternatives. Framework is intentionally thin — it commits to vocabulary, not modeling structure, so Step 3 has room to push back when the domain lands. History implementation shape, cross-system identity, soft-delete policy, and concrete lifecycle vocabularies are explicitly deferred (see "Deferred" section in `framework.md`).
 
 ## Open questions
 
-- History _implementation_ shape (event store, append-only history tables, temporal tables) — deferred to Session 8 (stack). Session 2 commits the logic-layer semantics; Session 8 picks the storage.
-- History patterns menu — the available per-entity history patterns and selection criteria are defined in Session 5, before domain mapping. TBD.
-- Cross-system identity (do our UUIDs need to be stable across other agency systems?) — deferred to Session 6 (domain mapping).
-- Soft-delete vs. hard-delete policy — likely regulatory; Session 6.
-- Concrete lifecycle vocabularies per entity — Session 6, once entities exist.
-- Concrete authorization roles and relationships — Session 6. Session 4 picks the shape; the predicates land in Session 6.
-- Whether the existing `backend/` and `frontend/` directories get deleted or repurposed — first implementation session.
-
-## Note on session restructures
-
-**2026-04-28:** The original Session 2 ("Logic & invariants") stacked five large decisions into one block. It was split into three sessions to keep each decision deliberate:
-
-- **Session 2** — Transitions & history-semantics (coupled pair, kept together)
-- **Session 3** — Lifecycle rules & invariants (coupled pair, kept together)
-- **Session 4** — Authorization
-
-Original Sessions 3–6 (Domain mapping → Data model & roadmap) shifted to Sessions 5–8.
-
-**2026-04-29:** Session 5 (History & auditing patterns) added between Session 4 (authorization) and domain mapping. ADR-0003's universal history commitment narrowed by ADR-0006: historical state remains a named kind in the four-kind taxonomy but is now a per-entity decision from a defined menu. Choosing from the menu is required at entity definition time. Original Sessions 5–8 (Domain mapping → Data model & roadmap) shifted to Sessions 6–9.
+- History _implementation_ shape (event store, append-only history tables, temporal tables) — deferred to Step 8 (stack). Step 2 commits the logic-layer semantics; Step 8 picks the storage.
+- History patterns menu — the available per-entity history patterns and selection criteria are defined in Step 5, before domain mapping. TBD.
+- Cross-system identity (do our UUIDs need to be stable across other agency systems?) — deferred to Step 6 (domain mapping).
+- Soft-delete vs. hard-delete policy — likely regulatory; Step 6.
+- Concrete lifecycle vocabularies per entity — Step 6, once entities exist.
+- Concrete authorization roles and relationships — Step 6. Step 4 picks the shape; the predicates land in Step 6.
+- Whether the existing `backend/` and `frontend/` directories get deleted or repurposed — first implementation step.
 
 ## Next session
 
-**Session 2 — Transitions & history-semantics.** See `planning/sessions.md` for the full brief (decisions on the table + candidate positions with tradeoffs).
+**Step 2 — Transitions & history-semantics.** See `planning/steps.md` for the full brief (decisions on the table + candidate positions with tradeoffs).
 
 ### Prompt for the next session
 
 > Produce the transitions-and-history-semantics section of `planning/logic.md` and ADR entries closing off the two coupled decisions.
 >
-> Stay abstract — do **not** introduce environmental-monitoring domain terms. Build directly on `framework.md`'s vocabulary (entity, the four kinds of state, relationships, UUID identity). The decisions on the table and the candidate positions with their tradeoffs are pre-canvassed in `planning/sessions.md` under "Session 2."
+> Stay abstract — do **not** introduce environmental-monitoring domain terms. Build directly on `framework.md`'s vocabulary (entity, the four kinds of state, relationships, UUID identity). The decisions on the table and the candidate positions with their tradeoffs are pre-canvassed in `planning/steps.md` under "Step 2."
 >
 > Two decisions to close:
 >
@@ -96,18 +71,20 @@ Original Sessions 3–6 (Domain mapping → Data model & roadmap) shifted to Ses
 > Constraints:
 >
 > - One position per decision. Rejected alternatives go in ADR entries (one ADR per decision).
-> - Defer the _implementation_ shape (event store vs temporal tables vs append-only history tables) to Session 8 (stack).
-> - Do not pre-empt lifecycle rules, invariants, or authorization — those are Sessions 3 and 4.
-> - Do not pre-empt the per-entity history-pattern decisions — those are Session 5. Session 2 establishes the framework-level history infrastructure; Session 5 defines the menu of patterns entities choose from.
+> - Defer the _implementation_ shape (event store vs temporal tables vs append-only history tables) to Step 8 (stack).
+> - Do not pre-empt lifecycle rules, invariants, or authorization — those are Steps 3 and 4.
+> - Do not pre-empt the per-entity history-pattern decisions — those are Step 5. Step 2 establishes the framework-level history infrastructure; Step 5 defines the menu of patterns entities choose from.
 > - If you would push back on a framework commitment before answering, say so before writing.
 
 ## Pointers
 
 - Workflow protocol: `planning/_workflow.md`
 - File rules registry (generated): `planning/_file-rules.md`
-- Step plan: `planning/sessions.md`
+- Phase roster: `planning/phases.md`
+- Step list (current phase): `planning/steps.md`
+- Session conventions: `planning/sessions.md`
 - Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0006)
-- Framework (Session 1 output): `planning/framework.md`
-- Logic (Sessions 2–4 output, not yet written): `planning/logic.md`
-- History patterns (Session 5 output, not yet written): `planning/history-patterns.md`
+- Framework (Step 1 output): `planning/framework.md`
+- Logic (Steps 2–4 output, not yet written): `planning/logic.md`
+- History patterns (Step 5 output, not yet written): `planning/history-patterns.md`
 - File-location convention: planning artifacts live in `planning/`. `docs/` is reserved for user-facing documentation. `.claude/` is for harness configuration only.

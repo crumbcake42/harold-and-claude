@@ -1,185 +1,39 @@
-# Conceptualization Sessions
+# Session Conventions
 
 ## File contract
 
-**Holds:** Ordered list of steps within the current phase — goal, inputs, outputs, done-when criteria, and decision options pre-canvassed for each step.
-**Update when:** A step is added, split, reordered, or completed; phase restructuring occurs. Canonical step list; `handoff.md`'s next-session pointer references it by section heading.
-
-Ordered plan for the conceptualization phase of `sca-tracker`. Each session is sized to ~30–60 min and is independently runnable by a fresh Claude given `handoff.md` + `decisions.md` + the session prompt.
-
-The first five sessions are deliberately **domain-agnostic** — the goal is an abstract framework for entities, state, transitions, lifecycle/invariants, authorization, and history patterns before the environmental-monitoring domain is layered on.
+**Holds:** Durable conventions that apply to every session, regardless of phase or step — execution rules, the artifact-is-the-deliberation principle, and the note on session restructures. Does **not** hold the STOP-AND-CONFIRM gate (that lives in `handoff.md`) or the case-detection protocol (that lives in `_workflow.md`).
+**Update when:** A session execution rule changes; a new restructure pattern is established and worth preserving as a convention. This file is low-churn — most sessions leave it untouched.
 
 ---
 
-## Session 1 — Abstract entity & state framework
+## Session execution rules
 
-**Goal:** Define the abstract vocabulary the system will be built on (what is an "entity," what is "state," what is a "transition," what is a "relationship") without referencing the domain.
+These apply to every conceptualization session, in addition to the per-session prompt. They exist because the session-split structure assumes one decision is deliberated at a time, in the artifact — not pre-picked in chat and then justified.
 
-**Inputs:** `planning/handoff.md`, `planning/decisions.md`
+1. **The artifact is the deliberation.** Do not announce a position in chat before writing. Do not eliminate options before the doc canvasses them. Land positions only as the doc concludes.
+2. **Stay inside the session's scope.** If a justification for the current decision requires reaching into a later step (auth shape, storage choice, lifecycle vocabulary), that is a signal the position is not decidable yet — push back on the step boundary, do not cross it.
+3. **Treat prior ADRs as constraints to address, not exclusions to assume.** If a prior ADR appears to eliminate an option, name the tension inside the doc and deliberate it there. Do not dismiss the option in the pre-amble.
+4. **Push back, do not pre-empt.** If the framework or step prompt seems wrong, say so before writing. Do not compensate by quietly importing other-step reasoning.
 
-**Outputs:**
-- `planning/framework.md` — abstract framework doc
-- New ADR entries in `planning/decisions.md` for any framework choices that close off alternatives
-
-**Estimate:** 45–60 min
-
-**Done when:** Reading `framework.md` cold, you can answer: "what does it mean for something to be an entity in this system, and what kinds of state can it have?"
+Cross-conversation context: an incident on 2026-04-28 (Step 2 startup) produced these rules. Memory entry `feedback_no_preanswering.md` captures the same ground from the assistant's side; `handoff.md`'s STOP-AND-CONFIRM gate is the durable in-repo restatement.
 
 ---
 
-## Session 2 — Transitions & history-semantics
+## Note on session restructures
 
-**Goal:** Pick the unit of change at the logic layer and what each successful change leaves behind. These two decisions are coupled — picking "events as primary" for the unit largely forces "event-producing" for what's left behind — so they're discussed together.
+Steps are split when scope exceeds one session. When a split happens:
 
-**Decisions on the table:**
-- *Transition unit.* Direct writes, commands as named operations, or events as primary?
-  - *Direct writes.* Buys minimal abstraction; gives up a stable attachment point for guards/auth/history.
-  - *Commands.* Buys a named surface for auth/guards/history/lifecycle to hang off; gives up some upfront vocabulary cost.
-  - *Events as primary.* Buys automatic history; gives up read-side simplicity (projections, snapshots, schema-evolution overhead).
-- *History semantics.* Event-producing, state-mutating with mandatory history capture, or state-mutating with bolted-on audit log?
-  - *Event-producing.* Buys time-travel and integration-via-stream; gives up read-side simplicity.
-  - *State-mutating + mandatory capture.* Buys cheap current-state reads and first-class history; gives up cross-cutting enforcement (drift risk if a write skips capture).
-  - *State-mutating + audit log.* Buys minimal overhead. Note: ADR-0003's universal first-class-history commitment is superseded by ADR-0006 (per-entity decision). Audit-log as a per-entity pattern is now in scope for Session 5's menu. Session 2 should address whether it remains off the table as the framework-level default, and what that implies for the Session 5 menu.
+- Insert the sub-steps into `steps.md` at the appropriate point, numbered with a decimal suffix (e.g., Step 2.1, Step 2.2) or renumbered if the plan allows.
+- Update `handoff.md`'s Next session pointer to the first sub-step.
+- Record the restructure here: state the original step, what triggered the split, and the resulting sub-step list. This creates an audit trail without polluting `handoff.md`.
 
-**Inputs:** `framework.md`, `decisions.md`, `handoff.md`
+**Restructure log:**
 
-**Outputs:**
-- `planning/logic.md` — section on transitions and history semantics
-- ADR entries for: transition unit, history-leave-behind shape
+- **2026-04-28:** Original Step 2 ("Logic & invariants") stacked five large decisions into one block. Split into three steps to keep each decision deliberate:
+  - **Step 2** — Transitions & history-semantics (coupled pair, kept together)
+  - **Step 3** — Lifecycle rules & invariants (coupled pair, kept together)
+  - **Step 4** — Authorization
+  Original Steps 3–6 (Domain mapping → Data model & roadmap) shifted to Steps 5–8.
 
-**Estimate:** 45–60 min
-
-**Done when:** Reading the section cold, you can answer "what is the smallest named thing that changes state, and what does a successful change record?"
-
----
-
-## Session 3 — Lifecycle rules & invariants
-
-**Goal:** Decide how lifecycle transitions are specified and where invariants are declared and enforced. Coupled because lifecycle rules are temporal invariants — splitting them invites duplicated reasoning.
-
-**Decisions on the table:**
-- *Lifecycle specification.* Declarative state machine (graph per entity type), guards as command preconditions, or imperative handlers?
-  - *Declarative state machine.* Buys inspectability and model-checkability; gives up ceremony for trivial lifecycles.
-  - *Guards on commands.* Buys lightness; gives up a single readable lifecycle definition.
-  - *Imperative handlers.* Buys flexibility; gives up consistent lifecycle vocabulary across the system.
-- *Invariant declaration & enforcement layer.* On entities, on commands, on read schemas? Write-path only, read-path only, or both?
-  - *Write-path enforcement, command-rejection.* Buys clean atomicity boundary; gives up easy cross-entity invariant handling under concurrency.
-  - *Read-path only.* Buys flexibility; gives up trustworthy persisted state.
-  - *Both layers.* Buys defense in depth; gives up simplicity (two definitions, drift risk).
-- *Violation handling.* Reject, error-with-allow, warn, quarantine?
-
-**Inputs:** `framework.md`, `logic.md` (transitions section), `decisions.md`, `handoff.md`
-
-**Outputs:**
-- Append to `planning/logic.md` — section on lifecycle rules and invariants
-- ADR entries for: lifecycle specification, invariant enforcement layer, violation handling
-
-**Estimate:** 45–60 min
-
-**Done when:** Given an entity from `framework.md`, you can describe its lifecycle vocabulary, where its rules live, and what happens when a write would violate an invariant.
-
----
-
-## Session 4 — Authorization
-
-**Goal:** Pick the authorization shape and where the predicate lives. Concrete roles and relationships defer to domain mapping (Session 6).
-
-**Decisions on the table:**
-- *Primary axis.* Role-based (RBAC), relationship-based (ReBAC), predicate over (caller, command, target), or hybrid?
-  - *RBAC.* Buys simplicity and tooling; gives up natural relationship-based access ("the lead of X can edit X").
-  - *ReBAC.* Buys natural ownership/membership patterns; gives up off-the-shelf tooling, requires a relationship graph somewhere.
-  - *Predicate over (caller, command, target).* Buys generality (subsumes RBAC and ReBAC); gives up tooling and risks unbounded predicate complexity.
-- *Predicate location.* On commands, on entities, in a separate policy layer?
-- *Form.* Declarative (inspectable, testable) or imperative (code in handlers)?
-
-**Inputs:** `framework.md`, `logic.md`, `decisions.md`, `handoff.md`
-
-**Outputs:**
-- Append to `planning/logic.md` — section on authorization
-- ADR entry for the authorization shape
-
-**Estimate:** 30–45 min
-
-**Done when:** You can describe how a "can caller C do command X on entity E?" question is answered, in framework terms, without naming any concrete role or relationship.
-
----
-
-## Session 5 — History & auditing patterns
-
-**Goal:** Define the criteria that determine whether an entity needs historical state, and the menu of history patterns available for those that do. This session must complete before domain mapping — every entity definition in Session 6 requires an explicit history decision chosen from this menu.
-
-**Inputs:** `framework.md`, `logic.md`, `decisions.md`, `handoff.md`
-
-**Outputs:**
-- `planning/history-patterns.md` — the menu of available patterns; for each: what it captures, what it commits to structurally, what it gives up, and a prototype example of an entity that would use it
-- Selection criteria documenting how to choose between patterns, included in the same file
-- ADR entry recording the pattern set and selection criteria
-
-**Estimate:** 30–45 min
-
-**Done when:** Given any entity, you can point to one pattern from the menu and justify the choice using the documented criteria. "No history" is an explicit option. At least two substantively different history-carrying options are available.
-
----
-
-## Session 6 — Domain mapping
-
-**Goal:** Project the abstract framework onto the actual domain (project-state tracking at an environmental monitoring agency). First pass — identify the real entities, their states, their relationships. Don't worry about completeness; aim for the load-bearing 80%.
-
-**Constraint:** Every entity definition must include a history decision — choose one pattern from `history-patterns.md`. No entity may be defined without it.
-
-**Inputs:** `framework.md`, `logic.md`, `history-patterns.md`, `decisions.md`, `handoff.md`. User will supply domain context in the session prompt.
-
-**Outputs:**
-- `planning/domain-model.md` — the mapped domain, with history pattern noted per entity
-- ADR entries for domain shape decisions
-
-**Estimate:** 45–60 min
-
-**Done when:** A reader who knows the framework can name the top-level domain entities, how they relate, and which history pattern each carries.
-
----
-
-## Session 7 — MVP feature cut
-
-**Goal:** Decide what the proof-of-concept must demonstrate. Cut ruthlessly.
-
-**Inputs:** `domain-model.md`, `decisions.md`, `handoff.md`
-
-**Outputs:**
-- `planning/mvp.md` — in-scope vs. explicitly-out-of-scope features
-- ADR entry recording the MVP scope decision
-
-**Estimate:** 30–45 min
-
-**Done when:** `mvp.md` lists ≤7 must-have features, each one sentence, and a defensible "not now" list.
-
----
-
-## Session 8 — Stack & architecture
-
-**Goal:** Pick the stack and the architectural shape (monolith? service split? where does state live?). Decide only what the next session needs. History implementation shape (event store vs. append-only tables vs. temporal tables) is resolved here, informed by Session 5's pattern menu.
-
-**Inputs:** `mvp.md`, `framework.md`, `logic.md`, `history-patterns.md`, `decisions.md`, `handoff.md`
-
-**Outputs:**
-- ADR entries for: language/runtime, framework, persistence, deployment shape, history implementation shape
-- `planning/architecture.md` — one-page sketch (component boxes, data flow)
-
-**Estimate:** 45–60 min
-
-**Done when:** Each major stack/architecture choice has an ADR with at least one alternative considered.
-
----
-
-## Session 9 — Data model sketch & roadmap
-
-**Goal:** Conceptual data model (entities, attributes, relationships — **not** DDL) plus an implementation roadmap.
-
-**Inputs:** All prior planning files
-
-**Outputs:**
-- `planning/data-model.md` — conceptual model
-- `planning/roadmap.md` — ordered implementation milestones with rough sizing
-- Final ADR entry: "Conceptualization phase complete; implementation begins"
-
-**Done when:** Roadmap has dated milestones, and `handoff.md` is updated to point at the first implementation session.
+- **2026-04-29:** Step 5 (History & auditing patterns) added between Step 4 (authorization) and domain mapping. ADR-0003's universal history commitment narrowed by ADR-0006: historical state remains a named kind in the four-kind taxonomy but is now a per-entity decision from a defined menu. Choosing from the menu is required at entity definition time. Original Steps 5–8 (Domain mapping → Data model & roadmap) shifted to Steps 6–9.
