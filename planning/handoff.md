@@ -40,15 +40,17 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Last session summary
 
-**Step 2 — Transitions & history-semantics (2026-04-29).** Wrote `planning/logic.md` with the transitions and history-semantics sections. ADR-0007 (commands as transition unit) and ADR-0008 (state-mutating with mandatory history capture for entities declared history-carrying; capture is framework-enforced inside the command pipeline) appended to `decisions.md`. ADR-0006's per-entity history opt-out is honored — capture is mandatory only for entities declared history-carrying; non-history entities just mutate. Audit-log-as-pattern stays alive as a Step 5 menu option (opt-in, with a documented best-effort tradeoff), not the framework default. Coupling between the two decisions made explicit in `logic.md`. STOP-AND-CONFIRM gate revised: recommendations are now welcomed in chat — the gate is on writes (ADRs, planning files), not on opinions.
+**Step 3 — Lifecycle rules & invariants (2026-04-30).** Appended the lifecycle-and-invariants section to `planning/logic.md` (sub-sections for lifecycle specification, well-formedness invariants, violation handling, and a "cross-entity acknowledgement gating" pattern naming how the three ADRs combine) plus a short coupling section. ADR-0009 (lifecycle per entity type as a declarative state machine; commands declare the transition they effect), ADR-0010 (well-formedness invariants declared on the schema element they constrain; write-path enforcement in the command pipeline), and ADR-0011 (reject as the framework violation-handling default; quarantine deferred as a per-entity pattern) appended to `decisions.md`. User-supplied domain context (project tracking with three-layer state: base + inferred expectations, closeable gaps with per-requirement sign-off) reconciled abstractly — divergence between expected and actual outcomes is modeled as state via the four-kind taxonomy, not as a violation; the acknowledgement-gating pattern keeps sign-off structurally inescapable without committing to domain vocabulary. Quarantine-as-per-entity-pattern added to `logic.md`'s Deferred list.
 
 ## Open questions
 
 - History _implementation_ shape (event store, append-only history tables, temporal tables) — Step 8 (stack), informed by Step 5's pattern menu.
+- **Persistence isolation for cross-entity invariants** — what guarantee the persistence layer must provide so the command-pipeline invariant check is meaningful under concurrency (serializable transactions, optimistic locking, advisory locks, etc.). Step 8.
 - Per-entity history-pattern menu and selection criteria — Step 5, before domain mapping.
 - **Reference snapshotting:** when a history-carrying entity references a non-history entity (or another history-carrying one), what does the history record capture so the past reference remains interpretable? Surfaces as a Step 5 concern.
 - **History-pattern promotion path:** how does an entity get promoted from "no history" to "history-carrying" mid-life? Backfill is impossible (the past is lost) — only forward-history is achievable. Step 5 should address this explicitly when defining the pattern menu.
 - **Exact history-record contents** (full before/after vs. command + payload only vs. deltas) — varies per Step 5 pattern.
+- **Quarantine as a per-entity violation-handling pattern** — whether to commission it (and on what criteria); ADR-0011 hedges between Step 5 and a later step.
 - Cross-system identity (do our UUIDs need to be stable across other agency systems?) — Step 6.
 - Soft-delete vs. hard-delete policy — likely regulatory; Step 6.
 - Concrete lifecycle vocabularies per entity — Step 6, once entities exist.
@@ -57,26 +59,26 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Next session
 
-**Step 3 — Lifecycle rules & invariants.** See `planning/steps.md` for the full brief (decisions on the table + candidate positions with tradeoffs).
+**Step 4 — Authorization.** See `planning/steps.md` for the full brief (decisions on the table + candidate positions with tradeoffs).
 
 ### Prompt for the next session
 
-> Produce the lifecycle-and-invariants section of `planning/logic.md` (append) and ADR entries closing off the three coupled decisions.
+> Produce the authorization section of `planning/logic.md` (append) and a single ADR closing off the authorization shape.
 >
-> Stay abstract — do **not** introduce environmental-monitoring domain terms. Build directly on `framework.md` (lifecycle status as its own state kind) and `logic.md`'s transitions section (commands as the unit of change; rules attach to commands). The decisions on the table and the candidate positions with their tradeoffs are pre-canvassed in `planning/steps.md` under "Step 3."
+> Stay abstract — do **not** introduce environmental-monitoring domain terms. Build directly on `framework.md` (entities, identity) and `logic.md`'s transitions, history-semantics, and lifecycle-and-invariants sections (commands as the unit of change; cross-cutting concerns attach to commands; the command pipeline rejects on rule/invariant violation). The questions on the table and the candidate positions with their tradeoffs are pre-canvassed in `planning/steps.md` under "Step 4."
 >
-> Three decisions to close (coupled — lifecycle rules are temporal invariants, splitting them invites duplicated reasoning):
+> Three coupled sub-questions to close in one ADR:
 >
-> 1. **Lifecycle specification.** Declarative state machine per entity type, guards as command preconditions, or imperative handlers?
-> 2. **Invariant declaration & enforcement layer.** On entities, on commands, on read schemas? Write-path only, read-path only, or both?
-> 3. **Violation handling.** Reject, error-with-allow, warn, quarantine?
+> 1. **Primary axis.** Role-based (RBAC), relationship-based (ReBAC), predicate over (caller, command, target), or hybrid?
+> 2. **Predicate location.** On commands, on entities, in a separate policy layer?
+> 3. **Form.** Declarative (inspectable, testable) or imperative (code in handlers)?
 >
 > Constraints:
 >
-> - One position per decision. Rejected alternatives go in ADR entries (one ADR per decision).
-> - Lifecycle rules attach to commands (per ADR-0007) — work with that surface, do not relitigate it. If you find a tension, name it inside the doc and deliberate it there (per `sessions.md` rule 3).
-> - Do not pre-empt authorization (Step 4) or per-entity history-pattern decisions (Step 5).
-> - Concrete lifecycle vocabularies per entity (`draft → active → archived`, etc.) are deferred to Step 6 — Step 3 picks the *shape* of lifecycle specification, not the contents.
+> - One ADR for the authorization shape. Group rejected alternatives by sub-question inside the ADR.
+> - Authorization predicates attach to commands (per ADR-0007) — the predicate is checked as part of the command pipeline, alongside lifecycle and invariant checks. Work with that surface, do not relitigate it. If you find a tension, name it inside the doc and deliberate it there (per `sessions.md` rule 3).
+> - Concrete roles and relationships are deferred to Step 6. Step 4 picks the *shape* of the authorization predicate, not the contents.
+> - Do not pre-empt per-entity history-pattern decisions (Step 5).
 > - If you would push back on a framework or `logic.md` commitment before answering, say so before writing.
 
 ## Pointers
@@ -86,8 +88,8 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 - Phase roster: `planning/phases.md`
 - Step list (current phase): `planning/steps.md`
 - Session conventions: `planning/sessions.md`
-- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0008)
+- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0011)
 - Framework (Step 1 output): `planning/framework.md`
-- Logic (Steps 2–4 output; Step 2 sections written, Steps 3–4 to append): `planning/logic.md`
+- Logic (Steps 2–4 output; Steps 2–3 sections written, Step 4 to append): `planning/logic.md`
 - History patterns (Step 5 output, not yet written): `planning/history-patterns.md`
 - File-location convention: planning artifacts live in `planning/`. `docs/` is reserved for user-facing documentation. `.claude/` is for harness configuration only.
