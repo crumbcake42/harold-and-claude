@@ -40,13 +40,16 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Last session summary
 
-**Step 1 — Abstract entity & state framework (2026-04-28).** Wrote `planning/framework.md` with one position per question (entity definition, four-kind state taxonomy, relationship defaults, identity policy). Added ADR-0002 through ADR-0005 capturing the rejected alternatives. Framework is intentionally thin — it commits to vocabulary, not modeling structure, so Step 3 has room to push back when the domain lands. History implementation shape, cross-system identity, soft-delete policy, and concrete lifecycle vocabularies are explicitly deferred (see "Deferred" section in `framework.md`).
+**Step 2 — Transitions & history-semantics (2026-04-29).** Wrote `planning/logic.md` with the transitions and history-semantics sections. ADR-0007 (commands as transition unit) and ADR-0008 (state-mutating with mandatory history capture for entities declared history-carrying; capture is framework-enforced inside the command pipeline) appended to `decisions.md`. ADR-0006's per-entity history opt-out is honored — capture is mandatory only for entities declared history-carrying; non-history entities just mutate. Audit-log-as-pattern stays alive as a Step 5 menu option (opt-in, with a documented best-effort tradeoff), not the framework default. Coupling between the two decisions made explicit in `logic.md`. STOP-AND-CONFIRM gate revised: recommendations are now welcomed in chat — the gate is on writes (ADRs, planning files), not on opinions.
 
 ## Open questions
 
-- History _implementation_ shape (event store, append-only history tables, temporal tables) — deferred to Step 8 (stack). Step 2 commits the logic-layer semantics; Step 8 picks the storage.
-- History patterns menu — the available per-entity history patterns and selection criteria are defined in Step 5, before domain mapping. TBD.
-- Cross-system identity (do our UUIDs need to be stable across other agency systems?) — deferred to Step 6 (domain mapping).
+- History _implementation_ shape (event store, append-only history tables, temporal tables) — Step 8 (stack), informed by Step 5's pattern menu.
+- Per-entity history-pattern menu and selection criteria — Step 5, before domain mapping.
+- **Reference snapshotting:** when a history-carrying entity references a non-history entity (or another history-carrying one), what does the history record capture so the past reference remains interpretable? Surfaces as a Step 5 concern.
+- **History-pattern promotion path:** how does an entity get promoted from "no history" to "history-carrying" mid-life? Backfill is impossible (the past is lost) — only forward-history is achievable. Step 5 should address this explicitly when defining the pattern menu.
+- **Exact history-record contents** (full before/after vs. command + payload only vs. deltas) — varies per Step 5 pattern.
+- Cross-system identity (do our UUIDs need to be stable across other agency systems?) — Step 6.
 - Soft-delete vs. hard-delete policy — likely regulatory; Step 6.
 - Concrete lifecycle vocabularies per entity — Step 6, once entities exist.
 - Concrete authorization roles and relationships — Step 6. Step 4 picks the shape; the predicates land in Step 6.
@@ -54,28 +57,27 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Next session
 
-**Step 2 — Transitions & history-semantics.** See `planning/steps.md` for the full brief (decisions on the table + candidate positions with tradeoffs).
+**Step 3 — Lifecycle rules & invariants.** See `planning/steps.md` for the full brief (decisions on the table + candidate positions with tradeoffs).
 
 ### Prompt for the next session
 
-> Produce the transitions-and-history-semantics section of `planning/logic.md` and ADR entries closing off the two coupled decisions.
+> Produce the lifecycle-and-invariants section of `planning/logic.md` (append) and ADR entries closing off the three coupled decisions.
 >
-> Stay abstract — do **not** introduce environmental-monitoring domain terms. Build directly on `framework.md`'s vocabulary (entity, the four kinds of state, relationships, UUID identity). The decisions on the table and the candidate positions with their tradeoffs are pre-canvassed in `planning/steps.md` under "Step 2."
+> Stay abstract — do **not** introduce environmental-monitoring domain terms. Build directly on `framework.md` (lifecycle status as its own state kind) and `logic.md`'s transitions section (commands as the unit of change; rules attach to commands). The decisions on the table and the candidate positions with their tradeoffs are pre-canvassed in `planning/steps.md` under "Step 3."
 >
-> Two decisions to close:
+> Three decisions to close (coupled — lifecycle rules are temporal invariants, splitting them invites duplicated reasoning):
 >
-> 1. **Transition unit.** Direct writes, commands as named operations, or events as primary?
-> 2. **History semantics.** Event-producing, state-mutating with mandatory history capture, or state-mutating with bolted-on audit log?
->
-> The two are coupled — picking "events as primary" in (1) largely forces "event-producing" in (2). Be explicit about the coupling in the doc.
+> 1. **Lifecycle specification.** Declarative state machine per entity type, guards as command preconditions, or imperative handlers?
+> 2. **Invariant declaration & enforcement layer.** On entities, on commands, on read schemas? Write-path only, read-path only, or both?
+> 3. **Violation handling.** Reject, error-with-allow, warn, quarantine?
 >
 > Constraints:
 >
 > - One position per decision. Rejected alternatives go in ADR entries (one ADR per decision).
-> - Defer the _implementation_ shape (event store vs temporal tables vs append-only history tables) to Step 8 (stack).
-> - Do not pre-empt lifecycle rules, invariants, or authorization — those are Steps 3 and 4.
-> - Do not pre-empt the per-entity history-pattern decisions — those are Step 5. Step 2 establishes the framework-level history infrastructure; Step 5 defines the menu of patterns entities choose from.
-> - If you would push back on a framework commitment before answering, say so before writing.
+> - Lifecycle rules attach to commands (per ADR-0007) — work with that surface, do not relitigate it. If you find a tension, name it inside the doc and deliberate it there (per `sessions.md` rule 3).
+> - Do not pre-empt authorization (Step 4) or per-entity history-pattern decisions (Step 5).
+> - Concrete lifecycle vocabularies per entity (`draft → active → archived`, etc.) are deferred to Step 6 — Step 3 picks the *shape* of lifecycle specification, not the contents.
+> - If you would push back on a framework or `logic.md` commitment before answering, say so before writing.
 
 ## Pointers
 
@@ -84,8 +86,8 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 - Phase roster: `planning/phases.md`
 - Step list (current phase): `planning/steps.md`
 - Session conventions: `planning/sessions.md`
-- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0006)
+- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0008)
 - Framework (Step 1 output): `planning/framework.md`
-- Logic (Steps 2–4 output, not yet written): `planning/logic.md`
+- Logic (Steps 2–4 output; Step 2 sections written, Steps 3–4 to append): `planning/logic.md`
 - History patterns (Step 5 output, not yet written): `planning/history-patterns.md`
 - File-location convention: planning artifacts live in `planning/`. `docs/` is reserved for user-facing documentation. `.claude/` is for harness configuration only.

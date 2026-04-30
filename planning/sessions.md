@@ -11,12 +11,12 @@
 
 These apply to every conceptualization session, in addition to the per-session prompt. They exist because the session-split structure assumes one decision is deliberated at a time, in the artifact — not pre-picked in chat and then justified.
 
-1. **The artifact is the deliberation.** Do not announce a position in chat before writing. Do not eliminate options before the doc canvasses them. Land positions only as the doc concludes.
+1. **The artifact is the deliberation.** The doc is where positions land — once it concludes a position and the user approves, the position is committed. Recommendations in chat are welcome (and expected when canvassing decisions per the STOP-AND-CONFIRM gate); they do not pre-decide. The anti-pattern this rule guards against is *writing a position into a planning file before the user has agreed*, and *eliminating options before the doc canvasses them*. Both remain prohibited.
 2. **Stay inside the session's scope.** If a justification for the current decision requires reaching into a later step (auth shape, storage choice, lifecycle vocabulary), that is a signal the position is not decidable yet — push back on the step boundary, do not cross it.
 3. **Treat prior ADRs as constraints to address, not exclusions to assume.** If a prior ADR appears to eliminate an option, name the tension inside the doc and deliberate it there. Do not dismiss the option in the pre-amble.
 4. **Push back, do not pre-empt.** If the framework or step prompt seems wrong, say so before writing. Do not compensate by quietly importing other-step reasoning.
 
-Cross-conversation context: an incident on 2026-04-28 (Step 2 startup) produced these rules. Memory entry `feedback_no_preanswering.md` captures the same ground from the assistant's side; `handoff.md`'s STOP-AND-CONFIRM gate is the durable in-repo restatement.
+Cross-conversation context: an incident on 2026-04-28 (Step 2 startup) produced these rules. `handoff.md`'s STOP-AND-CONFIRM gate is the durable in-repo restatement.
 
 ---
 

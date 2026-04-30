@@ -100,3 +100,29 @@ Entries are numbered sequentially. Once `accepted`, do not edit in place — sup
   - *No explicit history category; treat as per-entity bolt-on with no framework guidance.* Rejected — reverts to the undisciplined approach ADR-0003 was written to prevent. Without a defined menu and a forcing function at entity-definition time, history decisions will be inconsistent and some needs will be missed.
   - *Entities-first: define all entities, then assess history needs in a single review pass.* Rejected as the workflow for this project — at the expected entity count, the review pass degrades in thoroughness and risks structural rework if history decisions require relationship changes after the entity model is set.
 - **Consequences:** The four-kind state taxonomy is preserved; "historical" remains a named kind. A dedicated session (Session 5) defines the menu of available history patterns and the criteria for choosing before domain mapping begins. Choosing from the menu is required for every entity — no entity may be defined without a history decision. History implementation shape for entities that carry history remains deferred to the stack session (Session 8).
+
+---
+
+## ADR-0007 — Use commands as the unit of change at the logic layer
+
+- **Date:** 2026-04-29
+- **Decision:** Every state change in the system is invoked through a named *command* — `(caller, named operation, target entity, payload)`. Direct writes against entity records are not part of the API surface. The framework either rejects a command (with a reason) or applies it (producing the new entity state and, where applicable, a history record).
+- **Status:** accepted
+- **Context:** Step 2 needed to pick the smallest named thing the logic layer admits as a state change. Without a uniform unit, lifecycle rules, invariants, authorization, and history capture each need ad-hoc attachment points on every write site, with predictable drift over time. The choice of unit governs the surface that Steps 3 and 4 will hang off.
+- **Alternatives considered:**
+  - *Direct writes.* Rejected — no named attachment surface for guards, authorization, lifecycle, or history. Each cross-cutting concern would need its own intercept on every write site, drift between sites is near-certain, and the framework loses the surface that's the point of having a logic layer.
+  - *Events as primary.* Rejected — strongest when history is universal; ADR-0006 made history per-entity, so events-as-primary inherits read-side projection cost (current state derived, schema evolution touches replays, snapshots become a separate concern) without compensating universal-history benefit. The per-entity history opt-out also becomes awkward — events get emitted regardless of whether the entity is declared history-carrying.
+- **Consequences:** Every state change earns a name (vocabulary cost is paid at definition time). Commands are the uniform attachment surface for the cross-cutting concerns Steps 3 and 4 will define. Multi-step atomic operations are themselves commands; partial application is not a framework outcome. Direct entity writes are not part of the API surface, even for trivial attribute edits.
+
+---
+
+## ADR-0008 — A successful command on a history-carrying entity mutates state and writes a history record in the same transaction; capture is framework-enforced
+
+- **Date:** 2026-04-29
+- **Decision:** For entities declared history-carrying (per ADR-0006), a successful command both mutates the entity record and writes a history record atomically. Capture is structurally enforced inside the command pipeline — it is not opt-in per command handler. For entities not declared history-carrying, a successful command just mutates the entity record. Bolted-on audit log is **not** the framework-level default; it remains available as a Step 5 *pattern* for entities whose accountability needs are explicitly best-effort.
+- **Status:** accepted
+- **Context:** Step 2 needed to specify what a successful command leaves behind for entities that carry history. Three positions on the table: event-producing, state-mutating with mandatory capture, state-mutating with bolted-on audit log. ADR-0006 had already softened ADR-0003's universal history commitment to a per-entity decision, so the question is the framework-level mechanism *for entities that do carry history* — Step 5's menu picks per-entity patterns from that mechanism.
+- **Alternatives considered:**
+  - *Event-producing.* Rejected — current-state reads become projections (schema evolution touches replays, snapshots become a separate concern), and ADR-0006's per-entity opt-out is awkward to honor when events are produced universally by construction.
+  - *State-mutating with bolted-on audit log as the framework-level default.* Rejected — exactly the structural failure mode ADR-0003 was originally written against. ADR-0006 softened ADR-0003 to "history is per-entity," not "history capture is best-effort." Once an entity is declared history-carrying, capture must be inescapable from the call site, or the declaration is meaningless.
+- **Consequences:** For history-carrying entities, the state mutation and the history record are atomic — a command cannot succeed without producing the history record, and cannot produce the history record without succeeding. Current state remains the system of record; reads consult the entity record directly. Audit-log-as-pattern remains in scope as a Step 5 menu option for entities whose accountability needs are explicitly best-effort, but it is an opt-in pattern with a documented tradeoff, not the framework default. The exact contents of the history record (full before/after, command + payload only, deltas) and reference-snapshotting behavior are deferred to Step 5. Implementation shape (event store / temporal tables / append-only history tables) deferred to Step 8.
