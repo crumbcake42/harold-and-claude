@@ -2,7 +2,7 @@
 
 *Generated index — do not edit manually. Regenerate by following the procedure in `planning/_workflow.md` (`_file-rules.md` regeneration procedure). Trigger: any `## File contract` block changes, or stale detection during Path B.*
 
-*Last regenerated: 2026-04-29*
+*Last regenerated: 2026-05-01*
 
 ---
 
@@ -45,6 +45,13 @@
 
 **Holds:** Logic-layer semantics — the unit of change (transitions section), what successful changes leave behind (history-semantics section), and Steps 3 (lifecycle/invariants) and 4 (authorization) outputs as they land. Domain-agnostic; builds on `framework.md`'s vocabulary.
 **Update when:** A logic-layer decision is finalized (Steps 2/3/4 each append a section); a logic-layer decision is revised (requires a superseding ADR in `decisions.md` before editing).
+
+---
+
+## history-patterns.md
+
+**Holds:** The menu of per-entity history patterns and the selection criteria for choosing between them. Established in Step 5 before domain mapping. Every entity defined in Step 6 must choose from this menu.
+**Update when:** A pattern is added, removed, or revised (requires a superseding ADR in `decisions.md` before editing). Selection criteria may be refined during domain mapping if edge cases surface, but the pattern set itself is stable.
 
 ---
 

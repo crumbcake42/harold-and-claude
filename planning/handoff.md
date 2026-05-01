@@ -40,53 +40,48 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Last session summary
 
-**Step 4 — Authorization (2026-05-01).** Appended the authorization section to `planning/logic.md` (sub-sections for predicate shape, declaration site, form, pipeline position, deferred concrete predicates) plus a coupling section showing how authorization, lifecycle, and invariants form a unified declarative pipeline. ADR-0012 (authorization predicates are declarative expressions over (caller, command, target), declared per command, evaluated first in the pipeline) appended to `decisions.md`. Three coupled sub-questions closed in one ADR: primary axis is predicate over (caller, command, target) — subsumes RBAC and ReBAC without committing to either; declaration site is on commands — differs from invariants because authorization is inherently per-command; form is declarative — consistent with lifecycle and invariants. Pipeline evaluation order now defined: authorization → lifecycle → apply → invariants → commit.
+**Step 5 — History & auditing patterns (2026-05-01).** Created `planning/history-patterns.md` with a four-pattern menu: (1) no history, (2) audit log, (3) comprehensive capture, (4) lifecycle capture. Patterns 1–2 are not history-carrying; patterns 3–4 are. Lifecycle capture refines ADR-0008's scope — only lifecycle-affecting commands produce history records, but capture within that scope remains mandatory and framework-enforced. ADR-0013 appended to `decisions.md` recording the pattern set, selection criteria, and positions on all four open questions. Reference snapshotting settled: typed UUIDs only, no denormalized copies. Promotion path documented: forward-only, no backfill. Quarantine excluded from the history menu — it's a violation-handling concern orthogonal to history, remains deferred per ADR-0011.
 
 ## Open questions
 
-- Per-entity history-pattern menu and selection criteria — Step 5, before domain mapping.
-- **Reference snapshotting:** when a history-carrying entity references a non-history entity (or another history-carrying one), what does the history record capture so the past reference remains interpretable? Surfaces as a Step 5 concern.
-- **History-pattern promotion path:** how does an entity get promoted from "no history" to "history-carrying" mid-life? Backfill is impossible (the past is lost) — only forward-history is achievable. Step 5 should address this explicitly when defining the pattern menu.
-- **Exact history-record contents** (full before/after vs. command + payload only vs. deltas) — varies per Step 5 pattern.
-- **Quarantine as a per-entity violation-handling pattern** — whether to commission it (and on what criteria); ADR-0011 hedges between Step 5 and a later step.
 - Cross-system identity (do our UUIDs need to be stable across other agency systems?) — Step 6.
 - Soft-delete vs. hard-delete policy — likely regulatory; Step 6.
 - Concrete lifecycle vocabularies per entity — Step 6, once entities exist.
 - Concrete authorization roles, relationships, and per-command predicates — Step 6. ADR-0012 picks the shape; the contents land in Step 6.
-- History _implementation_ shape (event store, append-only history tables, temporal tables) — Step 8 (stack), informed by Step 5's pattern menu.
+- **Quarantine as a per-entity violation-handling pattern** — excluded from the history-pattern menu (ADR-0013); remains deferred per ADR-0011. Could be commissioned as a separate per-entity declaration at Step 6 or a later step if specific entities warrant it.
+- History _implementation_ shape (event store, append-only history tables, temporal tables) — Step 8 (stack), informed by Step 5's pattern menu (now written).
 - **Persistence isolation for cross-entity invariants** — what guarantee the persistence layer must provide so the command-pipeline invariant check is meaningful under concurrency (serializable transactions, optimistic locking, advisory locks, etc.). Step 8.
 - Whether the existing `backend/` and `frontend/` directories get deleted or repurposed — first implementation step.
 
 ## Next session
 
-**Step 5 — History & auditing patterns.** See `planning/steps.md` for the full brief.
+**Step 6 — Domain mapping.** See `planning/steps.md` for the full brief.
 
 ### Prompt for the next session
 
-> Produce `planning/history-patterns.md` and a single ADR recording the pattern set and selection criteria.
+> Project the abstract framework onto the environmental-monitoring agency domain. Produce `planning/domain-model.md`.
 >
-> Stay abstract — do **not** introduce environmental-monitoring domain terms. Build on `framework.md` (four-kind state taxonomy, per-entity history decision at definition time), `logic.md` (commands as unit of change, mandatory capture for history-carrying entities via the command pipeline, authorization/lifecycle/invariant pipeline), and the existing ADRs — especially ADR-0006 (per-entity history decision from a defined menu), ADR-0008 (state-mutating with mandatory capture; bolted-on audit log preserved as an opt-in pattern).
+> Build on all prior planning artifacts: `framework.md` (entity/state/relationship/identity vocabulary), `logic.md` (commands, lifecycle, invariants, authorization pipeline), `history-patterns.md` (four-pattern menu and selection criteria), and all ADRs (0001–0013).
 >
 > Deliverables:
 >
-> 1. **`planning/history-patterns.md`** — the menu of available history patterns. For each pattern: what it captures, what it commits to structurally, what it gives up, and a prototype example (abstract, not domain-specific) of an entity that would use it. "No history" must be an explicit option. At least two substantively different history-carrying options.
-> 2. **Selection criteria** — documented in the same file. How to choose between patterns given an entity's characteristics.
-> 3. **One ADR** recording the pattern set and selection criteria.
->
-> Open questions to address:
->
-> - **Reference snapshotting:** when a history-carrying entity references another entity, what does the history record capture so the past reference remains interpretable?
-> - **History-pattern promotion path:** how does an entity move from "no history" to "history-carrying" mid-life? Backfill is impossible — only forward-history is achievable.
-> - **Exact history-record contents** — what each pattern captures (full before/after, command + payload only, deltas) should vary per pattern.
-> - **Quarantine as a per-entity pattern** — whether to include it in the pattern menu (per ADR-0011's deferral).
+> 1. **`planning/domain-model.md`** — the mapped domain. For each entity: name, what it is, its state kinds (intrinsic attributes, lifecycle states if any, derived state if any), relationships to other entities, and the history pattern chosen from `history-patterns.md` with a one-line justification using the selection criteria.
+> 2. **ADR entries** for domain-shape decisions that close off alternatives.
 >
 > Constraints:
 >
-> - One ADR for the pattern set. Include selection criteria in the ADR's consequences.
-> - Every entity defined in Step 6 must choose from this menu — design the menu with that forcing function in mind.
-> - Do not commit to implementation shape (event store / temporal tables / append-only) — that's Step 8.
-> - Audit-log-as-pattern is already preserved as an option per ADR-0008 — include it in the menu if warranted, with its documented tradeoff.
-> - If you would push back on a framework or `logic.md` commitment before answering, say so before writing.
+> - Every entity must have a history-pattern assignment. No entity may be defined without one.
+> - Aim for the load-bearing 80% of the domain, not completeness. Lookup tables and edge-case entities can be added later.
+> - Concrete lifecycle vocabularies (the actual state names per entity type) should be defined here — Step 3 picked the shape; this step fills in the contents.
+> - Concrete authorization roles, relationships, and per-command predicates should be defined here — Step 4 picked the shape; this step fills in the contents.
+> - Address the deferred open questions that land in Step 6: cross-system identity, soft-delete vs. hard-delete policy.
+> - The user will supply domain context in the session. Ask if needed before writing.
+>
+> Open questions to address:
+>
+> - **Cross-system identity:** do our UUIDs need to be stable across other agency systems, or are external IDs just intrinsic attributes?
+> - **Soft-delete vs. hard-delete policy:** likely regulatory — what does the domain require?
+> - **Quarantine:** does any specific entity warrant commissioning quarantine as a violation-handling override (per ADR-0011's deferral, excluded from history menu by ADR-0013)?
 
 ## Pointers
 
@@ -95,8 +90,8 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 - Phase roster: `planning/phases.md`
 - Step list (current phase): `planning/steps.md`
 - Session conventions: `planning/sessions.md`
-- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0012)
+- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0013)
 - Framework (Step 1 output): `planning/framework.md`
 - Logic (Steps 2–4 output; all sections written): `planning/logic.md`
-- History patterns (Step 5 output, not yet written): `planning/history-patterns.md`
+- History patterns (Step 5 output): `planning/history-patterns.md`
 - File-location convention: planning artifacts live in `planning/`. `docs/` is reserved for user-facing documentation. `.claude/` is for harness configuration only.
