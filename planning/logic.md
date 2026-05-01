@@ -114,9 +114,87 @@ Lifecycle rules and well-formedness invariants share the same enforcement surfac
 
 ---
 
+## Authorization
+
+**The authorization predicate is a declarative expression over `(caller, command, target)`, declared on each command. The command pipeline evaluates it before any other check — lifecycle, invariant, or history capture.**
+
+### Predicate shape
+
+Authorization answers one question: *may caller C execute command X against target entity T?* The predicate is a function of three inputs:
+
+- **Caller** — the identity requesting the command. The predicate may reference properties of the caller, including role assignments.
+- **Command** — the named operation. The predicate is declared per command, so the command identity is implicit in the declaration — but it is an explicit input to the pipeline's authorization check.
+- **Target** — the entity the command acts on. The predicate may reference properties of the target, including its lifecycle status and intrinsic attributes.
+
+The predicate may additionally reference **relationships between caller and target** — typed references per `framework.md`'s relationship model. This subsumes both role-based access (predicate checks caller roles) and relationship-based access (predicate checks caller-target relationships) without committing to either as the primary mechanism. The domain (Step 6) decides which inputs each command's predicate actually uses.
+
+### Declaration site
+
+Authorization predicates are declared on commands. Each command carries its own authorization predicate.
+
+This differs from well-formedness invariants (ADR-0010), which are declared on the schema element they constrain. The difference is structural: invariants constrain entity state regardless of which command produced it — the same invariant applies to every command touching the entity. Authorization constrains *who may execute this specific operation* — different commands on the same entity have different authorization requirements by nature. Declaring on the entity type would force a default-plus-override pattern (two declaration sites), which is what ADR-0010 rejected for invariants on the same structural grounds.
+
+### Form
+
+Authorization predicates are declarative — data, not code. Each predicate is an expression composed from a known vocabulary of predicate primitives:
+
+- Caller properties (role assignments)
+- Target properties (lifecycle status, intrinsic attributes)
+- Caller-target relationships (typed references per `framework.md`)
+- Logical connectives (and, or, not)
+
+The primitive vocabulary is extensible at the framework level; the concrete values (which roles, which relationships, which attributes) are filled in at domain mapping time (Step 6). The framework commits to the form, not the contents.
+
+Declarative form enables:
+
+- **Static analysis:** "which commands can caller C execute?" is a query over predicate definitions, not a code-reading exercise.
+- **Auditing:** the full authorization surface is inspectable without executing handlers.
+- **Testing:** predicates can be evaluated against test inputs without constructing handler contexts.
+
+This is consistent with lifecycle specification (declarative state machine, ADR-0009) and invariant declaration (declarative on schema elements, ADR-0010). All three cross-cutting concerns that attach to the command pipeline are declarative.
+
+### Pipeline position
+
+Authorization is evaluated first in the command pipeline — before lifecycle checks, before the proposed change is applied, before invariant validation. If the caller is not authorized, the command is rejected immediately; the pipeline does not evaluate whether the transition is valid or the resulting state well-formed.
+
+The full pipeline order for a command:
+
+1. **Authorization** — evaluate the command's declarative predicate against (caller, command, target). Reject if the predicate is not satisfied.
+2. **Lifecycle** — if the command declares a lifecycle transition, validate against the entity's state machine (per ADR-0009). Reject if the transition is not permitted from the current state.
+3. **Apply** — apply the proposed state change.
+4. **Invariants** — revalidate well-formedness invariants over the proposed state (per ADR-0010). Reject if any invariant fails; the proposed change is not persisted.
+5. **Commit** — persist the state change and, for history-carrying entities, the history record (per ADR-0008).
+
+Rejection at any step produces no mutation, no history record, and a rejection reason to the caller (per ADR-0011).
+
+### Concrete roles, relationships, and predicates — deferred
+
+Step 4 picks the *shape* of the authorization predicate. The concrete contents — which roles exist, which relationships carry authorization significance, which predicates each command declares — are deferred to Step 6 (domain mapping). The framework provides the predicate language; the domain provides the vocabulary.
+
+---
+
+## Coupling: authorization, lifecycle, invariants, and the command pipeline
+
+Authorization is the third declarative cross-cutting concern on the command pipeline, alongside lifecycle (ADR-0009) and invariants (ADR-0010). All three share key properties:
+
+- **Declarative:** each is data, not code — inspectable, testable, statically analyzable.
+- **Pipeline-enforced:** each is checked by the pipeline, not by individual command handlers.
+- **Binary outcome on failure:** each produces command rejection with a reason; no partial application, no mutation, no history record.
+
+They differ in declaration site and evaluation timing:
+
+| Concern | Declared on | Evaluated | What it constrains |
+|---|---|---|---|
+| Authorization | Command | Before state evaluation | Who may request this operation |
+| Lifecycle | Entity type (state machine) | Before state mutation | Whether this transition is permitted from the current state |
+| Well-formedness invariants | Entity type or relationship type | After proposed state change, before commit | Whether the resulting state is valid |
+
+The pipeline order is not arbitrary. Authorization rejects before the system reveals any state information via lifecycle or invariant checks. Lifecycle rejects before the system applies a change that can't happen from the current state. Invariants reject after application but before persistence, catching violations the other two checks can't anticipate.
+
+---
+
 ## Deferred — later steps
 
-- **Authorization predicate** — how "can caller C run command X against target T" is answered. Step 4.
 - **Per-entity history pattern menu and selection criteria** — what a history record contains for any given entity, and how to choose. Step 5.
 - **Implementation shape for entities that carry history** — event store / temporal tables / append-only history tables. Step 8.
 - **Reference snapshotting** — when a history-carrying entity references a non-history entity (or another history-carrying one), what gets captured in the history record so that the past reference remains interpretable. Surfaces as a Step 5 concern.
