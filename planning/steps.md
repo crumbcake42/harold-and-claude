@@ -123,19 +123,78 @@ The first five steps are deliberately **domain-agnostic** — the goal is an abs
 
 ## Step 6 — Domain mapping
 
-**Goal:** Project the abstract framework onto the actual domain (project-state tracking at an environmental monitoring agency). First pass — identify the real entities, their states, their relationships. Don't worry about completeness; aim for the load-bearing 80%.
+**Goal:** Project the abstract framework onto the actual domain (project-state tracking at an environmental monitoring agency). Identify the real entities, their states, lifecycles, relationships, and authorization predicates. Aim for the load-bearing 80%.
 
 **Constraint:** Every entity definition must include a history decision — choose one pattern from `history-patterns.md`. No entity may be defined without it.
 
-**Inputs:** `framework.md`, `logic.md`, `history-patterns.md`, `decisions.md`, `handoff.md`. User will supply domain context in the step prompt.
+**Done when:** A reader who knows the framework can name the top-level domain entities, how they relate, their lifecycle vocabularies, their authorization predicates, and which history pattern each carries.
+
+Split into four sub-sessions (6a–6d). Domain context collected in the opening discussion is carried forward in `handoff.md`.
+
+---
+
+### Step 6a — Entity identification
+
+**Goal:** Identify the domain entities, their intrinsic attributes, and their history-pattern assignments. Address cross-system identity and soft-delete/hard-delete as they bear on entity shape.
+
+**Inputs:** `framework.md`, `history-patterns.md`, `decisions.md`, `handoff.md` (domain context from Step 6 opening discussion).
 
 **Outputs:**
-- `planning/domain-model.md` — the mapped domain, with history pattern noted per entity
-- ADR entries for domain shape decisions
+- Entity catalog in chat (entities, intrinsic attributes, history pattern per entity with justification)
+- Positions on cross-system identity and soft-delete/hard-delete
+
+**Estimate:** 30–45 min
+
+**Done when:** The entity list is agreed, each entity has a history-pattern assignment, and cross-system identity and soft-delete/hard-delete are resolved.
+
+---
+
+### Step 6b — Workflows & lifecycles
+
+**Goal:** Map key workflows to command sequences and concrete lifecycle state machines per entity. Covers: scheduling, sample collection, lab results, document preparation, scope extension, chain-of-custody error handling.
+
+**Inputs:** Step 6a output (via `handoff.md`), `logic.md` (lifecycle/command/invariant sections), `decisions.md`.
+
+**Outputs:**
+- Concrete lifecycle vocabularies (state names, transitions) per entity type
+- Named commands per entity type
+- Invariant declarations (intra-entity and cross-entity)
 
 **Estimate:** 45–60 min
 
-**Done when:** A reader who knows the framework can name the top-level domain entities, how they relate, and which history pattern each carries.
+**Done when:** Each entity with a lifecycle has a named state machine; each state change has a named command.
+
+---
+
+### Step 6c — Relationships & authorization
+
+**Goal:** Map entity relationships (cardinality, ownership vs. reference, promotion decisions) and concrete authorization predicates. Roles scoped to project managers only (field staff deferred to post-MVP).
+
+**Inputs:** Steps 6a–6b output (via `handoff.md`), `framework.md` (relationships), `logic.md` (authorization), `decisions.md`.
+
+**Outputs:**
+- Relationship declarations per entity pair (type, cardinality, ownership, promotion rationale)
+- Authorization roles and per-command predicates
+
+**Estimate:** 30–45 min
+
+**Done when:** Every entity-to-entity link is declared with type and cardinality; every command has an authorization predicate.
+
+---
+
+### Step 6d — Domain model assembly
+
+**Goal:** Reconcile sub-session outputs into `planning/domain-model.md`. Address any remaining open questions (quarantine, etc.). Write ADR entries.
+
+**Inputs:** Steps 6a–6c output (via `handoff.md`), all prior planning files.
+
+**Outputs:**
+- `planning/domain-model.md` — the mapped domain
+- ADR entries for domain-shape decisions
+
+**Estimate:** 30–45 min
+
+**Done when:** `domain-model.md` is written, ADRs are appended, and a reader who knows the framework can name the top-level domain entities, how they relate, their lifecycles, their authorization predicates, and which history pattern each carries.
 
 ---
 

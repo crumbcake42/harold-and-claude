@@ -40,55 +40,54 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Last session summary
 
-**Step 5 — History & auditing patterns (2026-05-01).** Created `planning/history-patterns.md` with a four-pattern menu: (1) no history, (2) audit log, (3) comprehensive capture, (4) lifecycle capture. Patterns 1–2 are not history-carrying; patterns 3–4 are. Lifecycle capture refines ADR-0008's scope — only lifecycle-affecting commands produce history records, but capture within that scope remains mandatory and framework-enforced. ADR-0013 appended to `decisions.md` recording the pattern set, selection criteria, and positions on all four open questions. Reference snapshotting settled: typed UUIDs only, no denormalized copies. Promotion path documented: forward-only, no backfill. Quarantine excluded from the history menu — it's a violation-handling concern orthogonal to history, remains deferred per ADR-0011.
+**Step 6 — Domain mapping, opening discussion (2026-05-01).** Collected domain context and determined Step 6 does not fit one session. Split into four sub-sessions (6a–6d). Domain context gathered:
+
+- **Agency scope:** Air quality, water quality, site remediation.
+- **Project structure:** Two layers — (1) project goals/requirements defined by contract (e.g., air monitoring at a school during asbestos abatement; expected deliverables include final report, samples with results, other documents), and (2) emergent state of the actual project (work scheduled, monitors assigned, inspections happen, samples collected, lab results received, documents prepared).
+- **Scope extension:** Projects can extend mid-flight (e.g., asbestos discovered in a second location → more samples, different monitor, additional documents and requirements added to scope).
+- **Irreconcilable errors:** Chain-of-custody mismatches between lab samples and monitor activity logs can invalidate samples; a manager must explicitly dismiss such errors before marking the project complete. (Maps to the cross-entity acknowledgement gating pattern in `logic.md`.)
+- **Core tracked things:** Projects, inspections (time entries for employees), required documents (files to prepare or save), deliverables (one or many required documents to upload for approval), work authorizations (contracts defining scope and location of work).
+- **Users:** Project managers only for initial design; field staff deferred to post-MVP.
+- **Deferred to sub-sessions:** Key workflows (item 3 → Step 6b), relationships (item 5 → Step 6c).
 
 ## Open questions
 
-- Cross-system identity (do our UUIDs need to be stable across other agency systems?) — Step 6.
-- Soft-delete vs. hard-delete policy — likely regulatory; Step 6.
-- Concrete lifecycle vocabularies per entity — Step 6, once entities exist.
-- Concrete authorization roles, relationships, and per-command predicates — Step 6. ADR-0012 picks the shape; the contents land in Step 6.
-- **Quarantine as a per-entity violation-handling pattern** — excluded from the history-pattern menu (ADR-0013); remains deferred per ADR-0011. Could be commissioned as a separate per-entity declaration at Step 6 or a later step if specific entities warrant it.
+- Cross-system identity (do our UUIDs need to be stable across other agency systems?) — Step 6a.
+- Soft-delete vs. hard-delete policy — likely regulatory; Step 6a.
+- Concrete lifecycle vocabularies per entity — Step 6b.
+- Concrete authorization roles, relationships, and per-command predicates — Step 6c.
+- **Quarantine as a per-entity violation-handling pattern** — excluded from the history-pattern menu (ADR-0013); remains deferred per ADR-0011. The chain-of-custody error pattern described in domain context may inform this. Step 6d.
 - History _implementation_ shape (event store, append-only history tables, temporal tables) — Step 8 (stack), informed by Step 5's pattern menu (now written).
 - **Persistence isolation for cross-entity invariants** — what guarantee the persistence layer must provide so the command-pipeline invariant check is meaningful under concurrency (serializable transactions, optimistic locking, advisory locks, etc.). Step 8.
 - Whether the existing `backend/` and `frontend/` directories get deleted or repurposed — first implementation step.
 
 ## Next session
 
-**Step 6 — Domain mapping.** See `planning/steps.md` for the full brief.
+**Step 6a — Entity identification.** See `planning/steps.md` for the full brief.
 
 ### Prompt for the next session
 
-> Project the abstract framework onto the environmental-monitoring agency domain. Produce `planning/domain-model.md`.
+> Identify the domain entities, their intrinsic attributes, and their history-pattern assignments. Build on the domain context captured in the last session summary above and on all prior planning artifacts.
 >
-> Build on all prior planning artifacts: `framework.md` (entity/state/relationship/identity vocabulary), `logic.md` (commands, lifecycle, invariants, authorization pipeline), `history-patterns.md` (four-pattern menu and selection criteria), and all ADRs (0001–0013).
+> Starting entity list from domain context: projects, inspections (time entries), required documents, deliverables, work authorizations. Evaluate each against `framework.md`'s entity test. Identify any additional entities implied by the domain context (e.g., sites/locations, monitors/staff, samples, lab results).
 >
-> Deliverables:
+> For each entity:
+> - Name and one-line description (what it is)
+> - Intrinsic attributes (the facts the entity carries by being itself)
+> - History pattern from `history-patterns.md` with a one-line justification using the selection criteria
 >
-> 1. **`planning/domain-model.md`** — the mapped domain. For each entity: name, what it is, its state kinds (intrinsic attributes, lifecycle states if any, derived state if any), relationships to other entities, and the history pattern chosen from `history-patterns.md` with a one-line justification using the selection criteria.
-> 2. **ADR entries** for domain-shape decisions that close off alternatives.
->
-> Constraints:
->
-> - Every entity must have a history-pattern assignment. No entity may be defined without one.
-> - Aim for the load-bearing 80% of the domain, not completeness. Lookup tables and edge-case entities can be added later.
-> - Concrete lifecycle vocabularies (the actual state names per entity type) should be defined here — Step 3 picked the shape; this step fills in the contents.
-> - Concrete authorization roles, relationships, and per-command predicates should be defined here — Step 4 picked the shape; this step fills in the contents.
-> - Address the deferred open questions that land in Step 6: cross-system identity, soft-delete vs. hard-delete policy.
-> - The user will supply domain context in the session. Ask if needed before writing.
->
-> Open questions to address:
->
+> Open questions to address in this session:
 > - **Cross-system identity:** do our UUIDs need to be stable across other agency systems, or are external IDs just intrinsic attributes?
 > - **Soft-delete vs. hard-delete policy:** likely regulatory — what does the domain require?
-> - **Quarantine:** does any specific entity warrant commissioning quarantine as a violation-handling override (per ADR-0011's deferral, excluded from history menu by ADR-0013)?
+>
+> Do not address lifecycles (Step 6b), relationships (Step 6c), or write `domain-model.md` (Step 6d).
 
 ## Pointers
 
 - Workflow protocol: `planning/_workflow.md`
 - File rules registry (generated): `planning/_file-rules.md`
 - Phase roster: `planning/phases.md`
-- Step list (current phase): `planning/steps.md`
+- Step list (current phase): `planning/steps.md` (Step 6 now split into 6a–6d)
 - Session conventions: `planning/sessions.md`
 - Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0013)
 - Framework (Step 1 output): `planning/framework.md`
