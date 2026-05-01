@@ -135,17 +135,67 @@ Split into four sub-sessions (6a–6d). Domain context collected in the opening 
 
 ### Step 6a — Entity identification
 
-**Goal:** Identify the domain entities, their intrinsic attributes, and their history-pattern assignments. Address cross-system identity and soft-delete/hard-delete as they bear on entity shape.
+Step 6a's scope (entity roster + cross-system-identity + soft-delete + per-entity history-pattern assignments) exceeded one session. Partitioned across three sessions: 6a-i (entity roster + scoping policies, complete), 6a-ii (history-pattern walk + remaining opens, next), 6a-iii (use-case stress-test).
 
-**Inputs:** `framework.md`, `history-patterns.md`, `decisions.md`, `handoff.md` (domain context from Step 6 opening discussion).
+Original goal, inputs, and done-when carried across all three sub-sessions: **Identify the domain entities, their intrinsic attributes, and their history-pattern assignments. Address cross-system identity and soft-delete/hard-delete as they bear on entity shape.** Done when the entity list is agreed, each entity has a history-pattern assignment, and the two scoping policies are resolved.
+
+#### Step 6a-i — Entity roster + scoping policies (complete)
+
+**Outputs (in `handoff.md` last session summary):**
+- Entity roster (~17 entities)
+- Cross-system identity position (deferred indefinitely)
+- Soft-delete / guarded-delete position (no new `can_delete` mechanism; standard pipeline + cross-entity acknowledgement gating)
+- Major modeling decisions (Document/RequiredDocument unification, set-based document derivation, WA versioning via supersession, EmployeeRole/UserRole split, Project Type as opaque label)
+- Three design-pattern names pre-registered (temporal rate resolution, pre-conditional lifecycle gating, derived blocking status)
+- Document = comprehensive history; other entities pending
+
+**Actual:** ~60 min discussion, plus context spent on framework re-grounding and process-mode negotiation.
+
+#### Step 6a-ii — History-pattern walk + remaining open modeling questions
+
+**Goal:** Complete the per-entity history-pattern assignment required by ADR-0006 and resolve open modeling questions surfaced in 6a-i.
+
+**Inputs:** 6a-i outputs (in `handoff.md`), `framework.md`, `history-patterns.md`, `decisions.md`.
+
+**Open modeling questions to resolve:**
+- Final Project Package — derived state vs entity (Q6 from 6a-i)
+- Document responsibility/notes structure — intrinsic attributes (`current_assignee`, `blocker_note`) vs separate Note entity attached to Documents
+- WA versioning mechanism — `supersedes` self-reference on WA vs separate WA Version entity
+- Document → Deliverable cardinality — many-to-many vs many-to-one
+- LabResult — separate entity vs intrinsic state on Sample (parked from Phase 2)
+
+**Per-entity history-pattern walk (~17 entities):**
+- Already assigned: Document = comprehensive
+- Implied (confirm): Sample = at least lifecycle capture
+- Pending: Project, School, WA, WA Code, User, Employee, EmployeeRole, UserRole, Inspection, Daily Log, Time Entry, Sample Batch, Deliverable, Contractor, RFA
+
+**Per-entity soft/hard delete:** likely follows from history pattern; confirm per entity.
 
 **Outputs:**
-- Entity catalog in chat (entities, intrinsic attributes, history pattern per entity with justification)
-- Positions on cross-system identity and soft-delete/hard-delete
+- Open-question resolutions
+- History-pattern assignment for every entity
+- Per-entity soft/hard delete confirmations
 
-**Estimate:** 30–45 min
+**Estimate:** 45–60 min
 
-**Done when:** The entity list is agreed, each entity has a history-pattern assignment, and cross-system identity and soft-delete/hard-delete are resolved.
+**Done when:** Every entity has a history-pattern assignment; open modeling questions are resolved; per-entity delete policy is set.
+
+#### Step 6a-iii — Use-case stress-test
+
+**Goal:** Pressure-test the entity model + set-based derivation + acknowledgement-gating patterns through 1–2 concrete use cases. Surface structural gaps; refine model if needed before proceeding to Step 6b.
+
+**Inputs:** 6a-i + 6a-ii outputs (in `handoff.md`), all prior planning files.
+
+**Candidate use case (default if no others surface):** "Samples arrive before the WA is issued" — exercises sparse-state inference, set-based document derivation, RFA workflow, prepare-but-don't-submit gate, derived blocking status.
+
+**Outputs:**
+- Use-case walkthroughs in chat
+- Any model adjustments triggered
+- Confirmation that the model is ready for Step 6b
+
+**Estimate:** 45–60 min
+
+**Done when:** Use cases run through the model; no structural gaps surface; ready to proceed to Step 6b.
 
 ---
 
