@@ -40,129 +40,152 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Last session summary
 
-**Step 6a-i — Entity roster + scoping policies (2026-05-01).** Established the candidate entity roster, resolved the two scoping policies, and surfaced major modeling decisions. Step 6a's full scope did not fit one session; partitioned into 6a-i (this session) / 6a-ii (history-pattern walk + opens) / 6a-iii (use-case stress-test). See `steps.md` for the partition.
+**Step 6a-iii — Use-case stress-test (2026-05-10).** Walked through primary use case ("samples arrive before the WA is issued"). Secondary use case (CPR 5-date workflow) deferred to next session. Three model adjustments surfaced and formalized as ADRs 0020–0022. No structural gaps found — the model handles the pre-WA scenario with adjustments, not workarounds.
 
-**Process change:** User adopted casual back-and-forth deliberation for entity work (memory `feedback_casual_deliberation`); use-case-driven discovery over enumerated forks-and-tables. Agent self-monitors context and flags wrap points.
+**Primary use case: "Samples arrive before the WA is issued"**
 
-**Phase 1 — scoping policies (closed):**
-- **Cross-system identity** — deferred indefinitely. No external-ID attributes this iteration. Post-MVP, BQE integration would add `bqe_id`-style intrinsic attributes (per ADR-0005) on relevant entities + a manager-driven drift-reconciliation facility. No new ADR — the position aligns with `framework.md`'s existing "deferred" stance.
-- **Soft-delete / guarded-delete** — no new `can_delete` mechanism. Deletion follows the standard command pipeline (auth + lifecycle + invariants per ADRs 0009/0010/0012). The COC-mismatch / orphan scenario is handled by `logic.md`'s cross-entity acknowledgement gating (e.g., `close_project` is gated on samples having reached an acknowledged terminal state). Per-entity soft-vs-hard delete is a per-entity decision deferred to 6a-ii (likely follows history pattern).
+Scenario: project exists, field staff collects samples and works hours before the WA is formally issued. The stress test probed Time Entry, Sample Batch, Document derivation, Deliverable lifecycle gating, and reconciliation workflows.
 
-**Phase 2 — entity roster (provisional, ~17 entities):**
+**Key findings and decisions:**
+
+1. **WA pre-issuance lifecycle.** A Project opens with a WA in "not issued" state. The WA can exist with zero codes. The tracker adds expected WA Codes as scope becomes known — either proactively (top-down) or inferred by the system when work is recorded (bottom-up). ADR-0020.
+
+2. **WA Code is project-scoped (ADR-0020).** WA Code references Project, not WA. The WA authorizes codes and sets budgets, but codes persist across WA versions. Rate resolution for time entries comes from EmployeeRole, not WA Code. Sample billing uses the deferred `(subtype, TAT) → rate` lookup. Only the latest WA is relevant for queries.
+
+3. **WA Code carries a lifecycle (ADR-0021).** States established (concrete names deferred to 6b): `expected` (anticipated, WA not yet issued), `issued` (confirmed on issued WA), `pending_RFA` (not on issued WA, RFA needed), `dismissed` (tracker decided code isn't needed). Promoted from no-history to lifecycle capture. Delete policy changed from hard to soft.
+
+4. **Smart commands infer missing structure.** When a tracker records a time entry or sample batch and the WA Code doesn't exist, the system creates the WA Code in `expected` state as part of the same atomic operation. Domain invariant holds (Time Entry requires WA Code, always); the command layer handles inference. This is application-layer orchestration, not a framework change.
+
+5. **Derivation fires on expected codes (ADR-0022).** Document and Deliverable slots appear as soon as a WA Code exists, regardless of authorization status. The system is useful from the moment work begins.
+
+6. **WA issuance reconciliation.** When the formal WA arrives, expected codes are reconciled: matching codes → `issued`; unmatched codes → `pending_RFA` + system auto-creates an unsubmitted RFA entity; codes on the WA that weren't expected → added as `issued`.
+
+7. **Deliverable lifecycle gated by code status (ADR-0022).** Deliverables derived from unissued codes start in `pending_RFA`. They transition to `outstanding` (actionable) when the code reaches `issued`. This transition is a cascading side effect of the code issuance compound command.
+
+8. **Derived vs operational blocking.** Structural blocking (from WA Code authorization status) is automatic and derived. Operational blocking (waiting on contractor, lab results, etc.) is user-initiated via Notes (ADR-0018). Two independent channels, both visible.
+
+9. **Unresolved codes are project blockers.** WA Codes in `pending_RFA` or `dismissed`-pending status surface as derived blockers on the Project. Must be resolved or dismissed before project completion.
+
+**Revised entity roster (15 entities, unchanged count):**
 
 | # | Entity | Notes |
 |---|---|---|
 | 1 | Project | SCA engagement. |
 | 2 | School | = Site for MVP. |
-| 3 | WA | Contract document; supersedable via approved RFA → Amendment WA. |
-| 4 | WA Code | Line item; project- or building-level; carries rate, budget, derivation rules. |
+| 3 | WA | Contract document; supersedable via self-reference (ADR-0016, ADR-0017). Pre-issuance lifecycle. |
+| 4 | WA Code | Project-scoped line item (ADR-0020). Carries code identifier, description, scope level, budget (from WA authorization), derivation rules. Lifecycle tracks authorization status (ADR-0021). |
 | 5 | User | Auth identity (username/password). |
 | 6 | Employee | Person doing project work; linked to User via typed reference (0..1 ↔ 0..1). |
 | 7 | EmployeeRole | Temporal work-license assignment with `(role_type, rate, start_date, end_date?)`. |
 | 8 | UserRole | App-access role with grant/revoke timestamps; drives ADR-0012 authorization predicates. |
-| 9 | Inspection | Field-visit event. |
-| 10 | Daily Log | Narrative report from a day's work. |
-| 11 | Time Entry | Billable hours record. |
-| 12 | Sample Batch | Group taken+analyzed together. |
-| 13 | Sample | Individual within a batch; carries COC trail. |
-| 14 | Document | **Unified slot+file entity. Set-based derivation. Lifecycle includes `pending_rfa`/`outstanding`/`in_preparation`/`in_review`/`in_revision`/`ready`/`submitted`/`approved`/`rejected`/`not_required`.** |
-| 15 | Deliverable | SCA-portal submission package; bundles a subset of Documents. |
-| 16 | Contractor | On-site abatement (or other) third party. |
-| 17 | RFA | Request for Amendment; carries pending WA edits (budget revisions, code add/remove). |
+| 9 | Time Entry | Billable hours record. Employee + site + date + hours + WA Code reference (mandatory). |
+| 10 | Sample Batch | COC group. Carries sample type, TAT, location(s), composition `[{subtype, quantity}]`. WA Code reference (mandatory). |
+| 11 | Document | Unified slot+file entity. Set-based derivation (ADR-0015). `document_type` discriminates tracking behavior. `current_assignee` (→ Employee). File upload as intrinsic attribute. Derivation fires on expected codes (ADR-0022). |
+| 12 | Deliverable | SCA-portal submission package; bundles Documents (M:M). Derivation fires on expected codes (ADR-0022). Lifecycle gated by WA Code status. |
+| 13 | Contractor | On-site abatement (or other) third party. |
+| 14 | RFA | Request for Amendment; carries pending WA edits (budget revisions, code add/remove). May be auto-created during WA issuance reconciliation. |
+| 15 | Note | Polymorphic commentary; typed reference to any entity. Creator-only edits. Not deletable. |
 
-Values / lookups (not entities): Sample Type, Sample Subtype, Project Type (curated label, intrinsic-soft-state, no framework cascade), various status enums.
+Values / lookups (not entities): Sample Type, Sample Subtype, Project Type (curated label), TAT options, various status enums.
 
-**Major modeling decisions surfaced this session:**
-- **Document and RequiredDocument unified into one entity (Document).** The slot/spec and the file are two stages of the same identity. Document's lifecycle subsumes the slot/file distinction. Reduces entity count and simplifies set-based derivation semantics.
-- **Set-based document derivation.** A Document's existence and "required" status is governed by a derivation set — the collection of sources that imply it's needed (WA Codes, project events). WA Code add/remove deltas the derivation set. Document persists as long as derivation set is non-empty; transitions to `not_required` (with history preserved for audit) when set becomes empty. **Documents are not owned by WA Codes — many-to-many through the derivation set.**
-- **WA versioning via supersession.** Approved RFA produces an Amendment WA that supersedes the Initial WA; full version chain preserved. Mechanism (self-reference vs. separate Version entity) confirmed in 6a-ii. Derivation-set delta is applied at Amendment WA issuance (not at RFA submission).
-- **EmployeeRole and UserRole are separate temporal entities.** EmployeeRole carries billing rate; UserRole carries access permissions. Different vocabularies, different consumers. Both are temporal (start/end dates).
-- **Project Type is intrinsic-soft-state.** Curated lookup vocabulary (avoids free-text drift). Manually maintained by Tracker. No framework cascade. Drift detection ("label says Monitor and Survey but no monitoring codes present") is a deferred soft-surface feature.
-- **EmployeeRole is a temporal entity.** Rate-on-date-of-work governs billing for Time Entries (temporal join — see design-pattern note below).
-- **Sample model is four-layered:** Sample Batch (entity), Sample (entity), Sample Type (value), Sample Subtype (value).
-- **Inspection / Daily Log / Time Entry are three separate entities.** (Reverses an earlier merge proposal.)
+**Updated per-entity history-pattern assignments:**
 
-**Design patterns named for later formalization:**
-1. **Temporal rate resolution.** Time Entry → Employee → EmployeeRole-on-date-of-work. Rate is a property of the historical role assignment, not of the Employee.
-2. **Pre-conditional lifecycle gating.** A Deliverable's `submit` transition is gated on the parent WA having the relevant WA Code(s). Same family as `logic.md`'s cross-entity acknowledgement gating; trigger is "the contract supports this submission" rather than "all related entities terminal-acknowledged."
-3. **Derived blocking status.** Documents (and Deliverables) expose a derived status that aggregates own state + dependency state — e.g., a Document can be `prepared` intrinsically but `blocked from submission` derivatively because of WA/RFA situation. Maps cleanly to `framework.md`'s derived-state kind.
+| Pattern | Entities |
+|---|---|
+| Comprehensive capture | Document, WA, RFA |
+| Lifecycle capture | Project, Sample Batch, Deliverable, EmployeeRole, UserRole, WA Code |
+| Audit log | Employee, User, Time Entry, Contractor |
+| No history | School, Note |
 
-**Vocabulary adopted this session (carried forward):**
-- **Tracker** — the app's user (job title at office is "project manager"; function is tracking, not work-management).
-- **Coordinator** — office staff who actually manage work (scheduling, dispatch). Not an app user in MVP.
-- **Project** — SCA engagement (the domain entity). The codebase is referred to as "the app" or "sca-tracker."
+**Updated per-entity delete policy:**
+
+| Policy | Entities | Notes |
+|---|---|---|
+| Soft delete (guarded hard-delete eligible) | Document, WA, RFA, Project, Sample Batch, Deliverable, EmployeeRole, UserRole, Employee, User, Time Entry, Contractor, WA Code | History-carrying or referenced by history records. Hard-delete permitted if no inbound references exist. |
+| Hard delete | School, Note | No history, no external history references. |
+
+**Design patterns (updated):**
+1. **Temporal rate resolution.** Time Entry → Employee → EmployeeRole-on-date-of-work. Sample billing: Sample Batch → `(subtype, TAT)` → rate-on-date. Rate comes from EmployeeRole / billing rate table, not from WA Code or WA.
+2. **Pre-conditional lifecycle gating.** Deliverable submission gated on WA Code `issued` status. Deliverables in `pending_RFA` until code is issued.
+3. **Derived blocking status.** Two independent channels: structural (automatic, from WA Code authorization status) and operational (user-initiated, via Notes).
+4. **Smart command inference.** Recording work (time entry, sample batch) against a non-existent WA Code creates the code in `expected` state atomically. Domain invariants hold; the command layer infers missing structure.
+5. **Compound cascading commands.** WA Code issuance atomically transitions the code and cascades lifecycle transitions to all derived Documents and Deliverables.
+6. **WA issuance reconciliation.** Matching expected codes to the formal WA; auto-creating RFAs for unmatched codes; adding unexpected codes as `issued`.
+
+**Vocabulary (carried forward + additions):**
+- **Tracker** — the app's user (job title: "project manager"; function: tracking).
+- **Coordinator** — office staff who manage work (scheduling, dispatch). Not an app user in MVP.
+- **Project** — SCA engagement. The codebase is "the app" or "sca-tracker."
 - **School** — = Site for MVP.
-- **WA / WA Code** — contract document / line item.
+- **WA / WA Code** — contract document / project-scoped line item.
 - **FAMR** — Final Air Monitoring Report.
+- **CPR** — Contractor Package Record; a specific required document type (not a separate entity).
+- **TAT** — Turnaround time for sample analysis (24hr, 1hr, 3hr, etc.); property of Sample Batch.
+- **COC** — Chain of Custody; the document accompanying a sample batch.
 
-**History patterns assigned this session:**
-- **Document** = comprehensive capture (audit case for blocking issues, responsibility shifts, derivation-set churn).
-- **Sample** = at least lifecycle capture, implied by COC/acknowledgement scenario; confirm in 6a-ii.
-- All other entities pending in 6a-ii.
+**Additional modeling decisions (carried forward from 6a-ii):**
+- **File upload on Document:** intrinsic attribute (storage pointer). Revision history captured by Document's comprehensive history pattern. Can be introduced as a requirement at any point.
+- **Document per-type tracking behavior:** `document_type` attribute acts as discriminator selecting applicable lifecycle, tracking fields, and invariants. E.g., CPR (Contractor Package Record) tracks 5 dates with ordering invariants; simple docs have missing → saved lifecycle. Details deferred to 6b.
+- **Blocked state:** likely modeled as a flag orthogonal to lifecycle (`is_blocked` + required note), not a lifecycle state — avoids "return to previous state" problem. Details deferred to 6b.
+- **Sample Batch refinements:** TAT is per-batch. Location(s) per-batch. Batch composition invariant: PCM/TEM batches require single subtype; Bulk allows mixed subtypes. WA Code reference mandatory.
+- **Billing rate lookup:** `(subtype, TAT) → rate` with temporal validity, parallel to EmployeeRole's temporal rate. Whether this is an entity (BillingRate) or a configuration table is deferred.
+- **Bulk import:** legacy documents (~300 projects) land in `missing` state without file uploads. File-upload requirement enforced by transition guards. Import-specific relaxation is a 6b/implementation concern.
+- **Guarded hard-delete:** soft-delete entities can be hard-deleted if no inbound references exist. Framework-compatible (invariant check on delete command per ADR-0010).
+- **Dev-environment cascade delete:** dev pipeline can bypass invariant enforcement for test cleanup. Environment configuration, not a framework decision.
 
 ## Open questions
 
-**For Step 6a-ii (next session):**
-- **Q6 — Final Project Package:** derived state (project's "ready to close" computed from Document/Deliverable state + final invoice Document) vs. entity (a `FinalSubmission` with its own lifecycle). User described what it *is* (internal packet of all required docs + final invoice) but didn't pick a/b. Agent leans (a).
-- **Document responsibility/notes structure:** intrinsic attributes (`current_assignee`, `blocker_note`) vs. separate Note entity attached to Documents. Audit case ("employee A hasn't prepared this in months — left a note that contractor is holding it up") motivates capturing both.
-- **WA versioning mechanism:** `supersedes` self-reference on WA vs. separate WA Version entity.
-- **Document → Deliverable cardinality:** many-to-many (a Document can be in multiple Deliverables) vs. many-to-one (a Document belongs to at most one Deliverable).
-- **LabResult disposition:** separate entity vs. intrinsic state on Sample (parked from Phase 2). Worth a fresh look given Sample Batch is now an entity.
-- **Per-entity history-pattern walk** (~17 entities, required by ADR-0006 before Step 6b can begin).
-- **Per-entity soft/hard delete confirmations** (likely follow from history-pattern choices).
-
-**For Step 6a-iii (after 6a-ii):**
-- Use-case stress-test of the entity model + set-based derivation + acknowledgement gating. Default candidate use case: "Samples arrive before the WA is issued."
+**For Step 6b (next session, opening with deferred CPR walkthrough):**
+- Walk through CPR's 5-date workflow to validate the `document_type` discriminator model. Exercises per-type tracking behavior and will inform how lifecycle vocabularies are structured for Document subtypes.
+- WA ↔ WA Code authorization relationship: how budget-per-code is tracked across WA versions (the WA authorizes codes and sets budgets, but codes are project-scoped — where do the per-code budget terms live?).
+- WA Code `dismissed` semantics: what happens to Time Entries and Sample Batches referencing a dismissed code? Reassigned to another code, or remain as "work done, not billed"?
 
 **Carried forward (deferred to later steps):**
-- Concrete lifecycle vocabularies per entity — Step 6b.
-- Concrete authorization roles, relationships, and per-command predicates — Step 6c.
-- **Quarantine as a per-entity violation-handling pattern** — excluded from the history-pattern menu (ADR-0013); remains deferred per ADR-0011. The COC scenario may inform this. Step 6d.
-- History _implementation_ shape (event store, append-only history tables, temporal tables) — Step 8.
+- **Billing Rate entity/table** — temporal `(subtype, TAT) → rate` lookup. Likely Step 6c or 6d.
+- **Blocked-as-flag design** — how `is_blocked` flag interacts with lifecycle transitions and gating. Step 6b.
+- **Concrete lifecycle vocabularies per entity** — Step 6b.
+- **Concrete authorization roles, relationships, and per-command predicates** — Step 6c.
+- **Document → Deliverable M:M** — confirmed; formal relationship declaration in Step 6c.
+- **Quarantine as a per-entity violation-handling pattern** — excluded from history-pattern menu (ADR-0013); remains deferred per ADR-0011. Step 6d.
+- **Bulk import file-upload relaxation** — 6b or implementation.
+- **History implementation shape** (event store, append-only tables, temporal tables) — Step 8.
 - **Persistence isolation for cross-entity invariants** — Step 8.
 - Whether existing `backend/` and `frontend/` directories get deleted or repurposed — first implementation step.
 
-**Candidate ADRs noted but not written this session** (user to decide whether to formalize at start of 6a-ii):
-- "Documents derive from a set of sources, not from 1:1 ownership; existence is governed by derivation-set non-emptiness."
-- "WA is supersedable via approved RFA; full version chain preserved."
-- "Document and RequiredDocument unified into one entity with a slot-spanning lifecycle."
-
 ## Next session
 
-**Step 6a-ii — History-pattern walk + remaining open modeling questions.** See `planning/steps.md` for the full brief.
+**Step 6b — Workflows & lifecycles.** See `planning/steps.md` for the full brief. Open with the CPR 5-date walkthrough deferred from 6a-iii.
 
 ### Prompt for the next session
 
-> Complete Step 6a by (1) resolving the open modeling questions surfaced in 6a-i and (2) walking each entity in the roster for its history-pattern assignment per ADR-0006. Build on the entity roster, modeling decisions, and design-pattern names captured in the last session summary above and in all prior planning artifacts.
+> Map key workflows to command sequences and concrete lifecycle state machines per entity. Build on the entity roster (15 entities), updated history-pattern assignments, updated design patterns, and model adjustments from 6a-iii (ADRs 0020–0022) captured in the last session summary above and in all prior planning artifacts.
 >
-> **Open modeling questions to resolve (in roughly this order):**
-> 1. Final Project Package — derived state vs entity (Q6)
-> 2. Document responsibility/notes structure — intrinsic attributes vs separate Note entity
-> 3. WA versioning mechanism — supersedes self-reference vs separate WA Version entity
-> 4. Document → Deliverable cardinality — many-to-many vs many-to-one
-> 5. LabResult — separate entity vs intrinsic state on Sample
+> **Opening: CPR 5-date walkthrough (deferred from 6a-iii).** Walk through the Contractor Package Record's 5-date workflow to validate the `document_type` discriminator model. This exercises per-type tracking behavior and will inform how Document lifecycle vocabularies are structured. Key questions:
+> - What are the 5 dates and their ordering invariants?
+> - How does `document_type` select the applicable lifecycle, tracking fields, and invariants?
+> - Does the unified Document entity handle type-specific complexity without becoming a god-entity?
 >
-> **Per-entity history-pattern walk:**
-> - Already assigned: Document = comprehensive capture
-> - Implied (confirm): Sample = at least lifecycle capture
-> - Pending (assign one of {no history | audit log | comprehensive capture | lifecycle capture} per entity, with a one-line justification): Project, School, WA, WA Code, User, Employee, EmployeeRole, UserRole, Inspection, Daily Log, Time Entry, Sample Batch, Deliverable, Contractor, RFA
+> **Main scope: concrete lifecycles and commands.** For each entity with a lifecycle:
+> - Named state machine (state names + allowed transitions)
+> - Named commands per entity type
+> - Invariant declarations (intra-entity and cross-entity)
 >
-> **Per-entity soft/hard delete:** confirm per entity (likely follows from history pattern).
+> Key entities requiring lifecycle definition: Project, WA (including pre-issuance states), WA Code (expected/issued/pending_RFA/dismissed), Document (per document_type), Deliverable (including pending_RFA gating), Sample Batch, RFA, EmployeeRole, UserRole.
 >
 > **Process notes:**
-> - Stay in casual back-and-forth mode (per `feedback_casual_deliberation` memory). Self-monitor context window and flag wrap points.
+> - Stay in casual back-and-forth mode. Self-monitor context window and flag wrap points.
+> - The CPR walkthrough may surface adjustments to the `document_type` discriminator model. Handle those before defining Document lifecycles.
+> - Compound cascading commands (e.g., WA Code issuance → Deliverable transitions) should be named and their cascade behavior specified.
 > - Do not write to `domain-model.md` (that's Step 6d).
-> - At the start of the session, ask whether to formalize the candidate ADRs listed in the prior session's open questions before proceeding.
-> - Do not address Step 6b (lifecycles) or Step 6c (relationships/authorization).
 
 ## Pointers
 
 - Workflow protocol: `planning/_workflow.md`
 - File rules registry (generated): `planning/_file-rules.md`
 - Phase roster: `planning/phases.md`
-- Step list (current phase): `planning/steps.md` (Step 6a now split across 6a-i / 6a-ii / 6a-iii)
+- Step list (current phase): `planning/steps.md` (Step 6a complete across 6a-i / 6a-ii / 6a-iii)
 - Session conventions: `planning/sessions.md`
-- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0013; no new ADRs from 6a-i)
+- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0022)
 - Framework (Step 1 output): `planning/framework.md`
 - Logic (Steps 2–4 output; all sections written): `planning/logic.md`
 - History patterns (Step 5 output): `planning/history-patterns.md`

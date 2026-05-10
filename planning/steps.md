@@ -135,7 +135,7 @@ Split into four sub-sessions (6a–6d). Domain context collected in the opening 
 
 ### Step 6a — Entity identification
 
-Step 6a's scope (entity roster + cross-system-identity + soft-delete + per-entity history-pattern assignments) exceeded one session. Partitioned across three sessions: 6a-i (entity roster + scoping policies, complete), 6a-ii (history-pattern walk + remaining opens, next), 6a-iii (use-case stress-test).
+Step 6a's scope (entity roster + cross-system-identity + soft-delete + per-entity history-pattern assignments) exceeded one session. Partitioned across three sessions: 6a-i (entity roster + scoping policies, complete), 6a-ii (history-pattern walk + remaining opens, complete), 6a-iii (use-case stress-test, complete — primary use case done, CPR walkthrough deferred to 6b opening).
 
 Original goal, inputs, and done-when carried across all three sub-sessions: **Identify the domain entities, their intrinsic attributes, and their history-pattern assignments. Address cross-system identity and soft-delete/hard-delete as they bear on entity shape.** Done when the entity list is agreed, each entity has a history-pattern assignment, and the two scoping policies are resolved.
 
@@ -151,51 +151,37 @@ Original goal, inputs, and done-when carried across all three sub-sessions: **Id
 
 **Actual:** ~60 min discussion, plus context spent on framework re-grounding and process-mode negotiation.
 
-#### Step 6a-ii — History-pattern walk + remaining open modeling questions
+#### Step 6a-ii — History-pattern walk + remaining open modeling questions (complete)
 
 **Goal:** Complete the per-entity history-pattern assignment required by ADR-0006 and resolve open modeling questions surfaced in 6a-i.
 
 **Inputs:** 6a-i outputs (in `handoff.md`), `framework.md`, `history-patterns.md`, `decisions.md`.
 
-**Open modeling questions to resolve:**
-- Final Project Package — derived state vs entity (Q6 from 6a-i)
-- Document responsibility/notes structure — intrinsic attributes (`current_assignee`, `blocker_note`) vs separate Note entity attached to Documents
-- WA versioning mechanism — `supersedes` self-reference on WA vs separate WA Version entity
-- Document → Deliverable cardinality — many-to-many vs many-to-one
-- LabResult — separate entity vs intrinsic state on Sample (parked from Phase 2)
+**Outputs (in `handoff.md` last session summary):**
+- All five open modeling questions resolved (Final Project Package, Document notes, WA versioning, Document→Deliverable cardinality, LabResult)
+- Entity roster refined from 17 to 15 (Sample, Inspection, Daily Log dropped; Note added)
+- History-pattern assignment for all 15 entities
+- Per-entity soft/hard delete policy confirmed
+- ADRs 0014–0019 written
 
-**Per-entity history-pattern walk (~17 entities):**
-- Already assigned: Document = comprehensive
-- Implied (confirm): Sample = at least lifecycle capture
-- Pending: Project, School, WA, WA Code, User, Employee, EmployeeRole, UserRole, Inspection, Daily Log, Time Entry, Sample Batch, Deliverable, Contractor, RFA
+**Actual:** ~60 min casual deliberation.
 
-**Per-entity soft/hard delete:** likely follows from history pattern; confirm per entity.
-
-**Outputs:**
-- Open-question resolutions
-- History-pattern assignment for every entity
-- Per-entity soft/hard delete confirmations
-
-**Estimate:** 45–60 min
-
-**Done when:** Every entity has a history-pattern assignment; open modeling questions are resolved; per-entity delete policy is set.
-
-#### Step 6a-iii — Use-case stress-test
+#### Step 6a-iii — Use-case stress-test (complete)
 
 **Goal:** Pressure-test the entity model + set-based derivation + acknowledgement-gating patterns through 1–2 concrete use cases. Surface structural gaps; refine model if needed before proceeding to Step 6b.
 
 **Inputs:** 6a-i + 6a-ii outputs (in `handoff.md`), all prior planning files.
 
-**Candidate use case (default if no others surface):** "Samples arrive before the WA is issued" — exercises sparse-state inference, set-based document derivation, RFA workflow, prepare-but-don't-submit gate, derived blocking status.
+**Outputs (in `handoff.md` last session summary):**
+- Primary use case ("samples arrive before the WA is issued") walked through successfully
+- Three model adjustments: WA Code project-scoped (ADR-0020), WA Code lifecycle capture (ADR-0021), derivation fires on expected codes with cascading transitions (ADR-0022)
+- Three new design patterns: smart command inference, compound cascading commands, WA issuance reconciliation
+- No structural gaps found
+- Secondary use case (CPR 5-date walkthrough) deferred to Step 6b opening
 
-**Outputs:**
-- Use-case walkthroughs in chat
-- Any model adjustments triggered
-- Confirmation that the model is ready for Step 6b
+**Actual:** ~45 min casual deliberation.
 
-**Estimate:** 45–60 min
-
-**Done when:** Use cases run through the model; no structural gaps surface; ready to proceed to Step 6b.
+**Done when:** Use cases run through the model; no structural gaps surface; ready to proceed to Step 6b. ✓ (Primary use case complete; CPR deferred to 6b where it naturally exercises per-type lifecycle behavior.)
 
 ---
 

@@ -202,3 +202,119 @@ Entries are numbered sequentially. Once `accepted`, do not edit in place — sup
   - *Exclude audit log from the menu.* Rejected — ADR-0008 explicitly preserved audit log as a Step 5 pattern for entities with best-effort accountability needs. Excluding it would leave a gap between "no history" and "mandatory capture" with no option for lightweight observability.
   - *Include quarantine in the history-pattern menu.* Rejected — quarantine governs what happens on command failure (violation handling), not what successful commands record (history). It is orthogonal to all four history patterns. Including it here conflates two independent per-entity decisions.
 - **Consequences:** The menu is set: four patterns, two tiers (not history-carrying, history-carrying), with selection criteria documented. Step 6 must assign one pattern to every entity — no entity definition is complete without it. Lifecycle capture refines ADR-0008: "a successful command writes a history record" now reads "a successful command within the pattern's declared capture scope writes a history record." The refinement is narrow — only lifecycle capture uses a narrowed scope; comprehensive capture preserves ADR-0008's original "every command" semantics. Reference snapshotting is settled: typed UUIDs only, no denormalized copies. Entities frequently referenced by history-carrying entities may warrant heavier history patterns than their own accountability needs suggest — this is a selection-criteria consideration, not a framework mandate. Promotion is forward-only; past history is irrecoverable. History implementation shape (snapshots vs. deltas vs. temporal tables) remains deferred to Step 8.
+
+---
+
+## ADR-0014 — Document and RequiredDocument unified into a single entity with a slot-spanning lifecycle
+
+- **Date:** 2026-05-01
+- **Decision:** The conceptual distinction between a "required document slot" (the spec/expectation that a document is needed) and the "document file" (the actual artifact) is modeled as a single Document entity with a lifecycle that spans both stages. There is no separate RequiredDocument entity.
+- **Status:** accepted
+- **Context:** Early modeling had two candidates: a RequiredDocument entity (the slot — "this document is needed") and a Document entity (the file — "this document exists"). The slot and the file refer to the same identity — a document that is needed, then prepared, then submitted. Splitting them creates an artificial join and forces lifecycle coordination between two entities that track the same thing.
+- **Alternatives considered:**
+  - *Two entities (RequiredDocument + Document).* Rejected — the slot and the file are two stages of the same identity, not two things. Splitting forces a 1:1 join and duplicates lifecycle tracking. The promotion criterion from ADR-0004 does not fire — there is no independent state on the "requirement" that isn't better modeled as early lifecycle states on the Document itself.
+- **Consequences:** Document's lifecycle includes states that predate the file's existence (e.g., `outstanding`, `not_required`). A Document can exist as a "needed but not yet prepared" slot. Entity count is reduced by one. Set-based derivation (see ADR-0015) governs whether a Document slot exists.
+
+---
+
+## ADR-0015 — Document existence is governed by a derivation set; documents are not owned by WA Codes
+
+- **Date:** 2026-05-01
+- **Decision:** A Document's existence and "required" status is governed by a derivation set — the collection of sources (WA Codes, project events) that imply the document is needed. Documents have a many-to-many relationship with their derivation sources. A Document persists as long as its derivation set is non-empty; it transitions to `not_required` (with history preserved) when the set becomes empty. Documents are not owned by any single WA Code.
+- **Status:** accepted
+- **Context:** Documents in the domain are implied by contractual scope (WA Codes) and project events, not created by a single parent. A WA Code addition may imply several documents; a single document may be implied by multiple WA Codes. WA Code removal (via RFA/Amendment) should not delete documents that are still implied by other sources. The ownership model (document belongs to one WA Code) fails under amendment scenarios where scope shifts between codes.
+- **Alternatives considered:**
+  - *Document owned by a single WA Code (1:M).* Rejected — breaks when a document is implied by multiple codes, or when a code is removed but the document is still needed for other reasons. Deletion/orphan semantics become fragile under amendment workflows.
+  - *Document existence is manually managed (no derivation).* Rejected — forces the Tracker to manually track which documents are needed as scope changes, which is exactly the bookkeeping the system should handle.
+- **Consequences:** The derivation set is the source of truth for "is this document needed." WA Code add/remove deltas the derivation set. Derivation-set emptiness triggers `not_required` transition, not deletion — history is preserved per the Document's history pattern. The many-to-many relationship between Documents and derivation sources does not carry independent state (no promotion to entity per ADR-0004). Amendment WA issuance (not RFA submission) is the point at which derivation-set deltas are applied.
+
+---
+
+## ADR-0016 — WA is supersedable via approved RFA; full version chain preserved
+
+- **Date:** 2026-05-01
+- **Decision:** An approved RFA produces an Amendment WA that supersedes the current WA. The full version chain (Initial WA → Amendment WA₁ → Amendment WA₂ → …) is preserved. The supersession mechanism and whether it uses a self-reference on WA or a separate version entity is an open question resolved later in this session.
+- **Status:** accepted
+- **Context:** Work Authorizations in the domain are amended through a formal Request for Amendment process. The original WA's terms (budget, scope, codes) are replaced by the amendment's terms, but the original must remain accessible for audit, billing reconciliation, and historical queries. The amendment is not a patch — it is a new WA that replaces the prior one.
+- **Alternatives considered:**
+  - *Mutate the WA in place (no versioning).* Rejected — destroys the prior terms. Billing, audit, and temporal rate resolution (design pattern from 6a-i) require knowing what the WA said at a given point in time.
+  - *Version via change log on a single WA record.* Rejected — conflates the WA's own history pattern with version identity. An Amendment WA is a distinct contractual document, not an edit to the original. The version chain is a domain concept (contractual succession), not a history-capture concern.
+- **Consequences:** WA carries a version chain. The current (non-superseded) WA is the active one; superseded WAs are immutable but queryable. Derivation-set deltas (ADR-0015) are applied at Amendment WA issuance. The specific versioning mechanism (self-reference vs. separate entity) is resolved in ADR-0017.
+
+---
+
+## ADR-0017 — WA supersession uses a self-reference; no separate version entity
+
+- **Date:** 2026-05-09
+- **Decision:** WA carries a nullable `supersedes` typed reference to another WA. An Amendment WA points at the WA it replaces. The version chain is a linked list: Amendment₂ → Amendment₁ → Initial (where Initial has `supersedes = null`). The current (active) WA for a project is the one not superseded by any other WA. Superseded WAs are immutable — no commands can mutate a superseded WA (enforced as an invariant per ADR-0010). WA also carries a `version_type` attribute (`initial` vs. `amendment`) and an `effective_date`.
+- **Status:** accepted
+- **Context:** ADR-0016 established WA supersession via approved RFA but left the mechanism as an open question: self-reference on WA vs. a separate WA Version entity. This ADR resolves it.
+- **Alternatives considered:**
+  - *Separate WA Version entity.* Rejected — an Amendment WA has the same attributes (budget, codes, terms), lifecycle, and relationships as a WA. A Version entity would be a parallel structure mirroring WA in every way, with its own history-pattern decision, commands, and lifecycle — all delegating to the underlying WA. It is indirection without payoff. The self-reference is a single nullable field; the version chain is navigable by pointer traversal.
+- **Consequences:** WA's schema gains three fields: `supersedes` (nullable typed reference to WA), `version_type` (`initial` | `amendment`), `effective_date`. "Find the current WA" = find the WA for this project where no other WA's `supersedes` points at it. No additional entity. The immutability invariant on superseded WAs prevents editing historical contractual terms.
+
+---
+
+## ADR-0018 — Note is a polymorphic commentary entity attachable to any entity
+
+- **Date:** 2026-05-09
+- **Decision:** Note is a standalone entity with a polymorphic typed reference `(entity_type, entity_id)` attachable to any entity. Notes accumulate over time as contextual commentary. Intrinsic attributes: `message`, `created_by` (→ User), `created_at`, `edited_at`, target reference. The `edit_note` command is restricted to the note's creator (authorization predicate: `caller == note.created_by`). Edited notes are flagged via `edited_at` timestamp. Notes are not deletable. No lifecycle. No history.
+- **Status:** accepted
+- **Context:** Document responsibility tracking required more than a single text field. Blockers evolve over time — e.g., "waiting on contractor" → "spoke to contractor on date 1" → "spoke to contractor on date 2" → "resolved after several attempts." A single `blocker_note` field can only hold one value; overwriting it loses the trail. The same commentary pattern applies across entity types (Documents, Deliverables, RFAs, Projects).
+- **Alternatives considered:**
+  - *Single `blocker_note` text field on Document.* Rejected — can hold one note at a time, does not support threaded commentary for evolving situations. Document's comprehensive history captures prior field values, but presents them as a history chain, not a readable thread. Also scoped to Document only.
+  - *Note scoped to Documents only (foreign key instead of polymorphic reference).* Rejected — the same commentary pattern applies to other entity types. Starting with `document_id` and generalizing later requires a schema change. A polymorphic reference `(entity_type, entity_id)` costs nothing structurally and avoids the retrofit.
+- **Consequences:** Note is added to the entity roster (15 entities total). The polymorphic reference enables commentary on any entity. Creator-only editing and non-deletability preserve the integrity of the commentary trail. No history pattern needed — the note itself is the historical record; immutability (except for creator typo edits) means there is no state to reconstruct. `edited_at` provides transparency about edits without full edit history, relying on user trust for good-faith corrections.
+
+---
+
+## ADR-0019 — Entity roster refined: Sample, Inspection, and Daily Log dropped; Final Project Package is derived state
+
+- **Date:** 2026-05-09
+- **Decision:** Drop Sample, Inspection, and Daily Log from the entity roster. Merge Daily Log into Document as a document type. Confirm Final Project Package as derived state on Project, not an entity. Roster moves from 17 (6a-i) + 1 (Note, ADR-0018) to 15 entities.
+- **Status:** accepted
+- **Context:** During the history-pattern walk and modeling review in 6a-ii, four candidates were evaluated against the entity identity test (ADR-0002) and the principle that entities should carry independent, mutation-surviving identity.
+- **Alternatives considered:**
+  - *Sample as entity.* Rejected — the system tracks sample quantities and types for billing, not individual samples. Individual samples don't have identity-over-mutation; they are line items counted in aggregate. Sample Batch carries composition as a structured value `[{subtype, quantity}]`. Sample Type and Sample Subtype remain curated vocabulary values. Batch composition invariant: PCM/TEM batches require a single subtype; Bulk batches allow mixed subtypes.
+  - *Inspection as entity.* Rejected — imposes a "visit" grouping on field activities that don't need it. Whether multiple site visits constitute one or multiple inspections is an irrelevant distinction. Time Entry, Sample Batch, and Documents (daily logs) correlate naturally by site + date without a wrapper entity. No independent state on the visit beyond what its constituent records already carry.
+  - *Daily Log as separate entity.* Rejected — daily logs are narrative reports that function as required documents on a project. Modeling as a Document type leverages the existing Document entity with its derivation-set governance (ADR-0015), comprehensive history, and file-upload capability. Date-gap detection (missing logs for days with time entries) is a user responsibility managed through Notes, not an automated system invariant.
+  - *Final Project Package as entity.* Rejected — it is a generated PDF artifact (merged uploaded documents + generated billing documents) available when a project is closed. No identity-over-mutation; readiness is computed from Document/Deliverable state. The `close_project` command on Project is gated on a derived readiness condition (cross-entity acknowledgement gating pattern per `logic.md`).
+- **Consequences:** Entity count reduced. Sample Batch is the sole sample-tracking entity; billing uses batch composition + temporal rate lookup `(subtype, TAT) → rate`. Daily logs participate in the Document lifecycle and derivation-set model. Inspection's absence means field activities are queried by site + date, not by a grouping ID. Final Project Package generation is a read-side operation triggered by project closure, not a command on an entity.
+
+---
+
+## ADR-0020 — WA Code is project-scoped; WA authorizes codes but does not own them
+
+- **Date:** 2026-05-10
+- **Decision:** WA Code references Project, not WA. A WA Code is a project-level scope item whose identity persists across WA versions. The WA authorizes codes and sets their budgets, but the codes are not owned by any specific WA version. Rate resolution for time entries comes from EmployeeRole (temporal rate per ADR-0019's design patterns), not from WA Code or WA. Sample billing uses the deferred `(subtype, TAT) → rate` lookup. WA Code carries: code identifier, description, scope level (project or building), budget (from WA authorization), and derivation rules.
+- **Status:** accepted
+- **Context:** The use-case stress test (Step 6a-iii) walked through "samples arrive before the WA is issued" and surfaced the question of whether WA Code belongs to a specific WA version or to the Project. The WA supersession model (ADR-0017) creates a new WA entity for each amendment. If codes are WA-scoped, codes are duplicated across versions, Time Entry references are frozen to a specific WA version, and queries like "how many hours on code X?" must aggregate across versions. The user confirmed that only the latest WA is relevant — the tracker asks about a code across all time, not per WA version.
+- **Alternatives considered:**
+  - *WA Code scoped to a specific WA (WA Code → WA).* Rejected — creates duplicate code entities across WA versions. Time Entries from before an amendment reference codes on the superseded WA; new entries reference codes on the Amendment WA. "Code PCM-001 on WA v1" and "Code PCM-001 on WA v2" are different entities with different UUIDs representing the same conceptual scope item. Queries require cross-version aggregation. The duplication adds complexity without reflecting domain reality — the code is the same thing across amendments.
+- **Consequences:** WA Code → Project (not WA Code → WA). The WA ↔ WA Code relationship is authorization, not ownership — the WA declares which codes are authorized and at what budget, but doesn't own the codes. When a WA is superseded, codes persist unchanged; the new WA's authorization terms apply. Budget on a code reflects the current WA's terms. Time Entry and Sample Batch reference the code directly; the code's identity is stable across WA versions.
+
+---
+
+## ADR-0021 — WA Code carries a lifecycle; promoted from no-history to lifecycle capture with soft delete
+
+- **Date:** 2026-05-10
+- **Decision:** WA Code has a lifecycle tracking authorization status. Concrete state names are deferred to Step 6b, but the stress test established at minimum: `expected` (anticipated but WA not yet issued), `issued` (confirmed on an issued WA), `pending_RFA` (not on the issued WA, RFA needed), and `dismissed` (tracker decided the code isn't needed). WA Code is promoted from no-history to lifecycle capture (ADR-0013 pattern 4). Delete policy changes from hard delete to soft delete.
+- **Status:** accepted
+- **Context:** The stress test surfaced that WA Code is not a static lookup. It tracks authorization status over time — codes are created as expectations, confirmed or flagged when the WA is issued, and may be dismissed. These lifecycle transitions are accountability-relevant: "who confirmed this code?" and "when was it flagged for RFA?" are real questions. The lifecycle capture decision tree (ADR-0013) asks "must lifecycle transitions be formally attributable?" — yes, for WA Code's authorization transitions.
+- **Alternatives considered:**
+  - *Keep WA Code at no-history.* Rejected — WA Code's lifecycle transitions (especially `pending_RFA` and `dismissed`) are decisions that should be attributable. The WA's comprehensive history captures WA-level events but not per-code authorization status changes, since codes are now project-scoped (ADR-0020) and not owned by the WA.
+  - *Promote to comprehensive capture.* Rejected — WA Code's intrinsic attributes (code identifier, description, scope level) change rarely and are low-stakes. Lifecycle capture covers the accountable transitions without adding overhead for routine attribute edits.
+- **Consequences:** WA Code joins the lifecycle-capture tier: lifecycle-affecting commands produce mandatory history records; non-lifecycle commands do not. The history-pattern assignment table is updated (WA Code moves from "No history" to "Lifecycle capture"). Delete policy moves from hard to soft (history records reference the code; hard delete would orphan them). WA Code's lifecycle is simple but accountable — the RFA entity's comprehensive history provides the detailed audit trail for the amendment workflow, while the code's lifecycle capture records the status transitions themselves.
+
+---
+
+## ADR-0022 — Document and Deliverable derivation fires on expected WA Codes; code issuance cascades lifecycle transitions
+
+- **Date:** 2026-05-10
+- **Decision:** Document and Deliverable derivation (ADR-0015) fires when WA Codes are in `expected` state, not only when `issued`. Document and Deliverable slots appear as soon as a WA Code exists, regardless of authorization status. Deliverables derived from unissued codes begin their lifecycle in a pre-authorization state (e.g., `pending_RFA`); they transition to an actionable state (e.g., `outstanding`) when the code reaches `issued`. WA Code issuance is a compound command that atomically transitions the code and cascades lifecycle transitions to all derived Documents and Deliverables. Derived blocking status from WA Code authorization state is automatic and structural; operational blockers are user-initiated via Notes (ADR-0018).
+- **Status:** accepted
+- **Context:** The stress test established that field work (sample collection, time entry, document preparation) routinely begins before the WA is formally issued. If derivation only fires on `issued` codes, the system shows zero required documents during the pre-authorization period — a blind spot during the period when work is actively happening. The tracker needs to see "these documents will be needed" as early as possible. Additionally, WA Codes may be created bottom-up by smart commands (e.g., recording a time entry infers and creates a missing expected WA Code), further requiring that derivation fires immediately on code creation.
+- **Alternatives considered:**
+  - *Derivation fires only on `issued` codes.* Rejected — creates a blind spot during the pre-WA period. The system cannot show required documents, track preparation progress, or surface blocking status until the formal WA arrives. This defeats the purpose of allowing pre-WA work tracking.
+  - *Deliverable lifecycle not gated by code status (Deliverables are always actionable).* Rejected — a Deliverable submitted to the SCA portal for unauthorized work is operationally invalid. The tracker confirmed that Deliverables cannot be submitted without an issued code. The `pending_RFA → outstanding` transition enforces this structurally.
+- **Consequences:** The system is useful from the moment work begins. Document and Deliverable slots appear incrementally as scope is discovered (top-down from tracker setup or bottom-up from work recording). Deliverables have a pre-authorization lifecycle phase gated by code status. Code issuance is a compound command with cascading effects — one command on WA Code triggers transitions on related Documents and Deliverables (per ADR-0007, multi-step atomic operations are themselves commands). Derived blocking status (from code authorization state) and operational blocking (from Notes) are independent, both visible, complementary signals.
