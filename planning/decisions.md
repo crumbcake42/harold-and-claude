@@ -380,3 +380,87 @@ Entries are numbered sequentially. Once `accepted`, do not edit in place — sup
   - *No relationship at all (Daily Logs and Time Entries are independent; coverage is tracker-eyeballed).* Rejected — closure-time validation that all work has narrative coverage is an accountability requirement; eyeballing produces no machine-checkable invariant.
   - *M:M Daily Log ↔ Time Entry (a time entry split across multiple logs).* Rejected — operationally a time entry's narrative belongs to one log. Finer granularity (per-page Daily Log assignment to Time Entries) is post-MVP, see `post-mvp.md`.
 - **Consequences:** Time Entry schema gains a nullable `daily_log` typed reference. Two new commands on Time Entry: `link_to_daily_log` and `unlink_from_daily_log` (the latter for corrections). Project closure invariant adds another cross-entity acknowledgement gate (alongside DepFiling completeness from ADR-0023 and existing closure gates). Daily Log slot creation is manual; the tracker adds a Daily Log Document, uploads the file, and links Time Entries to it. Visual review of Time Entries against Daily Log pages (page-level cross-referencing) is post-MVP.
+
+---
+
+## ADR-0027 — WA Code concrete state machine, dismiss cascade, and closure-blocker acknowledgement pattern
+
+- **Date:** 2026-05-12
+- **Decision:** WA Code's concrete state machine has six states: `expected`, `pending_rfa`, `rfa_in_review`, `issued`, `budget_rfa_needed` (deferred placeholder), and `dismissed`. `dismiss_wa_code` cascade-unlinks `wa_code` references on all referencing Time Entries and Sample Batches; null `wa_code` derives a `non_billable` flag on those records; a per-record `acknowledged` flag resolves the resulting closure blocker. `rfa_in_review` is a locked state — no dismissal while an RFA is under review; the RFA must resolve first.
+- **Status:** accepted
+- **Context:** ADR-0021 established WA Code's lifecycle at placeholder level, deferring concrete state names and transitions to Step 6b. The dismiss-cascade direction was decided in the prior session (6b-s3) but not yet ADR-written, pending resolution of the closure-blocker acknowledgement shape. Step 6b-s4 finalized the acknowledgement pattern (per-record flag, Option 1 from three candidates), unblocking this ADR.
+- **Alternatives considered:**
+  - *Allow dismissal from `rfa_in_review`.* Rejected — dismissing a code while its adding-RFA is in review creates an integrity hole: the RFA outcome (approved/rejected) would have no valid target state. The RFA must be rejected or withdrawn first, returning the code to `pending_rfa`, before dismissal is permitted.
+  - *Project-level override list for closure-blocker acknowledgement.* Rejected — a second source of truth on the Project entity; drift risk between the list and the actual record states. The per-record flag makes the closure check a simple predicate over Time Entry and Sample Batch records.
+  - *Note-based acknowledgement (ADR-0018 polymorphic Note with `is_closure_acknowledgement: true`).* Rejected — least machine-checkable; the closure gate would need to interpret Note contents rather than query a boolean flag.
+- **Consequences:**
+  - **State machine.** Six states with the following transitions:
+    - `expected → issued`: auto-triggered by WA issuance reconciliation (ADR-0022) when the WA includes this code.
+    - `expected → pending_rfa`: auto-triggered by WA issuance reconciliation when the WA does not include this code.
+    - `expected → dismissed`: `dismiss_wa_code`; delete instead if no Time Entry or Sample Batch has ever referenced this code.
+    - `pending_rfa → rfa_in_review`: auto-triggered when an RFA targeting this code is submitted.
+    - `pending_rfa → dismissed`: `dismiss_wa_code`; delete instead if unreferenced.
+    - `rfa_in_review → issued`: auto-triggered by RFA approval.
+    - `rfa_in_review → pending_rfa`: auto-triggered by RFA rejection or withdrawal.
+    - `issued → dismissed`: `dismiss_wa_code`.
+    - `issued → budget_rfa_needed`: auto-triggered when budget is exceeded [deferred — requires budget tracking].
+    - `budget_rfa_needed → rfa_in_review`: auto-triggered when a budget-amendment RFA is submitted [deferred].
+    - `budget_rfa_needed → dismissed`: `dismiss_wa_code` [deferred].
+  - **Dismiss cascade.** `dismiss_wa_code` is a compound command (ADR-0007): (1) transitions WA Code to `dismissed`; (2) nulls `wa_code` on all referencing Time Entries and Sample Batches; (3) the derived `non_billable` flag evaluates to true on each affected record; (4) each affected record becomes a closure blocker on its project unless `acknowledged` is true. Delete (hard) is substituted when no references ever existed — no cascade needed, no audit trail required.
+  - **Closure-blocker acknowledgement pattern.** A per-record `acknowledged: bool` field on Time Entry and Sample Batch resolves the non-billable closure blocker. The flag can be set ad-hoc (tracker visits the record) or during the project closure batch-acknowledge flow (gate surfaces all unacknowledged blockers). This is the first instantiation of a general pattern: any structural closure invariant that the tracker may knowingly override is resolved by a per-record flag on the blocking entity, not by a project-level list or Note.
+  - **`rfa_in_review` shared.** The state covers both "RFA to add a missing code" and "RFA to amend budget" — the distinction is visible in the RFA entity's own record (subject field), not in the WA Code state. The tracker does not need aggregate queries by RFA purpose.
+  - **Budget states deferred.** `budget_rfa_needed` and its transitions are named placeholders. No implementation commitment is made until budget tracking is designed.
+
+---
+
+## ADR-0028 — Cross-project time overlap is a derived blocker; no conflict entity
+
+- **Date:** 2026-05-12
+- **Decision:** When the same employee has time ranges across two projects that overlap, this is a derived cross-project blocker. Neither project involved may close until the overlap is resolved. The blocker is derived from first principles — same `employee_id`, overlapping `(start_time, end_time)`, different `project_id` — and dissolves automatically when the structural condition is fixed. No separate entity tracks the conflict.
+- **Status:** accepted
+- **Context:** Step 6b surfaced a scenario where a Sample Batch's collection time (or a Time Entry range) for one project overlaps an existing Time Entry range for the same employee on a different project. If the blocker were project-scoped, one project could close first, finalizing and locking its time entries — making the conflict irresolvable when the second project is later picked up. The conflict must therefore block both projects simultaneously.
+- **Alternatives considered:**
+  - *Project-scoped blocker (only the project the ambiguous record lands on is blocked).* Rejected — allows the other project to close and lock its time entries, eliminating the possibility of resolution. The scenario confirms that cross-project scope is necessary.
+  - *Named conflict entity (`TimeConflict`) linking the affected records.* Rejected — the conflict is fully derivable from the data; materializing it adds a record lifecycle (create, resolve, clean up) without buying anything the derived query doesn't already provide. Automatic dissolution on structural fix is cleaner than requiring explicit record deletion.
+- **Consequences:** Project closure gate includes a check for unresolved cross-project time overlaps on any of the project's Time Entries or Sample Batches. The overlap check is a range query on `(employee_id, start_time, end_time)`; a composite index on those three columns is the implementation-time requirement (not a domain model decision). Resolution is structural: the tracker adjusts a time entry's range, re-assigns a batch, or splits an entry (per the `split_entry` command pattern discussed in session). The blocker dissolves without any explicit acknowledgement step — it either exists or it doesn't. The `acknowledged` flag pattern (ADR-0027) does not apply here: a cross-project overlap is not a state the tracker accepts and moves past; it must be resolved.
+
+---
+
+## ADR-0029 — Deliverable concrete state machine, wasted flag, and delete condition
+
+- **Date:** 2026-05-12
+- **Decision:** Deliverable has four states: `pending_rfa`, `outstanding`, `under_review`, and `approved`. Rejection and withdrawal from review return to `outstanding` (no separate returned state; history captures the path). A derived `wasted` flag fires when the WA Code is dismissed and the Deliverable has either prepared documents or a submission attempt on record. A Deliverable in `outstanding` with no prepared documents and no submission history is hard-deleted when its WA Code is dismissed.
+- **Status:** accepted
+- **Context:** ADR-0022 established `pending_rfa` and `outstanding` as placeholder states for Deliverable's pre-submission lifecycle. Step 6b-s4 filled in the submission flow. The key UX driver for keeping both pre-submission states distinct is tracker efficiency: `outstanding` is an actionable queue ("ready to upload"); `pending_rfa` is a blocked queue ("waiting on WA Code authorization"). Merging them forces the tracker to inspect each Deliverable individually to determine uploadability.
+- **Alternatives considered:**
+  - *Single pre-submission state (no `pending_rfa`).* Rejected — without the distinction, the tracker cannot filter to "uploadable now" without inspecting each Deliverable individually. The two states serve different queues.
+  - *`returned` state for SCA rejection.* Rejected — `outstanding` is sufficient; the Deliverable is back in the actionable queue regardless of whether it was previously submitted. The lifecycle history (via lifecycle capture, ADR-0013) records the full path: `outstanding → under_review → outstanding`.
+  - *`wasted` as a persisted terminal state.* Rejected — `wasted` is fully derivable from WA Code status and Deliverable history (documents prepared or submission attempted). A persisted state would require a cascade command from `dismiss_wa_code` and introduce a state with no outbound transitions, adding lifecycle overhead for a rare edge case.
+- **Consequences:**
+  - **State machine:**
+    - `pending_rfa → outstanding`: auto-triggered by WA Code issuance (ADR-0022 compound cascade).
+    - `outstanding → under_review`: `submit_deliverable` (manual tracker command).
+    - `under_review → approved`: auto-triggered by SCA portal acceptance (or manual tracker confirmation).
+    - `under_review → outstanding`: `reject_deliverable` (SCA rejection) or `withdraw_deliverable` (tracker withdrawal). Both return to the actionable queue; history distinguishes them.
+  - **`wasted` derived flag.** Condition: WA Code is `dismissed` AND (`status ∈ {under_review, approved}` OR at least one bundled Document is in `saved` state). Visible in the UI; does not change the Deliverable's persisted state.
+  - **Delete on dismissal.** When WA Code is dismissed and the Deliverable is `outstanding` with no prepared documents (all bundled Documents in `missing` state, no prior submission), the Deliverable is hard-deleted. No cascade, no wasted flag — no work was done.
+  - **Submission invariant.** `submit_deliverable` is guarded: all bundled Documents must be in `saved` state. A Deliverable with missing documents cannot be submitted.
+
+---
+
+## ADR-0030 — WA concrete state machine and supersession-immutability invariant
+
+- **Date:** 2026-05-12
+- **Decision:** WA has three states: `pending` (not yet received from SCA), `issued` (received and recorded), and `superseded` (replaced by a newer WA version). `issue_wa` is a compound command that transitions WA to `issued` and runs WA Code reconciliation (ADR-0022), atomically resolving the full "limbo" derivation chain. A `superseded` WA is immutable — no commands or RFA filings are accepted against it.
+- **Status:** accepted
+- **Context:** ADR-0016 and ADR-0017 established WA versioning via supersession and the immutability invariant but left the concrete state machine for Step 6b. The tracker does not participate in the SCA's internal drafting or approval process — the WA is issued externally and received by the tracker. The only pre-issuance state needed is "pending receipt." The WA entity must exist in `pending` state before receipt so that WA Codes can be associated with it speculatively, anchoring the limbo derivation chain: WA `pending` → WA Code `expected` → Deliverable `pending_rfa`. `issue_wa` resolves the whole chain atomically.
+- **Alternatives considered:**
+  - *More granular pre-issuance states (draft → pending_approval → issued).* Rejected — the tracker does not participate in the SCA's issuance process. The only distinction the tracker cares about is whether the WA has been received; internal SCA states are invisible to the system.
+  - *No pre-issuance WA entity (create WA only on receipt).* Rejected — the WA entity needs to exist in `pending` state as an anchor for speculative WA Codes. Without it, the limbo derivation chain has no parent and WA Code reconciliation at issuance has no reference point.
+- **Consequences:**
+  - **State machine:**
+    - `pending → issued`: `issue_wa` compound command. Runs WA Code reconciliation (ADR-0022): expected codes present on the issued WA transition `expected → issued`; expected codes absent from the WA transition `expected → pending_rfa`; unexpected codes on the WA are created directly in `issued`. Cascades Deliverable transitions for newly-issued codes (`pending_rfa → outstanding`).
+    - `issued → superseded`: auto-triggered when `issue_wa` fires on a new WA for the same project that references this WA as the prior version (ADR-0016 self-reference).
+  - **Immutability.** `superseded` is a terminal state. No commands are accepted; RFA filings against a superseded WA are rejected at the command guard.
+  - **Limbo chain.** WA `pending` → WA Code `expected` → Deliverable `pending_rfa` are the same "limbo" concept at successive derivation levels. `issue_wa` resolves the full chain atomically.
+  - **Delete on cancellation.** A `pending` WA whose WA Codes carry no Time Entry or Sample Batch references is hard-deleted when the project is cancelled. No accountability trail is needed — no work was ever done against it. WA Codes in the same condition are hard-deleted alongside it.
