@@ -2,7 +2,7 @@
 
 *Generated index — do not edit manually. Regenerate by following the procedure in `planning/_workflow.md` (`_file-rules.md` regeneration procedure). Trigger: any `## File contract` block changes, or stale detection during Path B.*
 
-*Last regenerated: 2026-05-01*
+*Last regenerated: 2026-05-11*
 
 ---
 
@@ -59,6 +59,13 @@
 
 **Holds:** Append-only log of finalized design decisions (ADRs), each self-contained with date, status, context, alternatives considered, and consequences.
 **Update when:** A session finalizes a decision (append new ADR entry); an existing ADR is superseded (add superseding entry, update the old entry's `Status` field to `superseded by #N`). Never edit accepted entries in place.
+
+---
+
+## post-mvp.md
+
+**Holds:** Post-MVP feature candidates — name, one-line description, one-line "why interesting." Holding pen between now and Step 7's `mvp.md` out-of-scope section.
+**Update when:** A feature idea surfaces that's worth remembering but explicitly out of MVP scope. Consolidated into `mvp.md`'s out-of-scope section when Step 7 runs.
 
 ---
 

@@ -40,43 +40,37 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Last session summary
 
-**Step 6b (continued, session 2) — Document lifecycle + DepFiling entity (2026-05-11).** Closed the structural picture for Document and added a new entity (DepFiling) for regulatory filing bundles. Session interrupted by user before completing the remaining entity lifecycles (Deliverable, WA Code, WA, etc.); writes ran on wrap-up signal.
+**Step 6b (continued, session 3) — Block A carryovers + WA Code dismiss semantics (2026-05-11).** Cleared Block A (COC direction, Daily Log structure, DepFiling history pattern) in one pass. Started Block B (entity lifecycles) with WA Code's dismissal cascade, which surfaced a coupling with Block B #8 (blocked-as-flag) via the "resolve-or-acknowledge" closure-blocker mechanic. Session wrapped before naming WA Code states/commands; writes ran on wrap-up signal.
 
 **Major outputs:**
 
-1. **Document lifecycle structurally complete (ADR-0024).** Per-`document_type` discriminator dispatches to a three-option menu:
-   - **Simple** — `missing → saved`. Default for issued / externally authored / upload-and-done docs.
-   - **Cycling-family** — single parameterized state machine for draft/review/approve workflows. Parameters: `base_state`, `external_pushback`, ordered `buckets[]` (each with submit-date, review-step chain, `on_full_approval ∈ {terminal, loop_to_base}`). Bucket names are baked into command names.
-   - **Bespoke** — escape hatch for novel shapes.
+1. **COC lifecycle assigned (no ADR).** User confirmed prior-session "saved → missing" was a typo. COC follows the simple `missing → saved` default per ADR-0024's menu. Recorded in the per-`document_type` assignment table below.
 
-   CPR validates parameter coverage as a 2-bucket parameterization (RFA: 2-step review, loop_to_base; RFP: 1-step review, terminal). 5 tracking dates fall out naturally. FAMR confirmed as cycling-family, single-step review.
+2. **Daily Log structure (ADR-0026).** Daily Log is a Document type with simple `missing → saved` lifecycle. Daily Log → Time Entry is 1:M, modeled as a nullable typed reference (`daily_log`) on Time Entry. Time Entries can be created without a Daily Log link; project closure invariant requires every Time Entry on a closing Project to reference a Daily Log. No automatic derivation (log date ranges aren't deterministic). Per-page Daily Log assignment for visual review is deferred to `post-mvp.md`.
 
-   Code-time extensibility contract: register `document_type` value → pick pattern (or supply bespoke machine) → attach derivation source per ADR-0015 → declare commands and authorization predicates for non-trivial transitions. No framework change to add a new doc type.
+3. **DepFiling history pattern (ADR-0025).** Audit log (ADR-0013 pattern 2); delete policy is soft delete. Notes (ADR-0018) cover contextual commentary. Bounded accountability — captures `required_doc_types` edits and command authorship — without committing to point-in-time reconstruction.
 
-2. **DepFiling added as 16th entity (ADR-0023).** TRU-numbered regulatory filing bundle, project-scoped (1:M Project → DepFiling). Primary state is an editable `required_doc_types` set seeded by UI-side templates (Regular: 4 ACPs; Emergency: 5 docs including Emergency Notification). No persisted `filing_type` attribute — templates are constants in client code, freely re-edited post-creation. 1:M with Document (not M:M). Derived docs default to simple `missing → saved`. Invariant: `remove_required_doc_type` rejected when the corresponding Document is in `saved` state. No lifecycle of its own; completeness is derived.
+4. **New planning file: `post-mvp.md`.** Holding pen for post-MVP feature candidates between now and Step 7's `mvp.md` out-of-scope section. First entry: per-page Daily Log assignment for visual audit review.
 
-3. **Cycling-family "approved" is not strictly terminal.** External pushback (e.g., SCA rejecting a previously-approved doc when reviewing a Deliverable) can rewind any approved cycling doc to `base_state`. Modeled as the `external_pushback` parameter on the cycling state machine.
+5. **WA Code dismiss semantics (in progress, not yet ADR).** Decision direction: `dismiss_wa_code(code)` cascade-unlinks (nulls) `wa_code` references on referencing Time Entries and Sample Batches. Null `wa_code` produces a derived "non-billable" flag on the affected record. Project closure invariant: every Time Entry and Sample Batch on a closing Project must have a non-null `wa_code` OR an explicit acknowledgement from the tracker. The "resolve-or-acknowledge" mechanic exposed a coupling with Block B #8 (blocked-as-flag): closure-blocker acknowledgement is a generalizable pattern, and the WA Code dismissal cascade is its first concrete instance.
 
-4. **Per-document_type assignments so far:**
-
-   | Pattern | document_types |
-   |---|---|
-   | Simple `missing → saved` | ACP13, ACP7, ACP15, ACP21, Emergency Notification, ACP8, VAR9 (all DepFiling docs — issued externally) |
-   | Cycling-family | CPR (RFA/RFP fork, 5 dates), FAMR (single-step review) |
-   | Unsettled (next session) | COC, Daily Log |
-
-**Incomplete scope (deferred to next session — 6b-continued-3):**
-- COC lifecycle direction (typo confirmation needed)
-- Daily Log lifecycle (cross-entity rule with Time Entry under consideration)
-- DepFiling history pattern selection (audit log vs no history)
+**Incomplete scope (deferred to next session — 6b-continued-4):**
+- Closure-blocker acknowledgement shape (per-record flag / project-level override list / Note-based) — recommendation made (per-record flag), not yet approved
+- WA Code concrete state names, transitions, commands
 - Deliverable concrete lifecycle (states, commands, invariants — including ADR-0022's `pending_RFA → outstanding` gating)
-- WA Code concrete state names + `dismissed` semantics
 - WA pre-issuance states + supersession-immutability invariant
 - WA ↔ WA Code budget tracking across versions
-- Blocked-as-flag design
-- Project, RFA, Sample Batch, EmployeeRole, UserRole lifecycles (likely a third 6b session)
+- Blocked-as-flag full design (likely consolidates with closure-blocker acknowledgement)
+- Project, RFA, Sample Batch, EmployeeRole, UserRole lifecycles (likely a 6b session 5)
 
-**Revised entity roster (16 entities):**
+**Per-`document_type` assignments (cumulative):**
+
+| Pattern | document_types |
+|---|---|
+| Simple `missing → saved` | ACP13, ACP7, ACP15, ACP21, Emergency Notification, ACP8, VAR9 (all DepFiling docs — issued externally); COC; Daily Log |
+| Cycling-family | CPR (RFA/RFP fork, 5 dates), FAMR (single-step review) |
+
+**Entity roster (16 entities):**
 
 | # | Entity | Notes |
 |---|---|---|
@@ -105,17 +99,15 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 |---|---|
 | Comprehensive capture | Document, WA, RFA |
 | Lifecycle capture | Project, Sample Batch, Deliverable, EmployeeRole, UserRole, WA Code |
-| Audit log | Employee, User, Time Entry, Contractor |
+| Audit log | Employee, User, Time Entry, Contractor, DepFiling |
 | No history | School, Note |
-| **Deferred** | **DepFiling** (audit log vs no history — pending) |
 
 **Per-entity delete policy:**
 
 | Policy | Entities | Notes |
 |---|---|---|
-| Soft delete (guarded hard-delete eligible) | Document, WA, RFA, Project, Sample Batch, Deliverable, EmployeeRole, UserRole, Employee, User, Time Entry, Contractor, WA Code | History-carrying or referenced by history records. |
+| Soft delete (guarded hard-delete eligible) | Document, WA, RFA, Project, Sample Batch, Deliverable, EmployeeRole, UserRole, Employee, User, Time Entry, Contractor, WA Code, DepFiling | History-carrying or referenced by history records. |
 | Hard delete | School, Note | No history, no external history references. |
-| **Deferred** | **DepFiling** | Likely soft (Documents reference it). To finalize with history-pattern choice. |
 
 **Design patterns (carried + added):**
 1. Temporal rate resolution.
@@ -134,31 +126,30 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 - **FAMR** — Final Air Monitoring Report. Cycling-family doc with single-step review.
 - **CPR** — Contractor Package Record. Cycling-family doc with 2 buckets (RFA, RFP), 5 tracking dates.
 - **TAT** — Turnaround time for sample analysis.
-- **COC** — Chain of Custody. Lifecycle direction unsettled (see open questions).
+- **COC** — Chain of Custody. Simple `missing → saved` per ADR-0024 menu (confirmed 2026-05-11).
 - **DepFiling** — Regulatory filing bundle, TRU-numbered. New entity (ADR-0023).
 - **TRU** — Unique identifier the regulator assigns to a DepFiling. Natural key on DepFiling.
 - **ACP / VAR** — Document-type prefixes for regulatory forms (ACP13, ACP7, ACP15, ACP21, ACP8, VAR9, etc.). All simple `missing → saved`.
 
 ## Open questions
 
-**For the next 6b session (opening — small carryovers from this session):**
-- **COC lifecycle direction.** User wrote "saved → missing" in chat — unclear whether typo for simple `missing → saved` or literal (COC authored locally, then sent to lab and missing until signed copy returned). Confirm direction before assigning a pattern.
-- **Daily Log lifecycle.** Two sub-questions gate this:
-  1. Which Time Entries imply a Daily Log? All? Only field/site entries? Driven by a WA Code attribute?
-  2. Does one Daily Log cover one date or a date range?
+**For the next 6b session (immediate — picks up mid-Block-B):**
+- **Closure-blocker acknowledgement shape.** Surfaced via WA Code dismissal cascade: when a structural closure invariant fails (e.g., a Time Entry with null `wa_code` after `dismiss_wa_code`), the tracker can either resolve (assign a new code) or acknowledge (accept the non-billable state and close anyway). Where does the acknowledgement live structurally? Three candidates:
+  1. **Per-record flag** (`acknowledged_non_billable: bool` on Time Entry / Sample Batch). Granular; closure check is mechanical.
+  2. **Closure-gate override list on Project.** Centralized; second source of truth → drift risk.
+  3. **Note-based acknowledgement** (ADR-0018 polymorphic Note with `is_closure_acknowledgement: true`). Lightest; least machine-checkable.
 
-  If the matching rule is mechanical, proposal is to make Time Entry a Document-derivation source (Daily Log slot per (employee, project, date) tuple with a Time Entry), with system-derived blocking when slots are missing. If the rule has many exceptions, leave it to operational notes per ADR-0018.
-- **DepFiling history pattern.** Choose between audit log (best-effort accountability for who built the filing) and no history. Affects delete policy.
+  Recommendation made (Option 1, per-record flag) — not yet `approved`. Resolving this likely also resolves Block B #8 (blocked-as-flag) since both are closure-gate override patterns.
 
 **For the next 6b session (main scope — entity lifecycles still to define):**
+- **WA Code** — concrete state names (finalize from ADR-0021 placeholders: `expected` / `issued` / `pending_RFA` / `dismissed`); state-graph allowed transitions; named commands. `dismissed` semantics decided (cascade-unlink) but not yet ADR-written — pending closure-blocker shape resolution.
 - **Deliverable** — concrete states, commands, invariants. ADR-0022 already specifies `pending_RFA → outstanding` gating on WA Code status; fill in the rest.
-- **WA Code** — concrete state names (finalize from ADR-0021 placeholders: `expected` / `issued` / `pending_RFA` / `dismissed`); resolve **`dismissed` semantics** — what happens to Time Entries and Sample Batches referencing a dismissed code? Reassigned, kept as "work done, not billed," or other?
 - **WA** — pre-issuance states + supersession-immutability invariant (ADR-0017 specifies the rule, needs to land in the state machine); concrete state names.
 - **WA ↔ WA Code budget tracking** across WA versions — codes are project-scoped (ADR-0020) but the WA authorizes them and sets budgets. Where do the per-code budget terms live when the WA is superseded?
-- **Blocked-as-flag design** — how `is_blocked` flag interacts with lifecycle transitions and gating.
+- **Blocked-as-flag design** — how `is_blocked` flag interacts with lifecycle transitions and gating. Probably consolidates with closure-blocker acknowledgement above.
 
-**Likely deferred to a third 6b session:**
-- **Project lifecycle** — state machine, commands, closure invariants (probably substantial).
+**Likely deferred to a 6b session 5:**
+- **Project lifecycle** — state machine, commands, closure invariants (probably substantial; closure-blocker acknowledgement shape feeds directly into this).
 - **RFA lifecycle** — submission, approval, WA-amendment trigger.
 - **Sample Batch lifecycle** — collection, lab handoff, results, billing.
 - **EmployeeRole / UserRole lifecycles** — temporal grant/revoke patterns.
@@ -176,26 +167,24 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 
 ## Next session
 
-**Step 6b (continued, session 3) — Workflows & lifecycles, continued.** See `planning/steps.md` for the full step brief.
+**Step 6b (continued, session 4) — Workflows & lifecycles, continued.** See `planning/steps.md` for the full step brief.
 
 ### Prompt for the next session
 
-> Continue Step 6b. Document is structurally done (ADR-0024): per-`document_type` dispatch from a three-pattern menu (simple / cycling-family / bespoke), with cycling-family parameterized over buckets × review-steps × terminal behavior. DepFiling added as 16th entity (ADR-0023): TRU-numbered regulatory filing bundle, project-scoped, editable `required_doc_types` set, no persisted filing-type, 1:M with Document. Roster is now 16 entities.
+> Continue Step 6b mid-Block-B. Block A is closed: COC is simple `missing → saved`; Daily Log is a Document type with `daily_log` nullable typed reference on Time Entry, 1:M Daily Log → Time Entry, closure invariant requires non-null link (ADR-0026); DepFiling carries audit log + soft delete (ADR-0025). New planning file `post-mvp.md` holds out-of-MVP feature candidates (first entry: per-page Daily Log assignment for visual review).
 >
-> **Opening (small carryovers — resolve quickly):**
-> 1. COC direction — `missing → saved` or literally saved→missing (locally-authored-then-await-signed-return)? Was user typo ambiguous in the last session.
-> 2. Daily Log — confirm the derivation rule (which Time Entries imply a log; one date or range?). If mechanical, commit to Time Entry as a Document-derivation source for Daily Log slots. If not, leave to operational notes.
-> 3. DepFiling history pattern — audit log vs no history. Also locks delete policy.
+> **WA Code dismiss semantics decided but not yet ADR-written.** Direction: `dismiss_wa_code(code)` cascade-unlinks `wa_code` references on Time Entries and Sample Batches; null `wa_code` → derived "non-billable" flag; project closure invariant requires non-null `wa_code` OR explicit tracker acknowledgement. The "resolve-or-acknowledge" mechanic is shared with Block B #8 (blocked-as-flag).
 >
-> **Main scope: entity lifecycles still pending.** For each entity below, deliver: named state machine (state names + allowed transitions), named commands per transition, invariant declarations (intra-entity and cross-entity).
+> **Immediate decision (gates WA Code ADR):** closure-blocker acknowledgement shape. Three candidates on the table — per-record flag, project-level override list, Note-based. Recommendation: per-record flag (Option 1). Resolve this first; it likely consolidates Block B #8 into the same ADR.
 >
+> **Then continue Block B:** for each entity below, deliver named state machine (state names + allowed transitions), named commands per transition, invariant declarations (intra-entity and cross-entity).
+>
+> - **WA Code** — finalize state names from ADR-0021 placeholders (`expected` / `issued` / `pending_RFA` / `dismissed`), allowed transitions, named commands. Write ADR covering dismiss-cascade + closure-blocker acknowledgement.
 > - **Deliverable** — concrete states + commands; respect ADR-0022's `pending_RFA → outstanding` gating on WA Code status; compound-cascading-command behavior from WA Code issuance.
-> - **WA Code** — finalize concrete state names (ADR-0021 placeholders: `expected` / `issued` / `pending_RFA` / `dismissed`). Resolve `dismissed` semantics for referencing Time Entries and Sample Batches.
 > - **WA** — pre-issuance states + supersession-immutability invariant (ADR-0017).
 > - **WA ↔ WA Code budget tracking** across WA versions — where do per-code budget terms live when the WA is superseded?
-> - **Blocked-as-flag design** — `is_blocked` flag interaction with lifecycle and gating.
 >
-> **Defer to a third 6b session if context runs out:** Project, RFA, Sample Batch, EmployeeRole, UserRole lifecycles. Project lifecycle in particular is likely substantial (closure invariants span Deliverables, DepFilings, WA Codes).
+> **Defer to a 6b session 5 if context runs out:** Project, RFA, Sample Batch, EmployeeRole, UserRole lifecycles. Project lifecycle in particular is likely substantial (closure invariants span Deliverables, DepFilings, WA Codes, plus the now-formalized acknowledgement shape).
 >
 > **Process notes:**
 > - Stay in casual back-and-forth mode. Self-monitor context budget; flag wrap points.
@@ -210,8 +199,9 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 - Phase roster: `planning/phases.md`
 - Step list (current phase): `planning/steps.md` (Step 6a complete; Step 6b in progress across multiple sessions)
 - Session conventions: `planning/sessions.md`
-- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0024)
+- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0026)
 - Framework (Step 1 output): `planning/framework.md`
 - Logic (Steps 2–4 output; all sections written): `planning/logic.md`
 - History patterns (Step 5 output): `planning/history-patterns.md`
+- Post-MVP feature candidates: `planning/post-mvp.md`
 - File-location convention: planning artifacts live in `planning/`. `docs/` is reserved for user-facing documentation. `.claude/` is for harness configuration only.
