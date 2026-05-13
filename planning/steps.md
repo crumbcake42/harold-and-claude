@@ -226,9 +226,9 @@ Step 6b's core scope completed across eight sessions (lifecycle ADRs 0027–0037
 - ADR-0039 (or folded into the same ADR) for the rate-change compound command.
 - Updated cumulative tables in `handoff.md` (Sample Batch entity row, state-machine list, pattern menu if applicable).
 
-**Estimate:** May span two sessions. Session 9 covered the deliberation for item 1; session 10 transcribes item 1 to ADR form and deliberates item 2.
+**Estimate:** Spanned two sessions (9 + 10). Session 9 covered deliberation for item 1; session 10 wrote ADR-0038 (item 1) and ADR-0039 (item 2).
 
-**Done when:** ADR-0033's `billed` state is dropped via amendment; project-state-driven immutability rule is written down; rate-change compound is specified concretely enough that a per-command authorization predicate can be written against it without further design ambiguity.
+**Done when:** ADR-0033's `billed` state is dropped via amendment; project-state-driven immutability rule is written down; rate-change compound is specified concretely enough that a per-command authorization predicate can be written against it without further design ambiguity. ✓ (Complete; ADR-0038 + ADR-0039 landed 2026-05-13.)
 
 ---
 

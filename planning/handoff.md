@@ -40,34 +40,21 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Last session summary
 
-**Step 6b-residual (session 9) — Step 6c partition decided; ADR-0038 positions locked but unwritten; rate-change compound deferred (2026-05-12).**
+**Step 6b-residual continued (session 10) — ADR-0038 and ADR-0039 written; Step 6b-residual complete (2026-05-13).**
 
-Session opened in Case 2 (Step 6c had no scoped prompt). Fit checklist fired signals 1, 3, 4, 5, and 7; partitioned into three sub-sessions. `steps.md` and `handoff.md` were updated to reflect the partition. The first sub-session's deliberation then reframed its own scope rather than producing an ADR.
+Session 10 completed both items rolled forward from session 9.
 
 **Major outputs:**
 
-1. **Step 6c partition (Approach A from partition options).** Three-way split:
-   - **Step 6b-residual** — workflow consolidation (this session's intended scope; session 9 covered deliberation only for item 1, transcription + item 2 roll forward).
-   - **Step 6c-i** — role catalog + relationship declarations.
-   - **Step 6c-ii** — per-command authorization predicates (consumes ADR-0012 carry-forward).
+1. **ADR-0038 (Sample Batch state-machine removal + project-state-driven immutability).** Drops Sample Batch's `received → billed` state machine; the entity becomes stateless (lifecycle capture retained for `create_sample_batch` and `relink_sample_batch_wa_code`). Formalizes the project-state-driven immutability rule: commands on entities whose project membership puts them in a `closed`-state project are rejected at command guard, except regular Note creation on the entity and `reopen_project`. Cancelled projects do not trigger the rule (cancelled work was never billed; entities remain available for cleanup or reassignment to active projects). Declared as design pattern #13. Amends ADR-0033 (state-machine entry).
 
-2. **ADR-0033's `billed` state dropped (positions locked, ADR pending).** Original Step 6b-residual scope assumed `received → billed` had a separate billing-system trigger. User clarified mid-deliberation: (a) `billed` was conceived as marking closure-snapshot membership ("this batch was in a submitted payment package"), not billing-system finalization; (b) the in-MVP billing flow is a draft-invoice estimator with no state transitions — it aggregates rates, sample quantities, and WA flat fees on demand; (c) RFP rejection/withdrawal returns all submitted documents and the next submission is a blank slate. **Closure-snapshot membership is therefore not sticky and not per-entity-stateful.** It's derived from `Project.state == closed` + dismissed-flag at closure moment.
+2. **ADR-0039 (`change_employee_role_rate` compound + primitive-guard relaxation + new orphan blocker).** Defines the compound with target-state semantic and four-branch dispatch: create / merge-adjacent / close+create+auto-reparent / edit-in-place. Auto-reparent atomically re-points Time Entries on the existing row whose dates fall within the new row's coverage. Parameter includes `new_end_date` (optional, default NULL) — rate change implies renewal but the new license may have a known expiration. Amends ADR-0035: `close_employee_role` and `edit_employee_role` no-orphan-future-Time-Entries guards removed; Time Entry boundary invariant scoped to Time Entry write-time only. Amends ADR-0032 registry: new dismissable blocker "Time-Entry-out-of-role-range." Dismissal chain-nulls `wa_code` on Sample Batches collected during the Time Entry's coverage (second concrete instance of ADR-0033 pattern #12). History capture is two-tier (native per-write events + logical compound marker on EmployeeRole's stream).
 
-   **Position locked (Approach A from the cleanup options):** drop the `billed` state from ADR-0033 entirely. Sample Batch becomes stateless (joins EmployeeRole / DepFiling / Note / UserRole). Lifecycle capture pattern stays (covers `create_sample_batch` and `relink_sample_batch_wa_code` as discrete events without a state field).
+3. **Cross-ADR interactions documented in ADR-0039.** Auto-reparent writes are blocked by ADR-0038's immutability rule on closed-project Time Entries (compound rejects atomically; tracker reopens or picks a later effective_date). The new blocker may fire on closed-project Time Entries when EmployeeRole shortens post-closure (EmployeeRole writes are not project-scoped); such instances stay derived and become actionable only on `reopen_project`.
 
-3. **Project-state-driven immutability rule to be formalized in the same ADR.** Dropping `billed` only works if entity immutability is carried elsewhere. ADR-0037 currently says "no state changes on cancellation" but doesn't formalize "no mutations on entities attached to a `closed`-state project, except blocker-dismissal paths." That rule lands in the upcoming amending ADR, alongside the Sample Batch state cleanup. Whether it also earns a 13th design pattern entry decided at write time.
+**Step 6b-residual is complete.** Both items in scope (Sample Batch state-machine cleanup + project-state-driven immutability rule; rate-change compound) are landed in ADRs. Step 6c-i is next.
 
-4. **ADR mechanics decided.** **Amend** ADR-0033 (project's established practice for partial revisions — six prior amendments across ADRs 0033, 0034, 0036 set the precedent), **not supersede**. Grep-precedent for traceability (no `Modified by:` header-annotation pattern starting now). Bundle Sample Batch state cleanup + project-state-driven immutability rule into one ADR (Approach A on the bundling fork).
-
-5. **Side discussion: ADR file-management strategy.** User raised whether to compact amendments long-term to reduce reader load. Recommendation: don't compact mid-phase (loses deliberation context that actively informs current sessions). Consider one-time consolidation at Conceptualization → Implementation phase boundary (Step 9) — natural breakpoint, deliberation is settled, the consolidated record is the right artifact for implementation work. User accepted; no change to current practice.
-
-6. **Carry-forward: `change_employee_role_rate` compound command.** Originally in session 9's scope; not reached. Rolls into session 10 after ADR-0038 transcription.
-
-**Incomplete (rolling to session 10):**
-- **ADR-0038 not written.** Positions locked; transcription is session 10's first task.
-- **Rate-change compound not addressed.** Deliberation deferred to session 10 after ADR-0038 lands.
-
-**Cumulative tables below remain unchanged** — they reflect ADR-locked state through ADR-0037. Sample Batch entity row and state-machine list update when ADR-0038 writes.
+**Cumulative tables below reflect ADR-locked state through ADR-0039.**
 
 **Per-`document_type` assignments (cumulative):**
 
@@ -90,7 +77,7 @@ Session opened in Case 2 (Step 6c had no scoped prompt). Fit checklist fired sig
 | 7 | EmployeeRole | Temporal work-license assignment: `(employee_id, role_type, rate, start_date, end_date?)` (ADR-0035). Full-day closed-closed range. Disjoint-ranges-per-`(employee, role_type)` invariant. Referenced by Time Entry; rate read transitively. |
 | 8 | UserRole | App-access role: `(user_id, role_type)` composite key (ADR-0036). No timestamps, no state. Grant creates row; revoke hard-deletes; audit on User's log. Drives ADR-0012 authorization predicates. |
 | 9 | Time Entry | Billable time record. Employee + site (school) + date + WA Code reference (mandatory) + EmployeeRole reference (mandatory) + `on_site_range: (start_time, end_time)` + `off_site_sub_intervals: [(start_time, end_time)]` (ADR-0034). Sub-intervals ⊆ on-site range, pairwise disjoint. Rate read transitively from EmployeeRole. |
-| 10 | Sample Batch | COC group. Carries sample type, TAT, location(s), composition `[{subtype, quantity}]`. WA Code reference (mandatory, nullable via dismiss cascade only). States: `received` / `billed` (ADR-0033). Document-derivation source (COC + Lab Report). |
+| 10 | Sample Batch | COC group. Carries sample type, TAT, location(s), composition `[{subtype, quantity}]`. WA Code reference (mandatory, nullable via dismiss cascade — chains from ADR-0033 blocker-9 dismissal or ADR-0039 Time-Entry-out-of-role-range dismissal). Stateless per ADR-0038. Document-derivation source (COC + Lab Report). |
 | 11 | Document | Unified slot+file entity. Per-`document_type` lifecycle dispatch (ADR-0024). Derivation set spans WA Codes, DepFilings, project events. Derivation fires on expected codes (ADR-0022). |
 | 12 | Deliverable | SCA-portal submission package; bundles Documents (M:M). States: `pending_rfa` / `outstanding` / `under_review` / `approved` (ADR-0029). `wasted` derived flag. |
 | 13 | Contractor | On-site abatement (or other) third party. |
@@ -128,7 +115,8 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 9. **Delete-or-dismiss gate.** Entities with no external references hard-delete; entities with references use the dismiss cascade. Gate: check for references before choosing path.
 10. **Derived wasted flag.** A finalized or submitted entity retroactively invalidated by a downstream action is flagged rather than mutated. Flag is derived; entity retains its last persisted state.
 11. **Blocker-as-Note with lazy materialization.** System-derived blockers stay derived (registry scan) until a tracker engages (comment or dismissal). First engagement materializes a blocker Note (system-authored) with `surfaced_at` backfilled from entity history. Dismissable vs fix-only classification per registry. Cross-project blockers materialize as paired Notes linked via `paired_blocker_ref`. (ADR-0032)
-12. **Chain-dismissal.** When dismissing one blocker structurally causes another's condition to fire, the secondary materializes as already-dismissed atomically; the secondary's resolution Note `references` the primary dismissal Note. (ADR-0032; first concrete instance in ADR-0033 for blocker #9 → #2.)
+12. **Chain-dismissal.** When dismissing one blocker structurally causes another's condition to fire, the secondary materializes as already-dismissed atomically; the secondary's resolution Note `references` the primary dismissal Note. (ADR-0032; two concrete instances — ADR-0033 sample-collection-coverage → batch-orphan; ADR-0039 Time-Entry-out-of-role-range → batch-orphan via wa_code-null on collected batches.)
+13. **Project-state-driven immutability.** Entities whose project membership puts them in a parent project's "freezing" terminal state are immutable at command guard, with declared exceptions for commentary-only paths and parent-reopen escape hatches. Project's `closed` is the freezing terminal (billed-work snapshot); `cancelled` is the non-freezing terminal (abandoned work, available for reassignment). (ADR-0038)
 
 **Vocabulary (cumulative):**
 - **Tracker** — the app's user (job title: "project manager"; function: tracking).
@@ -158,35 +146,27 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 
 ## Open questions
 
-**For session 10 — immediate (Step 6b-residual continued):**
+**For session 11 — immediate (Step 6c-i):**
 
-- **ADR-0038 transcription (positions locked in session 9 — no new deliberation, but draft chat-side before writing to confirm wording):**
-  - Title naming for the dual-surface ADR (covers Sample Batch state cleanup + project-state-driven immutability rule).
-  - Restate ADR-0033's Sample Batch state machine entry: no `state` field; lifecycle capture covers `create_sample_batch` and `relink_sample_batch_wa_code` as discrete events.
-  - Write the project-state-driven immutability rule. Candidate phrasing: *"Commands on entities whose project membership puts them in a `closed` or `cancelled` project are rejected at command guard, except blocker-dismissal commands (per ADR-0032) and `reopen_project` (per ADR-0037)."* Confirm exception list during writing — sweep ADR-0037's `cancel_project` cascade (RFA withdrawal, draft-RFA hard-delete, pending-WA hard-delete) and ADR-0032's resolution-Note writes to make sure they're either pre-closure-only or fall under the dismissal exception.
-  - Decide whether the immutability rule earns a 13th design pattern entry or just stands as a one-off ADR-0037 lifecycle consequence.
-  - Cumulative-table updates in `handoff.md` after the ADR lands: Sample Batch entity row (drop "States: `received` / `billed` (ADR-0033)"); state-machine list (Sample Batch moves from "With state machines" to "Without state machines"); pattern menu if a 13th pattern is declared.
+- **Concrete role catalog (per ADR-0036 UserRole substrate; MVP scoped to project-manager / tracker).**
+  - Enumerate role names and one-line descriptions. Start from "tracker" (already in vocabulary); identify whether additional MVP roles exist (e.g., separate admin role for grant/revoke authority).
+  - Who-can-grant authority per role (probably converges on "any admin," but confirm).
+  - `reason` field shape on grant/revoke audit events (free-text vs enum vs both — ADR-0036 carry-forward).
 
-- **`change_employee_role_rate` compound command** (ADR-0035 carry-forward; deferred from session 9):
-  - Parameter shape: `(role, new_rate, effective_date)` was sketched in ADR-0035; confirm sufficient or expand (e.g., explicit handle for the new row's `end_date`, default `NULL`).
-  - Atomic sequence: close existing row at `effective_date − 1`, then create new row at `effective_date`. Confirm boundary arithmetic with closed-closed range semantics.
-  - Guards: inherited disjoint-ranges-per-role-type from `edit_employee_role` + `create_employee_role`; no-orphan-future-Time-Entries from `close_employee_role`. Any new guards specific to the compound shape?
-  - History capture: under lifecycle capture, does the compound emit one event or two (close + create)? Default expectation is two underlying events plus a logical compound marker, mirroring other compound commands (e.g., `close_project`).
-  - Whether it earns its own ADR or folds into ADR-0038. Default lean: separate ADR (different surface area, different deliberation thread; bundling would muddy ADR-0038's "drop a state + formalize an immutability rule" scope).
-  - Out-of-scope but adjacent: authorization predicate for the compound (lands in Step 6c-ii); UI/ergonomic wrapper concerns (implementation).
+- **Entity-pair relationship declarations across the 16-entity roster.**
+  - Many pair-links are already declared in their owning entity's ADR (e.g., Time Entry → EmployeeRole in ADR-0035; Sample Batch → WA Code in ADR-0033). Step 6c-i consolidates and fills gaps.
+  - Document ↔ Deliverable M:M — formal declaration (confirmed in concept, not yet specified).
+  - Any other unresolved pairs that surface during the sweep.
 
 **Carry-forwards worth re-checking when relevant:**
 - **Cross-project Sample Batch reassignment as a structured command**: in `post-mvp.md` alongside notifications.
 - **Retroactive rate corrections via Time-Entry rate snapshot** (carry-forward from ADR-0035): reversible additive change post-MVP if signal emerges.
-- **`reason` field shape on UserRole grant/revoke audit events** (free-text vs enum vs both): deferred to Step 6c-i alongside concrete role catalog.
 - **Security-immediate revoke runtime semantics** (session invalidation on `revoke_user_role`): implementation concern, deferred to auth implementation step.
 
 **Carried forward (deferred to later steps):**
 - **WA ↔ WA Code budget tracking implementation** — Option B direction confirmed; design deferred until budget tracking is in scope.
 - **Billing Rate entity/table** — temporal `(subtype, TAT) → rate` lookup. Likely Step 6d or later. Follows the temporal rate resolution template formalized in ADR-0035.
-- **Concrete authorization roles and relationship declarations** — Step 6c-i. ADR-0036 establishes UserRole as the substrate; the role catalog and entity-pair relationship declarations are Step 6c-i's work.
 - **Per-command authorization predicates** — Step 6c-ii (ADR-0012 carry-forward consumed there). Covers the full Step 6b + Step 6b-residual command surface.
-- **Document → Deliverable M:M** — confirmed; formal relationship declaration in Step 6c-i.
 - **Quarantine as a per-entity violation-handling pattern** — excluded from history-pattern menu (ADR-0013); remains deferred per ADR-0011. Step 6d.
 - **Bulk import file-upload relaxation** — 6b or implementation.
 - **Project structure for managing N `document_types`** — defer to implementation phase.
@@ -196,51 +176,44 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 
 ## Next session
 
-**Step 6b-residual continued (session 10) — write ADR-0038, then deliberate the rate-change compound.** Session 9 covered the Step 6c partition decision and locked positions for ADR-0038 (drop ADR-0033's `billed` state; formalize project-state-driven immutability) but did not write the ADR. Session 10 starts with the transcription, then takes up the deferred `change_employee_role_rate` compound. May complete in one session; may need session 11 if the rate-change deliberation runs long. Step 6c-i follows once Step 6b-residual fully closes.
+**Step 6c-i (session 11) — role catalog + entity-pair relationship declarations.** Step 6b-residual is complete. Step 6c-i enumerates the concrete role catalog under ADR-0036's UserRole substrate (MVP scoped to project-manager / tracker) and declares entity-to-entity relationships across the 16-entity roster (consolidating pair-links already declared in owning ADRs and filling gaps).
 
 ### Prompt for the next session
 
-> Resume work. Session 9 did two things: (a) partitioned Step 6c into a three-way split (Step 6b-residual → Step 6c-i → Step 6c-ii); (b) deliberated Step 6b-residual item 1 and reframed it — the "billing finalization trigger" turned out to rest on a misread of `billed`'s semantics. Positions for ADR-0038 are locked; the ADR was not written this session.
+> Resume work. Step 6b-residual closed in session 10 with ADR-0038 (Sample Batch stateless + project-state-driven immutability rule, declared as pattern #13) and ADR-0039 (`change_employee_role_rate` compound + ADR-0035 primitive relaxation + new orphan blocker + chain-dismissal extension).
 >
-> **Session 10 has two tasks, in order:**
+> **Session 11 scope (Step 6c-i):**
 >
-> 1. **Write ADR-0038** (positions locked in session 9 — transcription work, not new deliberation). Content:
->    - **Amend ADR-0033's Sample Batch state machine entry:** drop the `billed` terminal state. Sample Batch becomes stateless (joins EmployeeRole / DepFiling / Note / UserRole as "no state machine"). Lifecycle capture pattern stays (covers `create_sample_batch` and `relink_sample_batch_wa_code` as discrete events without a state field).
->    - **Formalize the project-state-driven immutability rule:** commands on entities attached to a project in `closed` or `cancelled` state are rejected at command guard, except blocker-dismissal commands (per ADR-0032) and `reopen_project` (per ADR-0037). Confirm the exception list while writing — sweep ADR-0037's `cancel_project` cascade and ADR-0032's resolution-Note writes to verify they're either pre-closure-only or fall under the dismissal exception.
->    - **Mechanics:** amendment to ADR-0033 (using project's "Amendments to other ADRs" pattern), grep-precedent traceability (no header annotation). ADR-0033's status stays `accepted`.
->    - **Pattern menu:** decide whether the immutability rule earns a 13th design pattern entry or just stands as a one-off ADR-0037 lifecycle consequence.
->    - **Update cumulative tables in `handoff.md` after the ADR lands:** Sample Batch entity row (drop "States: `received` / `billed` (ADR-0033)"); state-machine list (Sample Batch moves from "With state machines" to "Without state machines"); pattern menu if applicable; vocabulary section if needed.
+> 1. **Concrete role catalog.** Enumerate role names + one-line descriptions under ADR-0036's UserRole substrate. Start from "tracker" (already in vocabulary). Identify any additional MVP roles (admin? separate billing role?). Per-role who-can-grant authority. `reason` field shape on grant/revoke audit events (free-text vs enum vs both — ADR-0036 carry-forward).
 >
-> 2. **Deliberate `change_employee_role_rate` compound command** (deferred from session 9). Under STOP-AND-CONFIRM gate, surface one decision at a time:
->    - Parameter shape (`role`, `new_rate`, `effective_date` was sketched in ADR-0035; confirm or expand).
->    - Atomic sequence: close existing row at `effective_date − 1`, create new row at `effective_date`. Confirm boundary arithmetic against ADR-0035's closed-closed range semantics.
->    - Inherited guards (disjoint-ranges-per-role-type, no-orphan-future-Time-Entries) — confirm sufficient; identify any compound-specific guards.
->    - History-capture shape (one event vs. two underlying + compound marker — default expectation: two underlying events plus a logical compound marker, consistent with other compound commands like `close_project`).
->    - Whether it earns its own ADR (ADR-0039) or folds into ADR-0038. Default lean: separate ADR (different surface area, different deliberation thread).
+> 2. **Entity-pair relationship declarations** across the 16-entity roster. Many pairs already declared in their owning ADRs (Time Entry → EmployeeRole in ADR-0035; Sample Batch → WA Code in ADR-0033; etc.) — consolidate and fill gaps. Specifically resolve Document ↔ Deliverable M:M. Sweep for unresolved pairs.
 >
-> **State machines locked through session 8 (will change in session 10 once ADR-0038 lands):**
-> - With state machines: WA Code (6 states, ADR-0027), Deliverable (4 states, ADR-0029), WA (3 states, ADR-0030), RFA (5 states, ADR-0031), **Sample Batch (2 states, ADR-0033) → becomes stateless after ADR-0038**, Lab Report `document_type` (3 states bespoke, ADR-0033), Project (3 states, ADR-0037), RFP `document_type` (4 states bespoke, ADR-0037).
-> - Without state machines: EmployeeRole (temporal validity = state, ADR-0035), UserRole (row existence = grant, ADR-0036), DepFiling (no lifecycle, ADR-0023), School / Note / User / Employee / Contractor (no-history or audit-log entities), **Sample Batch (after ADR-0038)**.
+> **Outputs:** ADR(s) for role catalog and relationship declarations. ADR per Step 6c-i brief in `steps.md`.
 >
-> **Pattern menu through session 8:** 12 design patterns cumulative. May grow to 13 in session 10 if the project-state-driven immutability rule earns an entry.
+> **State machines locked through session 10:**
+> - With state machines: WA Code (6 states, ADR-0027), Deliverable (4 states, ADR-0029), WA (3 states, ADR-0030), RFA (5 states, ADR-0031), Lab Report `document_type` (3 states bespoke, ADR-0033), Project (3 states, ADR-0037), RFP `document_type` (4 states bespoke, ADR-0037).
+> - Without state machines: EmployeeRole (temporal validity, ADR-0035), UserRole (row existence, ADR-0036), DepFiling (no lifecycle, ADR-0023), Sample Batch (stateless per ADR-0038), School / Note / User / Employee / Contractor.
+>
+> **Pattern menu through session 10:** 13 design patterns cumulative. Pattern #13 (project-state-driven immutability) added in ADR-0038. Pattern #12 (chain-dismissal) gained a second concrete instance in ADR-0039.
+>
+> **Blocker registry through session 10:** 11 entries. New entry #11 in ADR-0039: Time-Entry-out-of-role-range (dismissable). Closure gate is the aggregate of fix-only-must-be-resolved + dismissable-must-be-resolved-or-dismissed per ADR-0032.
 >
 > **Stack confirmed (no ADR yet, Step 8 will write):** backend Python/FastAPI/Ruff/SQLAlchemy/Pydantic/pytest; frontend Vite/React/TypeScript/TanStack Router/TanStack Query/openapi-ts/shadcn-ui/Storybook.
 >
 > **Process notes:**
-> - Casual back-and-forth. Self-monitor context.
-> - ADR-0038 transcription is mechanical (positions locked in session 9) — draft chat-side before writing to confirm wording, but no per-decision STOP-AND-CONFIRM gate for the transcription itself.
-> - STOP-AND-CONFIRM gate applies fully to the rate-change compound deliberation.
+> - Casual back-and-forth. Self-monitor context. One topic per turn.
+> - STOP-AND-CONFIRM gate applies fully to all role-catalog and relationship deliberations.
 > - Do not write to `domain-model.md` (that's Step 6d).
-> - One topic per turn during back-and-forth.
+> - Per-command authorization predicates are Step 6c-ii, not this session.
 
 ## Pointers
 
 - Workflow protocol: `planning/_workflow.md`
 - File rules registry (generated): `planning/_file-rules.md`
 - Phase roster: `planning/phases.md`
-- Step list (current phase): `planning/steps.md` (Step 6a complete; Step 6b core complete; Step 6b-residual in progress — session 9 deliberation done, ADR-0038 transcription + rate-change compound roll to session 10; Step 6c partitioned into 6c-i and 6c-ii)
+- Step list (current phase): `planning/steps.md` (Step 6a complete; Step 6b core complete; Step 6b-residual complete; Step 6c-i next; Step 6c-ii after)
 - Session conventions: `planning/sessions.md`
-- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0037)
+- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0039)
 - Framework (Step 1 output): `planning/framework.md`
 - Logic (Steps 2–4 output; all sections written): `planning/logic.md`
 - History patterns (Step 5 output): `planning/history-patterns.md`
