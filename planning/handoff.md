@@ -40,31 +40,40 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Last session summary
 
-**Step 6b (continued, session 5) — RFA lifecycle landed; Sample Batch partially deliberated; blocker-pattern architectural pivot raised mid-session (2026-05-12).** Wrapped early at user request to continue on a different computer. Incomplete scope: Sample Batch ADR not written; EmployeeRole, UserRole, Project not started. Blocker-as-Note pattern under active deliberation — must resolve before Sample Batch ADR can be written.
+**Step 6b (continued, session 6) — Blocker-as-Note pattern (ADR-0032) and Sample Batch + Lab Report (ADR-0033) landed; ADR-0027 acknowledged-flag aspect superseded; Time Entry ADR proposal staged but not yet approved (2026-05-12).** Productive session. Two substantial ADRs written; the architectural pivot that blocked session 5 is now resolved. Time Entry off-site-intervals ADR (ADR-0034) staged in chat with recommendations on all three forks; carries to session 7. EmployeeRole, UserRole, Project still not started.
 
 **Major outputs:**
 
-1. **RFA state machine and auto-generated drafts (ADR-0031).** Five states: `draft`, `in_review`, `approved`, `rejected`, `withdrawn`. Drafts are system-generated and system-managed — first `pending_rfa` WA Code transition on a project auto-creates a draft RFA (if none open); subsequent `pending_rfa` codes add line items; dismissal removes them. Tracker edits per-line budgets + free-text fields; cannot manually add/remove line items. Shortfall flag (`requested_budget < observed_need`) soft-warns at submission, does not block. `approve_rfa` is a compound mega-command that atomically creates Amendment WA directly in `issued` state (no intervening `pending`), transitions target codes `rfa_in_review → issued`, cascades Deliverables `pending_rfa → outstanding`, supersedes prior WA, and marks RFA `approved`. Amendment WA's code set is mechanically `(prior WA's codes) ∪ (RFA line items)`. `reject_rfa` and `withdraw_rfa` return target codes to `pending_rfa` (terminal for RFA, fresh draft auto-generates). At most one draft per project. Empty draft hard-deleted (never-submitted; no audit value). Withdraw permitted to any tracker. Partial approvals confirmed not to occur in practice — modifications happen via reject/withdraw + new RFA.
+1. **Blocker-as-Note pattern (ADR-0032).** Unifies closure blockers and operational blockers under typed Note subtypes (`regular | blocker | resolution`) on the existing polymorphic Note entity (ADR-0018). Key decisions:
+   - **Materialization rule: lazy on user engagement (refined from session 5's "persist-only-dismissals").** System-derived blockers stay derived (registry scan) until a tracker engages — either writes a comment about the blocker or dismisses it. At first engagement the blocker Note materializes (system-authored) with `surfaced_at` backfilled from underlying entity history and `created_at = now`. Transient blockers no one cared about never materialize. Refined to "any engagement trigger" (not just dismissal) so the investigation thread has an anchor when trackers actively work a blocker.
+   - **Authorship class: nullable `created_by` + `authorship_class: 'user' | 'system'` enum** on Note. Edit predicate from ADR-0018 amended to `authorship_class == 'user' AND subtype == 'regular' AND caller == note.created_by`. System-authored Notes are never user-editable; blocker and resolution Notes are immutable regardless of authorship. Generalizes beyond blocker Notes — system-generated RFA drafts (ADR-0031) use the same shape.
+   - **Cross-project blockers: paired Notes with inter-Note reference.** When the second project's tracker engages, a paired Note materializes on its side; both Notes carry `paired_blocker_ref`. Each project's tracker maintains a separate investigation thread (operationally right — different vendor contacts, different escalation paths). Resolution Notes are written independently per side.
+   - **Dismissal authorization: any tracker** (parallel to `withdraw_rfa` per ADR-0031). Project-level decision, uniform across origin types, no staff-rotation dead-letter risk.
+   - **Dismissable/fix-only registry: 9 entries, 8 dismissable + 1 fix-only.** Initial population locked; future ADRs append. Classification test: "is there a real-world acceptance path?" Yes ⇒ dismissable; no (logical impossibility) ⇒ fix-only.
+   - **Chain-dismissal pattern.** When one blocker's dismissal structurally causes another's condition to fire, the secondary materializes as already-dismissed atomically (linked via `references` field on the resolution Note pointing at the causing dismissal).
+   - **Project closure gate:** no `fix-only` blockers + every `dismissable` blocker either no longer holds OR has a dismissal resolution Note. Closure UI surfaces unresolved-dismissable set as batch-acknowledge flow.
+   - **Amends ADR-0018** in three ways (subtype field, authorship-class + nullable created_by, inter-Note `references` field). **Partial supersession of ADR-0027** (acknowledged-flag aspect only; state machine and dismiss cascade survive). **References ADR-0028** (no supersession; cross-project overlap stays derived, just slots into the uniform mechanism).
 
-2. **Sample Batch positions approved in chat (no ADR yet — pending blocker-pattern decision):**
-   - **Position 1 (approved):** two-state machine `received → billed` (terminal). No `collected`, no `in_lab`, no `void`. Batch enters post-analysis on COC receipt.
-   - **Position 2 (approved, amended):** Lab Report becomes a new `document_type` with a **bespoke three-state machine** (`missing`, `saved`, `invalid`) per ADR-0024's escape hatch — `saved → invalid` (tracker discovered errors), `invalid → saved` (amended report accepted), `missing → invalid` also allowed (lab returned a defective report up front). The `invalid` state was added at user's request so history captures holdup. Sample Batch becomes a **Document derivation source** (parallel to ADR-0023's DepFiling → Document), producing COC (saved at batch creation) and Lab Report (missing initially). Adds Sample Batch to the derivation-source list (currently WA Code, DepFiling, project events).
-   - **Position 3+ (in flight):** generalization of ADR-0027's `acknowledged` flag was being deliberated when the user pivoted to a broader blocker-as-Note proposal. See item 3.
+2. **Sample Batch + Lab Report (ADR-0033).** Consolidates Sample Batch design end-to-end:
+   - **State machine: `received → billed` (two states, terminal).** Tracker engages on COC receipt; no pre-receipt or void states. `received → billed` trigger deferred to billing-design step.
+   - **Lab Report as new `document_type` with bespoke three-state machine** (`missing`, `saved`, `invalid`) per ADR-0024's escape hatch. All four transitions valid (`missing → saved`, `missing → invalid`, `saved → invalid`, `invalid → saved`). Closure-blocker fires on state ∈ {missing, invalid}. ADR-0024 menu amended.
+   - **Sample Batch as Document-derivation source** (joins WA Code, DepFiling). Each batch derives one COC document (saved at creation) and one Lab Report document (missing initially). ADR-0015 amended.
+   - **`relink_sample_batch_wa_code` command — strict orphan-recovery gating + cross-project use by construction.** Permitted only when current wa_code is null or its code is in `dismissed` state. `new_wa_code` is not constrained to the current project's codes — cross-project misfiling recovery uses the same command. Sample-to-wa-code mapping is mechanically deterministic per `(sample_type, school)`, so smart auto-relink fires when a deterministic match becomes available.
+   - **Chain-dismissal rule for blocker #9 → #2 linkage.** Dismissing #9 atomically: writes resolution Note for #9, nulls `wa_code`, materializes blocker Note for #2 (system-authored), writes paired auto-dismissal resolution Note for #2 referencing the #9 dismissal. Generalization of the chain-dismissal pattern lives in ADR-0032.
+   - **Smart-inference UI hint for misfiled batch.** When blocker #9 holds, system queries `(same employee + same school + Time Entry on a different project covering the collection time)` and surfaces "possibly misfiled — did you mean Project Y?" Read-side derivation; no state change. Resolution path is manual (dismiss #9 + relink to Project Y's code).
+   - **History pattern: lifecycle capture (unchanged).** Composition edits handled via tracker discipline + explanatory Notes; promotion to comprehensive deferred pending post-MVP signal.
 
-3. **Blocker-as-Note architectural pivot (UNRESOLVED — biggest open question).** User proposed replacing ADR-0027's per-record `acknowledged: bool` flag with a uniform mechanism: Notes (ADR-0018) gain a `blocking` subtype with required resolution. Derived blockers generate system-created blocker Notes; resolution comes from either fix-triggered system resolution Notes or user dismissal ("something went wrong, moving on"). Implications touch three existing ADRs:
-   - **ADR-0018 extension** (3–4 specific changes): subtypes (regular/blocker/resolution), system authorship class, inter-Note references (resolution → blocker), preserved immutability and polymorphism.
-   - **ADR-0028 amendment:** introduces a **dismissable vs. fix-only** dichotomy on blocker types. Dismissable: orphans (wa_code=null), missing artifacts (Lab Report missing, COC missing, Daily Log missing), incomplete derivations (DepFiling required doc missing), in-flight RFAs at closure. Fix-only: logical impossibilities — same employee at two places at once (ADR-0028), sample collection time outside on-site interval. Implementation requires a small **blocker-type registry** classifying each type.
-   - **ADR-0027 partial supersession:** only the `acknowledged: bool` field aspect; WA Code state machine and dismiss cascade survive untouched.
+3. **ADR-0027 partial supersession.** The per-record `acknowledged: bool` field on Time Entry and Sample Batch is removed; closure-blocker resolution for those entities goes through the resolution-Note mechanism. WA Code state machine and `dismiss_wa_code` compound cascade are untouched.
 
-   User confirmed commit-now (no implementation yet; refactor cost real). Recommended materialization rule: **persist-only-dismissals** (Notes created only when a tracker dismisses a blocker; derived blockers stay derived and computed at query time; avoids system-Note churn, transient-alarm handling, and auto-resolve cross-cutting concern). Persist-all alternative (every blocker lifecycle as Note pair) discussed; rejected as too noisy for limited audit value over existing comprehensive-capture chains.
+4. **Time Entry off-site intervals (ADR-0034) — proposal staged in chat, awaits approval.** Three forks deliberated:
+   - **Interval representation:** on-site range + list of off-site sub-intervals with reasons (recommended) vs flat list of disjoint on-site intervals vs status-quo scalar `hours`.
+   - **Off-site reason shape:** free-text (recommended for MVP) vs enum+free-text fallback.
+   - **Cross-project overlap predicate (ADR-0028 amendment):** net on-site time (recommended) vs gross on-site range.
+   - All three Position A recommended. User did not approve; carries to session 7. Blocker #9's predicate becomes "batch's collection time does not fall within any Time Entry's net on-site interval for that employee on that date."
 
-   **OPEN FORK PENDING USER POSITION:** persist-only-dismissals vs persist-all materialization. Other forks pending the persist decision: cross-project blocker attachment (two paired Notes vs multi-target reference); authorization for dismissal (likely any tracker, parallel to `withdraw_rfa`).
+5. **Post-MVP additions written to `post-mvp.md`:** (a) Track-this pin for blockers (notification-coupled); (b) Structured blocker assignment + notifications (would force partial supersession of ADR-0018's no-history stance); (c) Structured cross-project Sample Batch reassignment (one-command move with notification handoff). All three bundle naturally — they share a notification substrate.
 
-4. **Off-site intervals on Time Entry surfaced (Sample Batch F-clause).** Time Entry needs structured intervals: on-site range + list of off-site sub-intervals with reasons. Cross-validation invariant: sample collection time must fall within an on-site interval for some Time Entry of that employee on that date. Falls into the **fix-only** category of the proposed blocker dichotomy. Recommend separate ADR for Time Entry structural expansion + cross-validation invariant, written before Project lifecycle (closure invariants will reference it).
-
-5. **Sample Batch history pattern — promotion proposed (unresolved).** Currently lifecycle capture per handoff cumulative table. With blocker-pattern pivot in flight, the question of comprehensive-capture promotion (to capture `acknowledge`/`relink_wa_code`/composition edits) is deferred until the blocker-Note ADR lands — composition edits and relink may end up being directly observable through their commands, and blocker dismissal is captured via the resolution Note rather than a flag mutation, which changes the calculus.
-
-**Cumulative tables below reflect ADR-locked state only. Sample Batch position 1, position 2-amended, and the blocker-pattern positions are approved in chat but not yet ADR'd; they are not reflected in the tables until the corresponding ADRs land.**
+**Cumulative tables below reflect ADR-locked state through ADR-0033.**
 
 **Per-`document_type` assignments (cumulative):**
 
@@ -72,6 +81,7 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 |---|---|
 | Simple `missing → saved` | ACP13, ACP7, ACP15, ACP21, Emergency Notification, ACP8, VAR9 (all DepFiling docs — issued externally); COC; Daily Log |
 | Cycling-family | CPR (RFA/RFP fork, 5 dates), FAMR (single-step review) |
+| Bespoke | Lab Report (3 states: `missing`, `saved`, `invalid`; 4 transitions including `saved → invalid` for tracker-discovered errors and `invalid → saved` for amended reports) |
 
 **Entity roster (16 entities):**
 
@@ -85,13 +95,13 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 | 6 | Employee | Person doing project work; linked to User via typed reference (0..1 ↔ 0..1). |
 | 7 | EmployeeRole | Temporal work-license assignment with `(role_type, rate, start_date, end_date?)`. |
 | 8 | UserRole | App-access role with grant/revoke timestamps; drives ADR-0012 authorization predicates. |
-| 9 | Time Entry | Billable hours record. Employee + site + date + hours + WA Code reference (mandatory). `acknowledged: bool` for non-billable closure override. |
-| 10 | Sample Batch | COC group. Carries sample type, TAT, location(s), composition `[{subtype, quantity}]`. WA Code reference (mandatory). `acknowledged: bool` for non-billable closure override. |
+| 9 | Time Entry | Billable hours record. Employee + site + date + hours + WA Code reference (mandatory). Structural expansion (on-site range + off-site sub-intervals) staged for ADR-0034 (session 7). |
+| 10 | Sample Batch | COC group. Carries sample type, TAT, location(s), composition `[{subtype, quantity}]`. WA Code reference (mandatory, nullable via dismiss cascade only). States: `received` / `billed` (ADR-0033). Document-derivation source (COC + Lab Report). |
 | 11 | Document | Unified slot+file entity. Per-`document_type` lifecycle dispatch (ADR-0024). Derivation set spans WA Codes, DepFilings, project events. Derivation fires on expected codes (ADR-0022). |
 | 12 | Deliverable | SCA-portal submission package; bundles Documents (M:M). States: `pending_rfa` / `outstanding` / `under_review` / `approved` (ADR-0029). `wasted` derived flag. |
 | 13 | Contractor | On-site abatement (or other) third party. |
 | 14 | RFA | Request for Amendment; carries pending WA edits. May be auto-created during WA issuance reconciliation. |
-| 15 | Note | Polymorphic commentary; typed reference to any entity. Creator-only edits. Not deletable. |
+| 15 | Note | Polymorphic commentary; typed reference to any entity. Subtypes `regular | blocker | resolution` (ADR-0032). `authorship_class: 'user' | 'system'` + nullable `created_by`. Inter-Note `references` field. Regular user Notes are creator-editable per ADR-0018; blocker and resolution Notes are immutable. Not deletable. |
 | 16 | DepFiling | TRU-numbered regulatory filing bundle (ADR-0023). Project-scoped; editable `required_doc_types` set; Document-derivation source. No lifecycle. |
 
 Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT options, status enums, `document_type` registry, DepFiling template constants.
@@ -123,40 +133,40 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 8. Set-based derivation extended.
 9. **Delete-or-dismiss gate.** Entities with no external references hard-delete; entities with references use the dismiss cascade. Gate: check for references before choosing path.
 10. **Derived wasted flag.** A finalized or submitted entity retroactively invalidated by a downstream action is flagged rather than mutated. Flag is derived; entity retains its last persisted state.
+11. **Blocker-as-Note with lazy materialization.** System-derived blockers stay derived (registry scan) until a tracker engages (comment or dismissal). First engagement materializes a blocker Note (system-authored) with `surfaced_at` backfilled from entity history. Dismissable vs fix-only classification per registry. Cross-project blockers materialize as paired Notes linked via `paired_blocker_ref`. (ADR-0032)
+12. **Chain-dismissal.** When dismissing one blocker structurally causes another's condition to fire, the secondary materializes as already-dismissed atomically; the secondary's resolution Note `references` the primary dismissal Note. (ADR-0032; first concrete instance in ADR-0033 for blocker #9 → #2.)
 
 **Vocabulary (cumulative):**
 - **Tracker** — the app's user (job title: "project manager"; function: tracking).
 - **Coordinator** — office staff who manage work. Not an app user in MVP.
-- **Project / School / WA / WA Code** — as before.
+- **Project / School / WA / WA Code** — as before. School = site = building for MVP. Sample collection codes are school-scoped (e.g., "asbestos sampling at school A"); a WA may authorize work across multiple schools and carry multiple sample-collection codes (one per `(sample_type, school)`).
 - **FAMR** — Final Air Monitoring Report. Cycling-family doc with single-step review.
 - **CPR** — Contractor Package Record. Cycling-family doc with 2 buckets (RFA, RFP), 5 tracking dates.
 - **TAT** — Turnaround time for sample analysis.
-- **COC** — Chain of Custody. Simple `missing → saved` per ADR-0024 menu.
+- **COC** — Chain of Custody. Simple `missing → saved` per ADR-0024 menu. Derived from Sample Batch (ADR-0033); created in `saved` state at batch creation.
+- **Lab Report** — Bespoke 3-state document type (`missing`, `saved`, `invalid`) per ADR-0033. Derived from Sample Batch; created in `missing` state.
 - **DepFiling** — Regulatory filing bundle, TRU-numbered. New entity (ADR-0023).
 - **TRU** — Unique identifier the regulator assigns to a DepFiling. Natural key on DepFiling.
 - **ACP / VAR** — Document-type prefixes for regulatory forms (ACP13, ACP7, ACP15, ACP21, ACP8, VAR9, etc.). All simple `missing → saved`.
 - **Wasted** — derived flag on Deliverable: WA Code dismissed after documents prepared or submission attempted. Entity stays in current state; flag signals retroactive invalidity.
 - **Limbo chain** — WA `pending` → WA Code `expected` → Deliverable `pending_rfa`. Resolves atomically when `issue_wa` fires.
+- **Blocker** — A structural condition (registry entry from ADR-0032) or user-flagged Note declaring something is held up. Dismissable (real-world acceptance path exists) or fix-only (logical impossibility, must be resolved).
+- **Materialized blocker** — A blocker that exists as a persisted Note record (vs purely-derived, registry-only). System-derived blockers materialize on first user engagement.
+- **Engagement** — A tracker writing a comment about a blocker or dismissing it. The trigger for lazy materialization of system-derived blockers.
+- **Chain-dismissal** — When dismissing one blocker structurally causes another's condition to fire, the secondary is materialized as already-dismissed atomically. Linked via the resolution Note's `references` field.
 
 ## Open questions
 
-**For session 6 — immediate (blocker-pattern decision blocks Sample Batch ADR):**
-- **Blocker-as-Note pattern — persist-only-dismissals vs persist-all.** Resume here. Recommendation on table: persist-only-dismissals (lighter; derived blockers stay derived; Notes only materialize on tracker dismissal). User leaning maximal-with-commit-now; needs explicit position on materialization rule.
-- **Cross-project blocker attachment under Note model.** ADR-0028 overlap involves two records (Time Entry on each project). Notes attach to one polymorphic target. Options: paired blocker Notes (one per record, auto-resolve together) vs multi-target Note reference (changes ADR-0018's reference shape). Pending persist decision.
-- **Authorization for blocker dismissal.** Likely any tracker (parallel to `withdraw_rfa` per ADR-0031). Pin when blocker-pattern ADR is written.
-- **Blocker-type registry.** Explicit classification for each blocker type as dismissable or fix-only. Initial set: non-billable orphans / Lab Report missing / COC missing / Daily Log missing / DepFiling required-doc missing / in-flight RFA at closure (dismissable); cross-project time overlap / sample collection time outside on-site interval (fix-only).
+**For session 7 — immediate:**
+- **Time Entry off-site intervals ADR (ADR-0034) — staged but not yet approved.** Three forks proposed in chat with Position A recommended on each: (1) interval representation = on-site range + off-site sub-intervals with reasons, (2) reason shape = free-text for MVP, (3) cross-project overlap predicate (ADR-0028 amendment) = net on-site time. User did not say `approved` before wrap. Pick up by re-posing forks (or accept recommendations) and writing the ADR. Blocker #9's predicate becomes "batch's collection time does not fall within any Time Entry's net on-site interval for that employee on that date."
+- **EmployeeRole / UserRole lifecycle ADRs.** Temporal grant/revoke patterns. Small — likely one ADR each or one combined. Should fit alongside ADR-0034 in session 7.
 
-**For session 6 — Sample Batch closing items (blocked on blocker-pattern):**
-- **Position 4 (not yet posed):** `relink_sample_batch_wa_code(batch, new_wa_code)` command — allowed when current `wa_code` is null; sets new code, flips `non_billable` derivation false; under blocker-Note model, the dismissal Note remains as audit. Surface mechanism (UI query: same school + same employee + collection in another project's time entry) is implementation-time.
-- **Position 5:** off-site intervals on Time Entry + cross-validation invariant — separate ADR before Project. Falls into fix-only blocker category.
-- **Position 6:** Sample Batch history-pattern promotion to comprehensive — re-evaluate after blocker-Note ADR (composition edits + relink command may not need promotion if blocker dismissals are captured via Notes rather than flag mutations).
+**For session 8 (Project):**
+- **Project lifecycle ADR.** Substantial. Closure invariants span: no fix-only blockers + every dismissable blocker resolved (per ADR-0032 closure gate text). DepFiling completeness, WA Code states (no open RFAs), Daily Log coverage, Deliverable status, cross-project time conflicts, non-billable records — all flow through the registry now. Cancellation handling for open drafts and `in_review` RFAs (deferred from ADR-0031) lands here.
 
-**For session 6+ — remaining lifecycles:**
-- **EmployeeRole / UserRole** — temporal grant/revoke patterns. Small.
-- **Project** — substantial. Likely its own session (session 7) given blocker-pattern ADR + Sample Batch ADR + Time Entry ADR will eat session 6. Closure invariants span: DepFiling completeness, WA Code states (no open RFAs), Daily Log coverage (or dismissed), Deliverable status, cross-project time conflicts resolved, non-billable records dismissed. Under blocker-Note model, closure check = "no unresolved fix-only blockers + no unresolved-and-non-dismissed dismissable blockers."
-
-**RFA edge case deferred from ADR-0031:**
-- **Project cancellation handling for open drafts and `in_review` RFAs.** Handled when Project lifecycle is written.
+**Carry-forwards from ADR-0033 worth re-checking:**
+- **Billing finalization flow** (the `received → billed` Sample Batch trigger): specific command and authorization at billing-design step.
+- **Cross-project Sample Batch reassignment as a structured command**: in `post-mvp.md` alongside notifications.
 
 **Carried forward (deferred to later steps):**
 - **WA ↔ WA Code budget tracking implementation** — Option B direction confirmed; design deferred until budget tracking is in scope.
@@ -172,43 +182,24 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 
 ## Next session
 
-**Step 6b (continued, session 6) — Resume mid-deliberation: blocker-as-Note architectural pivot, then Sample Batch ADR.** See `planning/steps.md` for the full step brief.
+**Step 6b (continued, session 7) — Time Entry off-site intervals ADR (ADR-0034) + EmployeeRole / UserRole ADRs.** See `planning/steps.md` for the full step brief. Project lifecycle stays in session 8.
 
 ### Prompt for the next session
 
-> Resume Step 6b mid-session. Session 5 wrapped early at user request to continue on a different computer; ADR-0031 (RFA) was the only ADR finalized. **Sample Batch positions 1 and 2-amended are approved in chat but not ADR'd — they cannot land as an ADR until the blocker-pattern question below is resolved, because the closure-blocker shape in Sample Batch depends on it.**
+> Resume Step 6b. Session 6 landed ADR-0032 (blocker-as-Note pattern with lazy materialization, dismissable/fix-only registry, paired cross-project Notes, any-tracker dismissal authorization, chain-dismissal extension) and ADR-0033 (Sample Batch + Lab Report bespoke document type + Sample Batch as derivation source + `relink_sample_batch_wa_code` command + smart-inference for misfiled batches). ADR-0027's `acknowledged: bool` field aspect is superseded; state machine and dismiss cascade survive.
 >
-> **Immediate pickup — the open fork:** the user proposed replacing ADR-0027's per-record `acknowledged: bool` flag with a **uniform blocker-as-Note pattern**. Notes (ADR-0018) gain a `blocking` subtype with required resolution; derived blockers may either materialize as system-generated Notes or stay derived (with Notes created only on user dismissal). The user agreed to commit now (no implementation has happened yet; refactor cost is real). They confirmed:
-> - ADR-0018 extension is acceptable (subtypes, system authorship class, inter-Note references; immutability and polymorphism preserved).
-> - ADR-0028's fix-only-vs-dismissable dichotomy is workable (small blocker-type registry classifying each type).
-> - ADR-0027's `acknowledged` field aspect can be superseded (rest of ADR-0027 survives untouched).
+> **Immediate pickup — ADR-0034 Time Entry off-site intervals.** The proposal is fully staged in session 6's chat history with my recommendation on every fork. User did not say `approved` before wrap, so the gate stands. Three coupled forks:
+> 1. **Interval representation:** Position A (recommended) — `on_site_range: (start_time, end_time)` + `off_site_sub_intervals: [(start_time, end_time, reason)]`, with sub-intervals required to be entirely within the on-site range and disjoint. Net on-site time = on-site range minus sub-intervals; this drives billing and cross-validation. Alternative B was a flat list of disjoint on-site intervals (architecturally equivalent, operationally awkward). C (status quo scalar `hours`) drops the invariant.
+> 2. **Off-site reason shape:** Position A (recommended) — free-text `reason: str`. Enum can be added post-MVP if billing rules need to differentiate (e.g., "travel between sites" billable on a different code).
+> 3. **Cross-project overlap predicate (ADR-0028 amendment):** Position A (recommended) — predicate uses net on-site time, not gross. Off-site sub-intervals legitimately reduce conflict surface; B (gross range) would produce false-positive fix-only blockers.
 >
-> **What's pending:** the **materialization rule** for derived blockers — persist-only-dismissals (recommended in session 5) vs persist-all. Persist-only-dismissals: Notes materialize only when the tracker dismisses a blocker; derived blockers are computed at query time; no system-Note churn or transient-alarm handling. Persist-all: every blocker lifecycle as a Note pair (creation by system on trigger, resolution by system on fix or by user on dismissal); fuller audit trail but heavy. User to decide.
+> Re-pose the forks or accept recommendations, then write ADR-0034. The ADR should also pin blocker #9's predicate as "batch's collection time does not fall within any Time Entry's net on-site interval for that employee on that date" (currently captured in the registry as user-facing language; ADR-0034 makes it structural).
 >
-> **Once materialization rule lands, the blocker-pattern ADR should:**
-> - Define blocker Note subtype + resolution Note subtype.
-> - Define system authorship class (synthetic User row vs nullable `created_by` with flag — pick one).
-> - Define blocker-type registry (dismissable: non-billable wa_code=null, Lab Report missing, COC missing, Daily Log missing, DepFiling required-doc missing, in-flight RFA at closure; fix-only: cross-project overlap, sample collection outside on-site interval).
-> - Handle cross-project blocker attachment (paired Notes on each affected record; auto-resolve together on structural fix).
-> - Authorization: any tracker can write a dismissal Note (parallel to `withdraw_rfa` from ADR-0031).
-> - Supersede ADR-0027's `acknowledged: bool` field (rest of ADR-0027 survives).
-> - Amend ADR-0018 with explicit subtype/authorship/reference extensions.
-> - Reference ADR-0028 with the dichotomy framing (no supersession; that ADR's rule survives, just slotted into a uniform mechanism).
+> **Then EmployeeRole / UserRole.** Both are temporal grant/revoke entities — small, similar shape. The user has not yet deliberated either's state machine in depth. The framing question: temporal validity is expressed as `(start_date, end_date?)` with `end_date` nullable for current assignments; what state machine (if any) sits alongside? Candidate: no state machine — temporal validity is the only "state," computed via date comparison. Alternative: explicit `active | revoked` flag captured at revoke time. Pose as a fork; the no-state-machine option is the recommendation pending discussion.
 >
-> **Then resume Sample Batch:**
-> - Re-pose Position 3 (closure-blocker pattern) under the new model — likely collapses to "Sample Batch closure blockers (wa_code=null, Lab Report missing/invalid) generate dismissable blocker Notes per the pattern."
-> - Position 4: `relink_sample_batch_wa_code` command.
-> - Position 5: separate Time Entry ADR for off-site intervals + cross-validation (fix-only blocker).
-> - Position 6: history-pattern promotion to comprehensive — re-evaluate; may not be necessary under blocker-Note model.
-> - Write Sample Batch ADR.
+> **State machines locked through session 6:** WA Code (6 states, ADR-0027 — `acknowledged` field aspect superseded by ADR-0032), Deliverable (4 states, ADR-0029), WA (3 states, ADR-0030), RFA (5 states, ADR-0031), Sample Batch (2 states, ADR-0033), Lab Report document_type (3 states bespoke, ADR-0033).
 >
-> **Then the remaining session 6 scope (if context allows):**
-> - **Time Entry structural expansion ADR** (off-site intervals, cross-validation invariant).
-> - **EmployeeRole / UserRole** (temporal grant/revoke; small; one ADR each or one combined).
->
-> **Project lifecycle moves to its own session (session 7)** given the in-flight blocker-pattern ADR + Sample Batch ADR + Time Entry ADR will likely fill session 6. Project's closure invariants will reference the blocker-Note model directly (closure check = "no unresolved fix-only blockers + no unresolved-and-non-dismissed dismissable blockers"), so the model has to land first.
->
-> **State machines finalized so far:** WA Code (6 states, ADR-0027), Deliverable (4 states, ADR-0029), WA (3 states, ADR-0030), RFA (5 states, ADR-0031). Cross-project time conflict is a derived blocker, no entity (ADR-0028 — will be slotted into blocker-type registry but not superseded). WA ↔ WA Code budget tracking: Option B (mutate codes, RFAs as diff history), deferred implementation.
+> **Pattern menu through session 6:** 12 design patterns cumulative; blocker-as-Note (#11) and chain-dismissal (#12) added in session 6.
 >
 > **Stack confirmed (no ADR yet, Step 8 will write):** backend Python/FastAPI/Ruff/SQLAlchemy/Pydantic/pytest; frontend Vite/React/TypeScript/TanStack Router/TanStack Query/openapi-ts/shadcn-ui/Storybook.
 >
@@ -216,6 +207,7 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 > - Casual back-and-forth. Self-monitor context.
 > - STOP-AND-CONFIRM gate applies — surface options in chat, await `approved`, only then write.
 > - Do not write to `domain-model.md` (that's Step 6d).
+> - Project lifecycle is session 8, not session 7. Session 7 = ADR-0034 + EmployeeRole/UserRole. Project's closure invariants reference ADR-0032's project closure gate text directly.
 
 ## Pointers
 
@@ -224,7 +216,7 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 - Phase roster: `planning/phases.md`
 - Step list (current phase): `planning/steps.md` (Step 6a complete; Step 6b in progress across multiple sessions)
 - Session conventions: `planning/sessions.md`
-- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0031)
+- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0033)
 - Framework (Step 1 output): `planning/framework.md`
 - Logic (Steps 2–4 output; all sections written): `planning/logic.md`
 - History patterns (Step 5 output): `planning/history-patterns.md`

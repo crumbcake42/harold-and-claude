@@ -11,3 +11,18 @@
 
 - **What:** Associate individual pages of a Daily Log document with specific Time Entries (and possibly Sample Batches).
 - **Why interesting:** Enables a side-by-side review UI where Time Entries are displayed alongside their source-document pages, giving a visual audit of recorded entities against narrative evidence.
+
+## Track-this pin for blockers (notification-coupled)
+
+- **What:** A "track this" engagement trigger on derived blockers (ADR-0032) that materializes the blocker Note without writing commentary or dismissing. Bundled with a notification system that pings the pinning tracker on state changes.
+- **Why interesting:** Without notifications, pinning is functionally equivalent to "the panel already shows this" — value collapses. With notifications, it becomes a real "watch this" affordance for blockers the tracker is actively monitoring (e.g., waiting on a vendor response). Pairs naturally with the notification batch below.
+
+## Structured blocker assignment + notifications
+
+- **What:** Add `assigned_to: nullable User` field to blocker Notes (ADR-0032), with `(re)assign_blocker` commands, a my-blockers queryable view, and a reassignment audit chain (partial supersession of ADR-0018's no-history stance for blocker Notes). Coupled with push/in-app notifications so assignees know they were assigned.
+- **Why interesting:** Note conventions ("Sarah, please push this") cover ~70–80% of operational value for MVP, but lose queryability, surface-in-user's-UI, and time-on-plate accounting. Structural assignment becomes a clear win once notifications exist, because assignment then actually pings the assignee. Bundles with the pin above and with the cross-project Sample Batch reassignment below — all three benefit from the same notification substrate.
+
+## Structured cross-project Sample Batch reassignment
+
+- **What:** A `reassign_sample_batch_project(batch, new_project, new_wa_code)` command that moves a misfiled batch from Project X to Project Y in one atomic act, with notification to Project Y's tracker that the batch is incoming.
+- **Why interesting:** The misfiled-COC scenario is operationally common (per session 6 deliberation). MVP handles it via `dismiss #9` (chain-dismisses to non-billable) + `relink_sample_batch_wa_code` to a code on Project Y — two acts, no notification, but auditable. The structured command compresses to one act and adds the cross-project handoff signal Project Y's tracker needs. Pairs with notification batch above.
