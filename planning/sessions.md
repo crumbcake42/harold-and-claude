@@ -15,8 +15,9 @@ These apply to every conceptualization session, in addition to the per-session p
 2. **Stay inside the session's scope.** If a justification for the current decision requires reaching into a later step (auth shape, storage choice, lifecycle vocabulary), that is a signal the position is not decidable yet — push back on the step boundary, do not cross it.
 3. **Treat prior ADRs as constraints to address, not exclusions to assume.** If a prior ADR appears to eliminate an option, name the tension inside the doc and deliberate it there. Do not dismiss the option in the pre-amble.
 4. **Push back, do not pre-empt.** If the framework or step prompt seems wrong, say so before writing. Do not compensate by quietly importing other-step reasoning.
+5. **State recommendation strength; resist recency bias on contras.** When recommending a position, state confidence explicitly — distinguish "I'd push back hard on the other side" from "this is close, either works" from "weak lean." When asked to argue against a recommendation (or for a contra in general), separate the contra-exercise from the conclusion: deliver the strongest contra honestly, then explicitly say whether it changes the view and why. A flip is warranted only when the contra exposes something not weighed originally (in which case the original recommendation was under-defended); if the contra is real but already-weighed, hold the position and say so. Avoid the failure mode of "recommend A → contra → silently flip to B" without ever naming whether the flip was on merits or sycophantic.
 
-Cross-conversation context: an incident on 2026-04-28 (Step 2 startup) produced these rules. `handoff.md`'s STOP-AND-CONFIRM gate is the durable in-repo restatement.
+Cross-conversation context: rules 1–4 originated from an incident on 2026-04-28 (Step 2 startup). `handoff.md`'s STOP-AND-CONFIRM gate is the durable in-repo restatement. Rule 5 originated from a pattern identified on 2026-05-13 (Step 6c-i, session 11).
 
 ---
 
