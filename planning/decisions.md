@@ -3,7 +3,7 @@
 ## File contract
 
 **Holds:** Append-only log of finalized design decisions (ADRs), each self-contained with date, status, context, alternatives considered, and consequences.
-**Update when:** A session finalizes a decision (append new ADR entry); an existing ADR is superseded (add superseding entry, update the old entry's `Status` field to `superseded by #N`). Never edit accepted entries in place.
+**Update when:** A session finalizes a decision (append new ADR entry); an existing ADR is partially revised (preferred: append a new ADR with an "Amendments to other ADRs" section naming the prior ADR and the surface being modified; the prior ADR's `Status` stays `accepted`); an existing ADR is wholly obsolete (supersession: append a superseding entry, update the prior entry's `Status` to `superseded by #N`). Never edit accepted entries in place. Wholesale supersession is rare in this project — amendment is the dominant tool for partial revisions, and traceability between an ADR and its amendments relies on grep ("amends ADR-NN" in later ADR text).
 
 Append-only record of finalized design decisions. Each entry should be self-contained — a reader who has never seen this project before should be able to understand what was decided, why, and what was rejected.
 

@@ -200,21 +200,78 @@ Original goal, inputs, and done-when carried across all three sub-sessions: **Id
 
 **Done when:** Each entity with a lifecycle has a named state machine; each state change has a named command.
 
+Step 6b's core scope completed across eight sessions (lifecycle ADRs 0027–0037). Two residual command-shape items were deferred and are picked up in Step 6b-residual below.
+
+---
+
+### Step 6b-residual — Workflow-consolidation pass
+
+**Goal:** Close out residual command-shape and state-machine items deferred from Step 6b core, so the Step 6c-ii predicate enumeration has a complete and accurate command surface to work against.
+
+**Items in scope (revised after session 9 deliberation):**
+
+1. **Sample Batch state-machine cleanup + project-state-driven immutability formalization.** Session 9 deliberation reframed the original "billing finalization trigger" item: there is no separate billing event in MVP (the billing flow is a draft-invoice estimator with no state transitions). ADR-0033's `received → billed` transition was speculative based on a misread of `billed`'s semantics. Closure-snapshot membership is `Project.state`-derived, not per-entity sticky. Concrete work for this item:
+   - **Amend ADR-0033** to drop the `billed` terminal state. Sample Batch becomes stateless (joins EmployeeRole / DepFiling / Note / UserRole). Lifecycle capture pattern stays (covers `create_sample_batch` and `relink_sample_batch_wa_code` as discrete events without a state field).
+   - **Formalize the project-state-driven immutability rule** in the same amending ADR: commands on entities attached to a project in `closed` or `cancelled` state are rejected at command guard, except blocker-dismissal commands (per ADR-0032) and reopen-project commands (per ADR-0037). Confirm exception list during writing.
+   - **Decide whether the rule earns a 13th design pattern entry** or just stands as a one-off project-lifecycle consequence.
+
+2. **`change_employee_role_rate` compound command** (ADR-0035 carry-forward). Define the compound's parameters (`role`, `new_rate`, `effective_date`), the atomic sequence (close existing row at `effective_date − 1`, create new row at `effective_date`), guards inherited from the underlying simple commands (disjoint-ranges-per-role-type, no-orphan-future-Time-Entries), any new guards specific to the compound shape, and history-capture shape (one event vs. two underlying + compound marker).
+
+**Out of scope:** authorization predicates (those land in Step 6c-ii); broader billing-design (rates, invoices, etc. — out of MVP).
+
+**Inputs:** ADR-0033, ADR-0035, ADR-0037, `handoff.md` cumulative tables, `decisions.md`.
+
+**Outputs:**
+- ADR-0038 (or similar) amending ADR-0033 and formalizing project-state-driven immutability.
+- ADR-0039 (or folded into the same ADR) for the rate-change compound command.
+- Updated cumulative tables in `handoff.md` (Sample Batch entity row, state-machine list, pattern menu if applicable).
+
+**Estimate:** May span two sessions. Session 9 covered the deliberation for item 1; session 10 transcribes item 1 to ADR form and deliberates item 2.
+
+**Done when:** ADR-0033's `billed` state is dropped via amendment; project-state-driven immutability rule is written down; rate-change compound is specified concretely enough that a per-command authorization predicate can be written against it without further design ambiguity.
+
 ---
 
 ### Step 6c — Relationships & authorization
 
 **Goal:** Map entity relationships (cardinality, ownership vs. reference, promotion decisions) and concrete authorization predicates. Roles scoped to project managers only (field staff deferred to post-MVP).
 
-**Inputs:** Steps 6a–6b output (via `handoff.md`), `framework.md` (relationships), `logic.md` (authorization), `decisions.md`.
+Step 6c is partitioned into two sub-sessions (6c-i and 6c-ii). The original brief is preserved here; sub-session briefs follow.
 
-**Outputs:**
+**Original inputs:** Steps 6a–6b output (via `handoff.md`), `framework.md` (relationships), `logic.md` (authorization), `decisions.md`.
+
+**Original outputs:**
 - Relationship declarations per entity pair (type, cardinality, ownership, promotion rationale)
 - Authorization roles and per-command predicates
 
-**Estimate:** 30–45 min
-
 **Done when:** Every entity-to-entity link is declared with type and cardinality; every command has an authorization predicate.
+
+#### Step 6c-i — Role catalog + relationship declarations
+
+**Goal:** Enumerate the concrete role catalog (per ADR-0036's UserRole substrate; MVP scoped to project-manager / tracker), and declare entity-to-entity relationships across the full 16-entity roster.
+
+**Inputs:** Step 6a–6b output, `framework.md` (relationships), `decisions.md`, ADR-0036 (UserRole shape).
+
+**Outputs:**
+- ADR for the concrete role catalog (role names, descriptions, who-can-grant authority).
+- ADR (or extension of the above) covering relationship declarations: for every entity pair that holds a structural link, cardinality + ownership/reference + promotion rationale where applicable. Many pair-links are already declared in their owning entity's ADR (e.g., Time Entry → EmployeeRole in ADR-0035) — this step consolidates and fills gaps (Document ↔ Deliverable M:M; any other unresolved pairs).
+
+**Estimate:** 45–60 min.
+
+**Done when:** The role catalog is enumerated with per-role description; every entity pair with a structural link is declared with cardinality and ownership.
+
+#### Step 6c-ii — Per-command authorization predicates
+
+**Goal:** Write per-command authorization predicates for every named command across Step 6b core ADRs and Step 6b-residual ADRs. Resolves ADR-0012's carry-forward (authorization predicate per command).
+
+**Inputs:** Step 6c-i output (role catalog), all Step 6b + 6b-residual ADRs, `logic.md` (authorization section), `decisions.md`.
+
+**Outputs:**
+- ADR for the per-command predicate table.
+
+**Estimate:** 45–60 min.
+
+**Done when:** Every named command across the Step 6b + 6b-residual ADR surface has an articulated authorization predicate. Predicates may be uniform ("any tracker on the project") for the MVP-collapsed surface; non-uniform predicates (e.g., cross-project commands, grant/revoke meta-commands) are called out explicitly.
 
 ---
 
@@ -276,5 +333,7 @@ Original goal, inputs, and done-when carried across all three sub-sessions: **Id
 - `planning/data-model.md` — conceptual model
 - `planning/roadmap.md` — ordered implementation milestones with rough sizing
 - Final ADR entry: "Conceptualization phase complete; implementation begins"
+
+**Pre-transition ADR consolidation (one-time):** Before writing the final phase-transition ADR, scan `decisions.md` for ADRs with 2+ amendments and consolidate each into a fresh, definitive ADR (mark old ones `superseded by #N`). Per session-9 deliberation: mid-phase compaction loses load-bearing deliberation context, but phase boundary is the right moment — deliberation is settled, and the resulting record becomes the foundation for implementation-phase work. Skip if no ADR has accumulated 2+ amendments by the time Step 9 runs.
 
 **Done when:** Roadmap has dated milestones, and `handoff.md` is updated to point at the first implementation step.
