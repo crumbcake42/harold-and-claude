@@ -734,3 +734,92 @@ Entries are numbered sequentially. Once `accepted`, do not edit in place — sup
   - **Authorization predicate substrate (ADR-0012 carry-forward).** ADR-0012 deferred concrete authorization roles and per-command predicates to a later step (Step 6c). This ADR establishes UserRole as the relation the predicates will read from; the concrete role catalog and predicates remain Step 6c's scope.
   - **Carry-forward — reason field shape.** Whether `reason` on grant/revoke events is free-text, enum, or both is deferred to Step 6c alongside concrete role definition. The audit-log event schema accommodates either shape.
   - **Carry-forward — security-immediate revoke semantics.** "Pull access at end of shift" is operationally a `revoke_user_role` call; whether session invalidation happens out-of-band (active sessions terminated, tokens revoked) is an implementation concern, not a domain decision. The domain shape supports immediate revoke; the runtime mechanics are deferred to the auth implementation step.
+
+---
+
+## ADR-0037 — Project state machine, RFP closure artifact, and cancellation/reopen cascades
+
+- **Date:** 2026-05-12
+- **Decision:** Project has three states: `active` (work in progress), `closed` (submitted to SCA; payment cycle open), and `cancelled` (terminated without submission). `close_project(project, rfp_file)` is a compound command that gate-checks ADR-0032's closure predicate, transitions the project's open RFP Document `missing → saved`, and transitions Project `active → closed`, all atomic. `cancel_project(project)` is a compound that cascades — hard-deletes `pending` WAs with no work-referenced codes + their codes (per ADR-0031); withdraws all `in_review` RFAs (under `withdraw_rfa`'s any-tracker authorization, ADR-0031); auto-deletes `draft` RFAs that empty as a side effect (per ADR-0031's existing empty-draft rule); transitions Project `active → cancelled`. `reopen_project` has two forms: from `closed`, `reopen_project(project, rfp_reason: 'rfp_rejected' | 'rfp_withdrawn')` transitions the current `saved` RFP to the named terminal state, derives a new RFP Document in `missing`, and transitions Project `closed → active`; from `cancelled`, `reopen_project(project)` is a pure state-flip (no RFP work, no structural reason capture). A new `document_type` **RFP** joins ADR-0024's bespoke pattern menu with four states (`missing`, `saved`, `rejected`, `withdrawn`); `rejected` and `withdrawn` are terminal. Project joins ADR-0015's Document-derivation source roster: every Project derives exactly one **non-terminal** RFP at any time — initial at project creation, new instance at each reopen-from-`closed` event. Terminal RFPs persist as historical record. ADR-0032's closure-blocker registry grows by one fix-only entry (#10): "project's non-terminal RFP not in `saved` state at closure."
+- **Status:** accepted
+- **Context:** The Project entity has been the load-bearing root of every other entity in the model since Step 6a, but its concrete lifecycle was deferred until ADR-0032's closure-gate text (the canonical closure predicate) and ADR-0031's RFA state machine (cancellation-cascade dependency) were in place. ADR-0031 explicitly punted "handling of open drafts and `in_review` RFAs on a cancelled project" to this ADR; ADR-0033 confirmed that closure invariants flow through the ADR-0032 registry rather than per-entity re-statement. The closure-artifact piece — that the SCA generates an RFP (Request for Payment) when we submit a project for payment, and that this RFP serves as the system-side closure receipt — emerged in this session's deliberation. Its structural shape parallels the contractor-side CPR's internal payment-request bucket at a different counterparty direction (SCA → us vs. us → contractor) and at the top level (its own `document_type`, not a bucket inside another). The reopen-RFP-replacement mechanic was decided in-session rather than deferred: the operational paths (SCA rejects payment, RFP withdrawn) are common enough that "do we need to handle this?" answered itself.
+- **Alternatives considered:**
+  - *Four-state machine with a `closing` phase between `active` and `closed`.* Rejected — the `closing` slot has nothing to enforce that the closure-gate UI (surfacing the to-do list of unresolved blockers) doesn't already enforce. Adds an extra command (`initiate_closure`) and an `active ↔ closing` loop that costs lifecycle weight for no operational lever (one tracker per project in MVP, no concurrent-edit pressure). Parallels ADR-0029's rejection of a `returned` Deliverable state — actionable queues, not lifecycle slots.
+  - *Five-state machine (`closing` + `cancelling`).* Rejected — symmetric structure for symmetry's sake. `cancel_project` is a one-shot compound (cleanup + terminate), not a phased wind-down; a `cancelling` state has even less operational meaning than `closing`.
+  - *Permanent terminals (no reopen).* Rejected — project identity is tied to the SCA-assigned identifier, so a "new project for the same SCA ID" workaround doesn't exist. Operational hits (SCA-payment rejection, rescinded cancellation) are common enough that locked terminals would force operational drift.
+  - *RFP as simple `missing → saved` document_type.* Rejected — couldn't capture the reopen-cycle case (SCA rejects, project reopens, original RFP needs to be invalidated). Multi-Document with terminal-state retirement is the cleaner shape: each submission cycle is its own Document with its own outcome state, vs. one Document cycling through repeated `saved` rounds and losing the "first try / second try" temporal record.
+  - *Single `closed_out` terminal RFP state with a reason discriminator field (instead of two distinct terminal states).* Rejected — operational events are distinct enough (rejection by SCA vs. withdrawal of the RFP) that distinct state names give cleaner query semantics ("show all rejected RFPs") and a more direct read of the document's lifecycle. The reason-field collapse is a smaller schema but loses the structural distinction.
+  - *Reopen-from-`cancelled` requires a structural reason.* Rejected — no downstream state change depends on the reason, and self-reported reasons for course corrections in a tracker tool are unreliable (people will either be dishonest or use it to point fingers). Lifecycle capture records the reopen event; contextual rationale fits a regular user Note on the Project.
+  - *Block on `in_review` RFAs at cancellation (require manual `withdraw_rfa` first).* Rejected — ADR-0031 already authorizes `withdraw_rfa` to any tracker, so the cascade doesn't escalate authority. Extra clicks at the most stressful path, plus gap-period risk if SCA approves the RFA mid-flow between manual withdrawal and cancellation.
+  - *Mixed cascade policy (cascade drafts, block on `in_review`).* Rejected — draft cascading follows naturally from WA Code cleanup (drafts auto-empty per ADR-0031), so it's not a meaningful policy split. One uniform cascade is simpler.
+  - *Project closure where closing IS the submission act (no RFP-saved gate; close transitions atomically with submission to SCA).* Rejected — the SCA portal submission is out-of-band; the RFP arrives back from SCA after submission as the SCA-side receipt. Treating RFP-saved as the closure trigger (via `close_project(rfp_file)`) keeps the system-recorded closure aligned with real-world evidence-of-submission rather than running ahead of it.
+  - *Disambiguating "RFP" document_type name (e.g., "SCA RFP" or "Project RFP") to avoid acronym overlap with CPR's internal RFP bucket.* Rejected for MVP — current office vocabulary uses "RFP" without confusion at the two levels (top-level document_type vs CPR-internal bucket), and the two live at different schema levels. Disambiguation can land later if scale or onboarding pressure forces it.
+- **Consequences:**
+  - **State machine.** Three states with the following transitions:
+    - `active → closed`: `close_project(project, rfp_file)` compound. Gate-checks ADR-0032's closure predicate (no `fix-only` blockers + every `dismissable` blocker either no longer holds derivationally OR has an associated dismissal resolution Note); transitions the project's open RFP Document `missing → saved`; transitions Project `active → closed`. All atomic.
+    - `active → cancelled`: `cancel_project(project)` compound. See cascade below.
+    - `closed → active`: `reopen_project(project, rfp_reason: 'rfp_rejected' | 'rfp_withdrawn')`. Compound: transitions current `saved` RFP → `rejected` or `withdrawn` per reason; derives a new RFP Document in `missing` on the project; transitions Project.
+    - `cancelled → active`: `reopen_project(project)`. State-flip + lifecycle-capture record. No RFP change; the project's RFP (in `missing` since cancellation didn't go through closure) carries forward unchanged.
+  - **`close_project` semantics.** The gate check reads ADR-0032's blocker registry — no re-statement of invariants in this ADR. All ten current registry entries are project-scope-relevant: entries #1–#9 attach to project-scoped entities (Time Entry, Sample Batch, DepFiling, RFA) or cross-project relationships (#8 — both projects involved per ADR-0028), and entry #10 (added by this ADR) attaches directly to Project. RFP-saved is registry entry #10; from the closure-command's perspective it's just one more registry item. The compound's atomicity ensures the RFP-save and project-close land together — there is no intermediate window where the RFP is saved but the project is still `active`.
+  - **`cancel_project` cascade (atomic).** In order:
+    1. Hard-delete `pending` WAs whose codes carry no Time Entry or Sample Batch references; hard-delete those codes alongside (per ADR-0031).
+    2. Withdraw all `in_review` RFAs targeting the project. Each withdrawn RFA's target codes return `rfa_in_review → pending_rfa` per ADR-0031's `withdraw_rfa` semantics. **Auto-draft regeneration is suppressed on cancelled projects** — no fresh draft makes sense when the project is being terminated.
+    3. `draft` RFAs that empty as a result of step 1's code deletions hard-delete per ADR-0031's existing empty-draft rule.
+    4. Transition Project `active → cancelled`.
+    5. Lifecycle capture records the cancellation event.
+
+    *Not in the cascade:* `issued` WAs and their `issued`/`pending_rfa` codes stay (real work was done; audit preserved). Time Entries, Sample Batches, Deliverables, Documents, DepFilings, Notes all stay attached for audit; no state changes. Closure blockers become operationally moot on a cancelled project but are not structurally cleared — they remain derivable from registry scans, just no longer relevant to any closure command.
+
+    *Authorization:* any tracker (MVP). Per-role refinement deferred to Step 6c.
+  - **`cancel_project` does NOT pass through the closure gate.** Cancellation is its own terminal, not a special case of closure. Unresolved blockers do not block cancellation. This is intentional — cancellation is the "abandon the project, leave it for audit" path; gating it on the same predicate as `close_project` would prevent the operational use case (cancelling a project precisely because its blockers can't be resolved).
+  - **`reopen_project` from `closed` semantics.** The `rfp_reason` parameter drives the RFP state transition: `'rfp_rejected'` → `saved → rejected`; `'rfp_withdrawn'` → `saved → withdrawn`. The compound is atomic — the new RFP exists in `missing` state from the moment the project flips back to `active`, so the closure-blocker registry (entry #10) immediately surfaces it as unresolved on the now-`active` project.
+  - **`reopen_project` from `cancelled` semantics.** State-flip only. No structural reason captured; any contextual rationale attaches as a regular user Note on the Project per ADR-0018. The lifecycle-capture record carries actor + timestamp + transition; that suffices for the audit shape on this path.
+  - **RFP `document_type` (new, bespoke).** Joins ADR-0024's bespoke row alongside Lab Report. Per-`document_type` assignment table grows to:
+    | Pattern | document_types |
+    |---|---|
+    | Simple `missing → saved` | ACP13, ACP7, ACP15, ACP21, Emergency Notification, ACP8, VAR9 (DepFiling docs); COC; Daily Log |
+    | Cycling-family | CPR (RFA/RFP fork, 5 dates), FAMR (single-step review) |
+    | Bespoke | Lab Report (3 states), **RFP (4 states)** |
+
+    **States:** `missing`, `saved`, `rejected`, `withdrawn`.
+    **Transitions:**
+    - `missing → saved`: at `close_project` time (compound; the only structural path into `saved`).
+    - `saved → rejected`: at `reopen_project(project, 'rfp_rejected')` time.
+    - `saved → withdrawn`: at `reopen_project(project, 'rfp_withdrawn')` time.
+    - `rejected` and `withdrawn` are terminal — no outgoing transitions. Documents in these states persist as the audit record of a closed-out submission cycle.
+
+    **No `missing → invalid` or `invalid → saved` paths** (unlike Lab Report). RFPs are SCA-side documents; we don't receive "defective RFPs" the way labs return defective reports. If SCA sends an RFP that turns out to be problematic, the operational path is reopen-with-`rfp_rejected` and a new RFP for the next cycle.
+
+    **Authorship.** RFP is uploaded by the tracker as part of `close_project`; `authorship_class` (per ADR-0032 amendments to Note schema) does not apply — that field is on Note, not Document. Document's standard `created_by` carries the tracker reference.
+
+  - **Per-Project RFP derivation rule (extends ADR-0015).** Project joins the Document-derivation source roster (currently WA Code, DepFiling, Sample Batch, project events; now adds Project as a direct source). Derivation rule per Project: exactly one RFP in non-terminal state (`missing` or `saved`) at any time. New non-terminal RFPs derive at:
+    - Project creation (initial RFP in `missing`).
+    - `reopen_project` from `closed` (the new submission cycle starts with a fresh `missing` RFP).
+
+    Per-project invariant: `|{rfp : rfp.project = P, rfp.state ∈ {missing, saved}}| = 1` for every Project P. Terminal RFPs (`rejected`, `withdrawn`) are unbounded; they accumulate as the project cycles through reopen events. This is a different shape from Sample Batch's fixed-2-documents-per-source rule and from DepFiling's editable-required-doc-types rule — RFP derivation is event-driven (cycle-driven) rather than fixed or configurable.
+
+  - **Closure blocker registry amendment (ADR-0032).** New entry appended:
+
+    | # | Blocker | Class |
+    |---|---|---|
+    | 10 | Project's non-terminal RFP not in `saved` state at closure | Fix-only |
+
+    Classification rationale: no real-world acceptance path. We cannot legitimately close a project without having submitted to SCA, and the RFP-saved state IS the system-side evidence of that submission. The blocker dissolves structurally when the RFP transitions to `saved` via `close_project`'s compound transaction. (Trivially: the blocker holding implies `close_project` hasn't fired, so the close-vs-blocker ordering is mechanically consistent.)
+
+  - **Amendments to other ADRs.**
+    - **ADR-0015 (Document-derivation set):** Project added to the derivation-source roster. Derivation rule is the per-project non-terminal-RFP invariant described above — distinct from Sample Batch's fixed-2-documents-per-source rule and DepFiling's editable-required-doc-types rule.
+    - **ADR-0024 (Document lifecycle menu):** RFP joins the bespoke option with the four-state machine described above. Per-`document_type` assignment table updated.
+    - **ADR-0031 (RFA):** the deferred "handling of open drafts and `in_review` RFAs on a cancelled project" question is resolved by the `cancel_project` cascade above. Auto-draft regeneration is suppressed on cancelled projects.
+    - **ADR-0032 (Blocker pattern):** registry grows by entry #10 (fix-only).
+
+  - **History pattern: lifecycle capture (unchanged from prior assignment).** Project state transitions are captured per ADR-0013 pattern 2: `active → closed`, `active → cancelled`, `closed → active`, `cancelled → active` each produce a lifecycle-capture record carrying command, actor, timestamp, and payload (`rfp_file` for `close_project`; `rfp_reason` and the new-RFP-id for `reopen_project` from `closed`; no extra payload for the other two). The new-RFP-id on reopen-from-`closed` is captured so the audit trail directly links the project's reopen event to the new RFP Document that derives from it.
+
+  - **Delete policy: soft delete (unchanged).** Project carries lifecycle capture; history references preclude hard delete. The `cancel_project` path is not deletion — it's a terminal transition; the project record persists.
+
+  - **Authorization: any tracker (MVP).** All three commands (`close_project`, `cancel_project`, `reopen_project`) are authorized to any tracker. Per-role refinement deferred to Step 6c alongside the concrete role catalog (ADR-0012 + ADR-0036 carry-forward).
+
+  - **Naming.** "RFP" is reused for both the new top-level `document_type` (SCA → us) and CPR's internal payment-request bucket (contractor → us). The acronym overlap is accepted: the two live at different schema levels (document_type vs CPR-internal bucket), and current office vocabulary tolerates the ambiguity without operational confusion. Disambiguation deferred until scale or onboarding pressure forces it.
+
+  - **Carry-forwards.**
+    - **Per-role authorization predicates** for `close_project`, `cancel_project`, `reopen_project`: Step 6c.
+    - **Post-MVP:** SCA-side RFP-rejection notification (would automate the trigger for `reopen_project` rather than requiring tracker action); long-tail "what if SCA never responds to a submission" (currently the `saved` RFP just sits indefinitely; a derived stale-RFP signal could surface later but is not a closure blocker for the original submitter).

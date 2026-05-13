@@ -26,3 +26,13 @@
 
 - **What:** A `reassign_sample_batch_project(batch, new_project, new_wa_code)` command that moves a misfiled batch from Project X to Project Y in one atomic act, with notification to Project Y's tracker that the batch is incoming.
 - **Why interesting:** The misfiled-COC scenario is operationally common (per session 6 deliberation). MVP handles it via `dismiss #9` (chain-dismisses to non-billable) + `relink_sample_batch_wa_code` to a code on Project Y — two acts, no notification, but auditable. The structured command compresses to one act and adds the cross-project handoff signal Project Y's tracker needs. Pairs with notification batch above.
+
+## SCA-side RFP rejection notification
+
+- **What:** Automated trigger for `reopen_project(project, rfp_reason='rfp_rejected')` when SCA's portal signals an RFP rejection. Requires SCA portal integration (event ingest) and notification to the tracker that the project has been reopened.
+- **Why interesting:** ADR-0037 leaves `reopen_project` as a manual tracker action. With portal integration, rejection becomes a system-detected event; the project reopens automatically with the audit chain intact, and the tracker is pinged. Reduces the latency between SCA-side rejection and tracker awareness, which today depends on the tracker noticing an email or checking the portal. Pairs with the notification batch above.
+
+## Stale-RFP signal (long-tail SCA non-response)
+
+- **What:** A derived signal on a project with an RFP in `saved` state for an extended period without SCA-side acknowledgement (approval payment, rejection, etc.). Surfaces in the tracker UI as a "watch this" affordance; not a closure blocker (the project is already closed).
+- **Why interesting:** ADR-0037 leaves `saved` RFPs sitting indefinitely. In practice, SCA-side payment flows are bounded but can stall. A stale-RFP signal gives the tracker a queryable view of "submissions waiting on SCA" without forcing additional state into the entity. Implementation can be a derived predicate over `(rfp.state = 'saved' AND rfp.saved_at < now() - threshold)`; the threshold is operational policy, not a domain decision.

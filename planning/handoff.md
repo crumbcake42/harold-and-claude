@@ -40,38 +40,28 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Last session summary
 
-**Step 6b (continued, session 7) — Time Entry off-site intervals (ADR-0034), EmployeeRole shape (ADR-0035), and UserRole atemporal form (ADR-0036) all landed (2026-05-12).** Three substantial ADRs written; full session 7 scope complete. ADR-0034 was the carry-over from session 6; ADR-0035 and ADR-0036 close out the EmployeeRole/UserRole question. Session 8 picks up Project lifecycle on a clean slate.
+**Step 6b (continued, session 8) — Project lifecycle ADR landed (ADR-0037), substantially expanded mid-session to include the SCA RFP closure artifact and the reopen-RFP-replacement mechanic (2026-05-12).** Closes out Step 6b's core entity-lifecycle scope. Residual workflow items (Sample Batch `received → billed` billing-finalization trigger; `change_employee_role_rate` compound command shape) defer as carry-forwards into Step 6c or a brief workflow-consolidation pass.
 
 **Major outputs:**
 
-1. **Time Entry off-site intervals (ADR-0034).** Time Entry replaces scalar `hours` with `on_site_range: (start_time, end_time)` + `off_site_sub_intervals: [(start_time, end_time)]`. Sub-intervals required ⊆ on-site range, pairwise disjoint, positive duration. Net on-site time = on-site range minus union of sub-intervals.
-   - **No `reason` field, no `drop_off_time` field for MVP.** Only operational off-site reason today is lab delivery (implicit); manual COC cross-check handles drop-off verification. Both deferred per MVP-scope-philosophy memory (additive migrations with deterministic backfill if/when new off-site categories arise).
-   - **Dual-predicate semantics over the structure, pinned in this ADR.**
-     - *Cross-project overlap (ADR-0028 amendment):* uses **gross** on-site range. Off-site sub-intervals are project-committed time; don't free the employee for another project's billing.
-     - *Blocker #9 (sample collection coverage, ADR-0032 registry entry):* uses **net** on-site time. Sample collection requires physical presence at the school; off-site sub-intervals are physical absences.
-     - Project commitment ≠ physical presence. Future Time Entry predicates pick the slice that matches their question and cite this ADR.
-   - **Day-of representation canonical example (in ADR).** A workday with a Project A → Project B → Project A pattern is encoded as three separate Time Entries; off-site sub-intervals capture within-project diversions (lab runs), not cross-project work.
-   - **Amendments:** ADR-0028 (overlap predicate now structural on gross range); ADR-0032 registry entry #9 (predicate now structural on net on-site time).
-   - **Initial recommendation correction.** The session-6-staged recommendation of *net* time for the cross-project overlap predicate was wrong — surfaced when the user clarified how a midday Project B side-stop is actually entered (split A entries + standalone B entry). The dual-predicate framing is the corrected position.
+1. **Project state machine + commands (ADR-0037).** Three states: `active` / `closed` / `cancelled`. Reopen permitted from both terminals.
+   - **`close_project(project, rfp_file)`** compound: gate-checks ADR-0032 closure predicate, transitions the project's open RFP Document `missing → saved`, transitions Project `active → closed`. All atomic. The compound's atomicity ensures no intermediate window where the RFP is saved but the project is still `active`.
+   - **`cancel_project(project)`** compound cascade: (1) hard-deletes `pending` WAs with no work-referenced codes + their codes (per ADR-0031); (2) withdraws all `in_review` RFAs (under `withdraw_rfa`'s any-tracker authorization, ADR-0031); auto-draft regeneration suppressed on cancelled projects; (3) auto-deletes `draft` RFAs that empty as a side effect; (4) transitions Project `active → cancelled`. Cancellation does **not** pass through the closure gate — intentional, to support the "cancel a project precisely because its blockers can't be resolved" path.
+   - **`reopen_project`** has two forms. From `closed`: takes `rfp_reason: 'rfp_rejected' | 'rfp_withdrawn'`, transitions current `saved` RFP to the named terminal state, derives a new RFP Document in `missing`, transitions Project. From `cancelled`: pure state-flip with **no structural reason** captured (self-reported reasons for course corrections are unreliable — people will either be dishonest or use it to point fingers; contextual rationale fits a regular user Note per ADR-0018).
+   - **`issued` WAs and codes stay on cancellation.** Time Entries, Sample Batches, Deliverables, Documents, DepFilings, Notes all stay attached for audit; no state changes on cancellation.
 
-2. **EmployeeRole shape (ADR-0035).** Schema: `(employee_id, role_type, rate, start_date, end_date?)`. Full-day range semantics — `[start_date, end_date]` closed-closed at calendar-day resolution; end_date is the last valid day. `end_date` nullable for open-ended.
-   - **Time Entry → EmployeeRole:** mandatory FK to a specific row; rate read transitively. Boundary invariant: `time_entry.date ∈ [employee_role.start_date, employee_role.end_date ?? +∞]`, enforced on `create_time_entry` and `edit_time_entry`.
-   - **Rate-change pattern:** end-date current row at day D, create new row starting D+1 with new rate. Two operations atomic; `change_employee_role_rate` compound command candidate deferred to workflow-consolidation step.
-   - **Disjoint-ranges-per-(employee, role_type) invariant.** Within a `(employee_id, role_type)` pair, date ranges must be pairwise disjoint. Different role types may overlap freely (Alice as TechRole + ProjectLead simultaneously is fine).
-   - **No state machine.** Temporal validity is the only state, computed from the date range. Lifecycle capture (already assigned) records grant/close/edit events.
-   - **Temporal rate resolution design pattern (#1) — formalized structurally.** FK + boundary invariant. Future temporal-value-lookup entities (e.g., billing rate per `(subtype, TAT)`) follow the same shape: temporal record + FK from consumer + boundary invariant at write.
-   - **Future grants, retroactive grants, future-effective closes** all admitted by schema; disjoint-ranges invariant constrains them all uniformly.
-   - **`close_employee_role(role, end_date)` command** sets end_date; rejects if any Time Entry exists for that role with `date > end_date` (would orphan referenced entries).
+2. **RFP (Request for Payment) as new `document_type` — bespoke 4-state machine (ADR-0037).** States: `missing`, `saved`, `rejected`, `withdrawn`. Transitions: `missing → saved` at `close_project` time (only structural path in); `saved → rejected` / `saved → withdrawn` at `reopen_project` from `closed`. **`rejected` and `withdrawn` are terminal** — no path back. No `missing → invalid` or `invalid → saved` paths (unlike Lab Report): RFPs are SCA-side, no "defective RFP" operational path. Joins ADR-0024's bespoke row alongside Lab Report.
+   - **Naming.** "RFP" is reused at two schema levels: top-level `document_type` (SCA → us payment-request receipt) and CPR's internal RFP bucket (contractor → us payment-request phase). Acronym overlap accepted: current office vocabulary tolerates the ambiguity; disambiguation can land later if scale or onboarding pressure forces it.
 
-3. **UserRole atemporal current-state form (ADR-0036).** Schema: `(user_id, role_type)` composite primary key. No timestamps, no state, no temporal range. Grant creates row; revoke hard-deletes row; re-grant creates fresh row.
-   - **Audit on User's audit log** (User's pre-assigned history pattern). Two event types: `grant_user_role`, `revoke_user_role`, each carrying `(user_id, role_type, actor, timestamp, reason?)`. Cross-time history of UserRole activity lives here, not on UserRole itself.
-   - **"Created in error" cases** modeled as a revoke with `reason: 'created_in_error'`. No separate soft-delete pipeline.
-   - **History-pattern amendment.** UserRole moves from lifecycle capture → **no history** (joins School and Note).
-   - **Delete-policy amendment.** UserRole moves from soft-delete → **hard delete** (joins School and Note). No incoming references; revoke is the operational deletion path.
-   - **No state machine, no temporal validity computation.** Authorization checks query the current set: `SELECT role_type FROM user_role WHERE user_id = ?`. No filter clauses.
-   - **Carry-forwards.** Concrete role catalog + per-command authorization predicates remain Step 6c (ADR-0012 carry-forward). `reason` field shape (free-text vs enum) also Step 6c.
+3. **Project as Document-derivation source + closure blocker registry growth (ADR-0037).** Project joins ADR-0015's derivation-source roster (was WA Code, DepFiling, Sample Batch + project events). **Per-project derivation rule: exactly one non-terminal RFP at any time** — initial at project creation; new instances at each reopen-from-`closed` event. Terminal RFPs (`rejected`, `withdrawn`) accumulate unboundedly as historical record. ADR-0032 registry grows by entry **#10 (fix-only): "project's non-terminal RFP not in `saved` state at closure"** — no real-world acceptance path; RFP-saved IS the system-side evidence of submission.
 
-**Cumulative tables below reflect ADR-locked state through ADR-0036.**
+4. **ADR-0031 deferred question resolved.** "Handling of open drafts and `in_review` RFAs on a cancelled project" → cascade both. Block-on-`in_review` and mixed-cascade alternatives explicitly rejected (gap-period risk, no audit-quality gain).
+
+5. **Closure gate consumption (not redefinition).** All ten ADR-0032 registry entries are project-scope-relevant — entries #1–#9 attach to project-scoped entities (Time Entry, Sample Batch, DepFiling, RFA) or cross-project relationships (#8 — both projects involved per ADR-0028), and entry #10 attaches directly to Project. ADR-0037 confirms this and consumes the gate; doesn't re-state invariants.
+
+6. **Step 6b core scope complete.** All entities with lifecycles have named state machines and named commands. Remaining `Step 6b`-flavored items are residual workflow consolidations, not core lifecycle work.
+
+**Cumulative tables below reflect ADR-locked state through ADR-0037.**
 
 **Per-`document_type` assignments (cumulative):**
 
@@ -79,13 +69,13 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 |---|---|
 | Simple `missing → saved` | ACP13, ACP7, ACP15, ACP21, Emergency Notification, ACP8, VAR9 (all DepFiling docs — issued externally); COC; Daily Log |
 | Cycling-family | CPR (RFA/RFP fork, 5 dates), FAMR (single-step review) |
-| Bespoke | Lab Report (3 states: `missing`, `saved`, `invalid`; 4 transitions including `saved → invalid` for tracker-discovered errors and `invalid → saved` for amended reports) |
+| Bespoke | Lab Report (3 states: `missing`, `saved`, `invalid`; 4 transitions including `saved → invalid` for tracker-discovered errors and `invalid → saved` for amended reports); RFP (4 states: `missing`, `saved`, `rejected`, `withdrawn`; SCA closure-receipt artifact per ADR-0037; `rejected` and `withdrawn` terminal; no `invalid` path since RFPs are SCA-side) |
 
 **Entity roster (16 entities):**
 
 | # | Entity | Notes |
 |---|---|---|
-| 1 | Project | SCA engagement. |
+| 1 | Project | SCA engagement. States: `active` / `closed` / `cancelled` (ADR-0037). Reopen permitted from both terminals. `close_project(project, rfp_file)` consumes ADR-0032 closure gate + transitions RFP `missing → saved` atomically; `cancel_project(project)` cascades RFA/pending-WA cleanup; `reopen_project` from `closed` cycles the RFP, from `cancelled` is state-flip only. Project is a Document-derivation source per ADR-0015: exactly one non-terminal RFP per project at any time. |
 | 2 | School | = Site for MVP. |
 | 3 | WA | Contract document; supersedable via self-reference (ADR-0016, ADR-0017). States: `pending` / `issued` / `superseded` (ADR-0030). |
 | 4 | WA Code | Project-scoped line item (ADR-0020). States: `expected` / `pending_rfa` / `rfa_in_review` / `issued` / `budget_rfa_needed` (deferred) / `dismissed` (ADR-0027). |
@@ -155,16 +145,20 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 - **On-site range / off-site sub-interval (Time Entry)** — `on_site_range` is the parent range of an entry; `off_site_sub_intervals` are project-committed time-away spans within the on-site range (currently always lab delivery). Sub-intervals are pairwise disjoint, entirely within on-site range, positive-duration. (ADR-0034)
 - **Gross on-site range** — the full `on_site_range` of a Time Entry, inclusive of off-site sub-intervals. Represents *project commitment*. Used by the cross-project overlap predicate (ADR-0028 amendment).
 - **Net on-site time** — `on_site_range` minus the union of off-site sub-intervals. Represents *physical presence at the parent project's site*. Used by blocker #9 (sample collection coverage).
+- **RFP (project-level)** — Request for Payment. SCA-generated document received when a project is submitted for payment; serves as the system-side closure receipt. New top-level `document_type` per ADR-0037, bespoke 4-state machine (`missing` / `saved` / `rejected` / `withdrawn`). One non-terminal RFP per project at any time. Distinct from CPR's internal RFP bucket (the contractor-side payment-request phase within the CPR cycling-family document) — same acronym, different schema level, different counterparty direction (SCA → us vs. contractor → us).
+- **Non-terminal RFP** — an RFP in `missing` or `saved` state. The current open submission cycle for a project. Per-project invariant: exactly one at any time.
+- **Terminal RFP** — an RFP in `rejected` or `withdrawn` state. Historical record of a closed-out submission cycle. Unbounded count per project (accumulates with each reopen-from-`closed` event).
+- **Reopen-from-`closed` / reopen-from-`cancelled`** — the two `reopen_project` forms. From `closed`: requires `rfp_reason ∈ {rfp_rejected, rfp_withdrawn}`; cycles the RFP. From `cancelled`: pure state-flip; no structural reason captured (lifecycle capture + optional Note carry audit).
 
 ## Open questions
 
-**For session 8 — immediate:**
-- **Project lifecycle ADR.** Substantial; the main work of session 8. Closure invariants span: no fix-only blockers + every dismissable blocker resolved (per ADR-0032 closure gate text). DepFiling completeness, WA Code states (no open RFAs), Daily Log coverage, Deliverable status, cross-project time conflicts, non-billable records — all flow through the registry now. State machine to be defined; candidate states include something like `active`, `closing`, `closed`, `cancelled`. Cancellation handling for open drafts and `in_review` RFAs (deferred from ADR-0031) lands here. Open `pending` WAs with no work referenced — hard-delete per ADR-0031's consequences. The `close_project` and `cancel_project` commands write against the registry-derived gate, not a re-stated invariant list.
+**For session 9 — immediate (Step 6c entry):**
+- **Step 6c entry — Relationships & authorization.** Case 2 fit assessment applies (likely too large for one session; expect partitioning). Starting questions: (a) concrete role catalog (MVP scoped to project-manager / tracker role per ADR-0036's UserRole substrate; field staff post-MVP); (b) per-command authorization predicates across the full command surface from Step 6b ADRs (ADR-0012 carry-forward — substantial); (c) entity-to-entity relationship declarations (Document ↔ Deliverable M:M is pending formal declaration; every other entity-pair link too); (d) residual workflow items that may fold in given authorization dependencies — billing finalization flow trigger (`received → billed` for Sample Batch, ADR-0033 deferral) and `change_employee_role_rate` compound command shape (ADR-0035 deferral). The fit checklist may push some of (d) into a brief workflow-consolidation session before 6c proper.
 
 **Carry-forwards worth re-checking when relevant:**
-- **Billing finalization flow** (the `received → billed` Sample Batch trigger from ADR-0033): specific command and authorization at billing-design step.
+- **Billing finalization flow** (the `received → billed` Sample Batch trigger from ADR-0033): specific command and authorization at billing-design step (likely Step 6c or a workflow-consolidation pass).
 - **Cross-project Sample Batch reassignment as a structured command**: in `post-mvp.md` alongside notifications.
-- **`change_employee_role_rate` compound command** (candidate from ADR-0035): full spec deferred to workflow-consolidation step.
+- **`change_employee_role_rate` compound command** (candidate from ADR-0035): full spec deferred to workflow-consolidation step (or fold into Step 6c).
 - **Retroactive rate corrections via Time-Entry rate snapshot** (carry-forward from ADR-0035): reversible additive change post-MVP if signal emerges.
 - **`reason` field shape on UserRole grant/revoke audit events** (free-text vs enum vs both): deferred to Step 6c alongside concrete role catalog.
 - **Security-immediate revoke runtime semantics** (session invalidation on `revoke_user_role`): implementation concern, deferred to auth implementation step.
@@ -183,43 +177,42 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 
 ## Next session
 
-**Step 6b (continued, session 8) — Project lifecycle ADR.** See `planning/steps.md` for the full step brief. Substantial — the closure-gate text from ADR-0032 is the canonical predicate; this session writes the state machine, `close_project` / `cancel_project` commands, and resolves cancellation handling for open drafts/`in_review` RFAs (deferred from ADR-0031).
+**Step 6b core scope complete — next session enters Step 6c (Relationships & authorization).** See `planning/steps.md` for Step 6c's brief. Case 2 (new step, no scoped prompt) applies — run the fit checklist; likely too large for one session and will need partitioning. Residual Step 6b workflow items (billing finalization flow trigger; `change_employee_role_rate` compound) may fold into 6c given their authorization dependencies, or may warrant a brief workflow-consolidation pass first.
 
 ### Prompt for the next session
 
-> Resume Step 6b. Session 7 landed ADR-0034 (Time Entry off-site intervals + dual-predicate overlap semantics), ADR-0035 (EmployeeRole shape + Time Entry FK invariant + disjoint-ranges-per-role-type), and ADR-0036 (UserRole atemporal current-state form + audit on User's log + history-pattern and delete-policy amendments). All EmployeeRole/UserRole questions are now closed. Time Entry has structural shape; the temporal rate resolution pattern is formalized as a template via ADR-0035.
+> Resume work. Step 6b's core entity-lifecycle scope is complete: every entity with a lifecycle has a named state machine and named commands. Session 8 landed ADR-0037 (Project state machine + `close_project` / `cancel_project` / `reopen_project` commands + RFP as new bespoke `document_type` + Project as Document-derivation source + closure blocker registry entry #10).
 >
-> **Immediate scope — Project lifecycle ADR.** Substantial. The session 8 work in full:
-> 1. **Project state machine.** Candidate states: something like `active`, `closing`, `closed`, `cancelled`. Surface the fork in chat: do we need an intermediate `closing` state (a phase where the closure gate is being satisfied — blockers being resolved, dismissals being recorded, etc.), or does the gate transition directly from `active → closed` when satisfied? Same question for `cancelling`. Pose with recommendations.
-> 2. **`close_project` command.** Guards against ADR-0032's closure gate: no `fix-only` blockers held + every `dismissable` blocker either no longer holds OR has a dismissal resolution Note. Read-side check; no re-stated invariant list. The Project lifecycle ADR doesn't redefine the gate — it consumes it.
-> 3. **`cancel_project` command.** Handles open drafts and `in_review` RFAs (deferred from ADR-0031). Open `pending` WAs with no work referenced get hard-deleted (per ADR-0031 consequence). The fork: does `cancel_project` cascade to terminate `in_review` RFAs (auto-withdrawal), or block on them?
-> 4. **Closure invariants reference flow.** DepFiling completeness, WA Code states (no open RFAs), Daily Log coverage, Deliverable status, cross-project time conflicts (Time Entry now structurally checks via ADR-0028 amendment), non-billable records — all flow through the ADR-0032 registry now. The Project lifecycle ADR confirms which registry entries are project-scope-relevant; doesn't enumerate them as new invariants.
-> 5. **History pattern: lifecycle capture (already assigned).** Project state transitions + close/cancel events.
+> **Step 6c entry.** Apply Case 2 fit checklist from `planning/_workflow.md` to size the work. Initial scope spans:
+> 1. **Concrete role catalog.** MVP scoped to project-manager / tracker role per ADR-0036's UserRole substrate. Field staff deferred to post-MVP. Enumerate the role(s); per-role description.
+> 2. **Per-command authorization predicates** (ADR-0012 carry-forward). Every command across the Step 6b ADRs needs a predicate. The aggregated surface is substantial — strong partition candidate.
+> 3. **Relationship declarations.** Cardinality + ownership for every entity-to-entity link. Document ↔ Deliverable M:M is pending formal declaration. All other entity-pair relationships need explicit declaration too.
+> 4. **Residual Step 6b workflow items** that may fold in: billing finalization flow trigger for Sample Batch (`received → billed`, ADR-0033 deferral); `change_employee_role_rate` compound command shape (ADR-0035 deferral). May not fit; may warrant a brief workflow-consolidation pass before 6c proper.
 >
-> **Pose Block A (state machine) first in chat under the STOP-AND-CONFIRM gate**, then Block B (cancel-cascade question), then write.
+> **Pose partition options first in chat under the STOP-AND-CONFIRM gate.** Likely shape: (i) workflow-consolidation pass (billing trigger + rate-change command); (ii) Step 6c-i (role catalog + relationship declarations); (iii) Step 6c-ii (authorization predicates per command). Or some collapse if the user judges one session can carry more.
 >
-> **State machines locked through session 7:** WA Code (6 states, ADR-0027 — acknowledged-flag aspect superseded by ADR-0032), Deliverable (4 states, ADR-0029), WA (3 states, ADR-0030), RFA (5 states, ADR-0031), Sample Batch (2 states, ADR-0033), Lab Report document_type (3 states bespoke, ADR-0033). EmployeeRole has no state machine (temporal validity = state, ADR-0035). UserRole has no state machine (row existence = grant, ADR-0036).
+> **State machines locked through session 8:**
+> - With state machines: WA Code (6 states, ADR-0027), Deliverable (4 states, ADR-0029), WA (3 states, ADR-0030), RFA (5 states, ADR-0031), Sample Batch (2 states, ADR-0033), Lab Report `document_type` (3 states bespoke, ADR-0033), **Project (3 states, ADR-0037)**, **RFP `document_type` (4 states bespoke, ADR-0037)**.
+> - Without state machines: EmployeeRole (temporal validity = state, ADR-0035), UserRole (row existence = grant, ADR-0036), DepFiling (no lifecycle, ADR-0023), School / Note / User / Employee / Contractor (no-history or audit-log entities, no concrete lifecycle).
 >
-> **Pattern menu through session 7:** 12 design patterns cumulative (unchanged count); pattern #1 (temporal rate resolution) was formalized structurally in ADR-0035 — template for future temporal-value-lookup patterns.
->
-> **Time Entry dual-predicate reminder.** Project lifecycle's cross-project conflict check reads on **gross on-site range** (ADR-0028 amendment via ADR-0034). Don't conflate with blocker #9's net on-site time predicate.
+> **Pattern menu through session 8:** 12 design patterns cumulative (unchanged count). RFP-as-closure-artifact and the per-Project non-terminal-RFP invariant are ADR-0037-specific shapes, not new general patterns.
 >
 > **Stack confirmed (no ADR yet, Step 8 will write):** backend Python/FastAPI/Ruff/SQLAlchemy/Pydantic/pytest; frontend Vite/React/TypeScript/TanStack Router/TanStack Query/openapi-ts/shadcn-ui/Storybook.
 >
 > **Process notes:**
 > - Casual back-and-forth. Self-monitor context.
 > - STOP-AND-CONFIRM gate applies — surface options in chat, await `approved`, only then write.
+> - Apply the Case 2 fit checklist explicitly before sizing the session — Step 6c's full scope is unlikely to fit one context window.
 > - Do not write to `domain-model.md` (that's Step 6d).
-> - Project lifecycle is the *entire* session 8 scope. If it doesn't fit, partition mid-session — don't bolt other entities on.
 
 ## Pointers
 
 - Workflow protocol: `planning/_workflow.md`
 - File rules registry (generated): `planning/_file-rules.md`
 - Phase roster: `planning/phases.md`
-- Step list (current phase): `planning/steps.md` (Step 6a complete; Step 6b in progress across multiple sessions)
+- Step list (current phase): `planning/steps.md` (Step 6a complete; Step 6b core scope complete; Step 6c next)
 - Session conventions: `planning/sessions.md`
-- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0036)
+- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0037)
 - Framework (Step 1 output): `planning/framework.md`
 - Logic (Steps 2–4 output; all sections written): `planning/logic.md`
 - History patterns (Step 5 output): `planning/history-patterns.md`
