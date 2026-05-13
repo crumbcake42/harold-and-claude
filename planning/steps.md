@@ -248,7 +248,7 @@ Step 6c is partitioned into two sub-sessions (6c-i and 6c-ii). The original brie
 
 #### Step 6c-i — Role catalog + relationship declarations
 
-**Goal:** Enumerate the concrete role catalog (per ADR-0036's UserRole substrate; MVP scoped to project-manager / tracker), and declare entity-to-entity relationships across the full 16-entity roster.
+**Goal:** Enumerate the concrete role catalog (per ADR-0036's UserRole substrate; MVP scoped to project-manager / coordinator), and declare entity-to-entity relationships across the full 16-entity roster.
 
 **Inputs:** Step 6a–6b output, `framework.md` (relationships), `decisions.md`, ADR-0036 (UserRole shape).
 
@@ -271,7 +271,7 @@ Step 6c is partitioned into two sub-sessions (6c-i and 6c-ii). The original brie
 
 **Estimate:** 45–60 min.
 
-**Done when:** Every named command across the Step 6b + 6b-residual ADR surface has an articulated authorization predicate. Predicates may be uniform ("any tracker on the project") for the MVP-collapsed surface; non-uniform predicates (e.g., cross-project commands, grant/revoke meta-commands) are called out explicitly.
+**Done when:** Every named command across the Step 6b + 6b-residual ADR surface has an articulated authorization predicate. Predicates may be uniform ("any coordinator on the project") for the MVP-collapsed surface; non-uniform predicates (e.g., cross-project commands, grant/revoke meta-commands) are called out explicitly.
 
 ---
 
