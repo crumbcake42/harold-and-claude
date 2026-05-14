@@ -236,7 +236,7 @@ Step 6b's core scope completed across eight sessions (lifecycle ADRs 0027–0037
 
 **Goal:** Map entity relationships (cardinality, ownership vs. reference, promotion decisions) and concrete authorization predicates. Roles scoped to project managers only (field staff deferred to post-MVP).
 
-Step 6c is partitioned into two sub-sessions (6c-i and 6c-ii). The original brief is preserved here; sub-session briefs follow.
+Step 6c is partitioned into three sub-sessions (6c-i, 6c-ii, 6c-iii). The original brief is preserved here; sub-session briefs follow. Step 6c-iii (rename + restructure) was added during session 12 deliberation when the domain-model restructure surfaced; it sequences *after* 6c-ii closes so ADR-0042 lands against the current entity surface rather than being double-amended.
 
 **Original inputs:** Steps 6a–6b output (via `handoff.md`), `framework.md` (relationships), `logic.md` (authorization), `decisions.md`.
 
@@ -267,11 +267,36 @@ Step 6c is partitioned into two sub-sessions (6c-i and 6c-ii). The original brie
 **Inputs:** Step 6c-i output (role catalog), all Step 6b + 6b-residual ADRs, `logic.md` (authorization section), `decisions.md`.
 
 **Outputs:**
-- ADR for the per-command predicate table.
+- ADR-0042 for the per-command predicate table.
 
-**Estimate:** 45–60 min.
+**Estimate:** Spans two sessions (12–13). Session 12 opened with four substrate clarifications and ran clusters 1–5 predicate work in chat; session 13 closes clusters 6 + 7 and writes ADR-0042. See `planning/handoff.md` last session summary for the locked clarifications and cluster-by-cluster predicate state.
 
-**Done when:** Every named command across the Step 6b + 6b-residual ADR surface has an articulated authorization predicate. Predicates may be uniform ("any coordinator on the project") for the MVP-collapsed surface; non-uniform predicates (e.g., cross-project commands, grant/revoke meta-commands) are called out explicitly.
+**Done when:** Every named command across the Step 6b + 6b-residual ADR surface has an articulated authorization predicate. Predicates may be uniform (`role ≥ coordinator`, MVP-flat per the locked clarification (1)) for the project-scoped surface; non-uniform predicates (cross-project commands, `grant_user_role` / `revoke_user_role` parameterized per ADR-0040 conservative grant authority, `edit_note` creator-only) called out explicitly. Class-rule clauses cover un-named commands grouped by entity scope. ADR-0042 written.
+
+#### Step 6c-iii — Rename + WA-domain restructure
+
+**Goal:** Land a domain-model restructure that surfaced during Step 6c-ii session 12: introduce a contractual-identity entity above the WA chain, separate static code-type configuration from project-scoped code instances, and rename the M:N link table to a name that grows naturally into the immediate post-MVP budget tracking work. Folds in the Step 6b-residual-2 mis-attribution carry-forward.
+
+**Items in scope:**
+
+1. **Introduce a contractual-identity entity** (working name `WABundle`) parallel to Project. Bundle is the SCA's contract identity — the WA chain (initial + amendments) plus line items. WA Codes live on the bundle (replaces ADR-0020's project-scoping). The bundle gets assigned to a project (M:1).
+2. **`WACodeConf` as code-side static config** for the code-type catalog. Possibly code-side rather than DB entity; settled here.
+3. **Rename `WAAuthorization`** to a name aligned with the new shape and the budget-priority direction (top contender `WACodeAssignment`).
+4. **`reassign_wa_project(wa, new_project, move_work: bool)` compound command** with optional `move_work` flag controlling whether related Time Entries / Sample Batches follow the WA or stay on the original project. Default value settled here.
+5. Confirm **Time Entry / Sample Batch keep direct `project_id`** (empirical-truth principle settled session 12) and surface it in the relationship table refresh.
+
+**Out of scope:** Per-command authorization predicates for any new commands introduced here (predicates inherit `role ≥ coordinator` from class rules; explicit rows added to ADR-0042 by amendment if any non-uniform predicate is needed). Budget tracking schema (post-MVP).
+
+**Inputs:** ADR-0020, ADR-0027, ADR-0030, ADR-0031, ADR-0041, ADR-0042 (when written in session 13), `planning/handoff.md` Last session summary (session 12 backlog detail).
+
+**Outputs:**
+- ADR for the restructure (entity introduction, scoping changes, rename, reassign compound).
+- Amendments to ADR-0020 (scoping rationale), ADR-0027 (WA Code parent ref), ADR-0030 (WA's project relationship via bundle), ADR-0031 (RFA's bundle-vs-project routing TBD), ADR-0041 (relationship table refresh).
+- Updated cumulative tables in `handoff.md` (entity roster, relationships, vocabulary).
+
+**Estimate:** One session.
+
+**Done when:** Contractual-identity entity is defined; WA Code's parent is settled (project vs. bundle); WAAuthorization is renamed; `reassign_wa_project(wa, new_project, move_work)` compound is specified with default `move_work` value settled; ADR amendments to 0020 / 0027 / 0030 / 0031 / 0041 written; entity roster cumulative table refreshed.
 
 ---
 
