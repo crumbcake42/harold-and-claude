@@ -36,3 +36,8 @@
 
 - **What:** A derived signal on a project with an RFP in `saved` state for an extended period without SCA-side acknowledgement (approval payment, rejection, etc.). Surfaces in the coordinator UI as a "watch this" affordance; not a closure blocker (the project is already closed).
 - **Why interesting:** ADR-0037 leaves `saved` RFPs sitting indefinitely. In practice, SCA-side payment flows are bounded but can stall. A stale-RFP signal gives the coordinator a queryable view of "submissions waiting on SCA" without forcing additional state into the entity. Implementation can be a derived predicate over `(rfp.state = 'saved' AND rfp.saved_at < now() - threshold)`; the threshold is operational policy, not a domain decision.
+
+## Project → Contract reassignment
+
+- **What:** A `reassign_project_contract(project, new_contract)` compound command — restricted to `role >= admin` — that changes a project's contract after creation, cascading the change through rate resolution and WA-code flat-fee lookups across all the project's work.
+- **Why interesting:** ADR-0043 makes `Project.contract_id` immutable in MVP — a contract mis-pick at `create_project` is corrected the painful way (new project, re-enter everything, reassign entities, delete the duplicate). Opening a project against the wrong contract is an easy, if infrequent, mistake; the cascade's cost is judged less than the manual workaround's. Deferred because the cascade (every Time Entry's resolved rate can shift) is real work and mis-picks are infrequent.

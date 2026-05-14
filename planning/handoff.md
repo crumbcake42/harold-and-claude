@@ -40,44 +40,44 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Last session summary
 
-**Step 6b-residual-2 sizing (session 14) — Case 2 entry: sized, split via Option A (14a model / 14b application); Fork 2 closed (item 5 dissolved). Large productive tangent — the `dismiss_wa_code` / WA-removal redesign — deliberated and captured into the Step 6c-iii brief. No ADRs written.**
+**Step 6c-iv-a — Contract entity + Project wiring. ✓ COMPLETE. ADR-0043 written. Case 3 entry; ran clean through all four scope topics. Step 6c-iv was Case-2-sized and split (Option A) earlier in the same session, before 6c-iv-a ran.**
 
-Session 14 opened as the Case 2 entry for Step 6b-residual-2. The step tripped the fit checklist (Signal 3 — the brief itself flags >1 session), so it was split along the model/application dependency seam (**Option A**): **14a** = write-off model + binary reframe + nuclear guard + vocab reconciliation; **14b** = 11-blocker classification pass + per-blocker default-resolution commands. The split is written into `steps.md` → Step 6b-residual-2.
+Step 6c-iv-a was the Case 3 entry for the model half of Step 6c-iv (Option A split). All four scope topics were deliberated and approved in chat, then written up as **ADR-0043 — Contract entity, Project → Contract relationship, and contract-attachment model**:
 
-A productive tangent then dominated the session. Working the `dismiss_wa_code` cascade-shape question, the user surfaced that **RFAs can remove WA codes** — a missed use case. The redesign that followed (shape settled, no ADRs — it is deliberation queued for Step 6c-iii, now captured as Step 6c-iii item 6):
-- **`dismiss_wa_code` narrowed** to `expected`/`pending_rfa` → `dismissed`; the `issued → dismissed` transition is dropped; it never hard-deletes (ADR-0027's delete-substitution is dropped — always transitions, even never-referenced codes; dismissed rows kept); optional `reason_text` → `audit_reason` Note (ADR-0040 pattern).
-- **New `removed` terminal state** — `issued → removed`, for issued codes removed via an RFA removal line item or an SCA-direct corrected amendment.
-- **RFA becomes a hybrid instrument** — line-item types `add | remove | budget`; additions stay system-derived, removals coordinator-authored; `approve_rfa` composition becomes `(prior ∪ adds) \ removes`; approve/reject/withdraw resolution is polymorphic on line-item type.
-- **Third WA origin identified** — SCA-direct corrected amendment (externally-arrived amendment WA, no RFA behind it); needs diff-based reconciliation against the superseded WA. ADR-0030/0031 had enumerated only two origins.
-- **Fork 2 (item 5) dissolved** — with the WA Code row kept on dismissal (not deleted), `wa_code`-scoped Documents never dangle, so there is no orphan cascade to design. Item 5 leaves Step 6b-residual-2 and folds into Step 6c-iii item 6 as a one-line confirmation.
+- **Attachment model (the load-bearing fork) — lands split.** Employee rates stay **FK-side**: EmployeeRole keeps its own per-row `rate` and will gain a `contract_id` (the disjoint-ranges invariant restructure is 6c-iv-b). Code flat fees go **inline**: Contract carries a `code_flat_fee_schedule` — a non-temporal `{code_type, fee}` value collection, fixed for the contract's whole life. Asymmetry rationale: title rates vary by employee *and* contract (can't collapse into a contract-level table); code fees are genuinely per-`(code_type, contract)` (can).
+- **Contract schema.** `id` (UUID per ADR-0005); `contract_number` (mandatory, uniqueness-constrained natural key); `start_date` + nullable `end_date`; `code_flat_fee_schedule`; optional `name` (when null, the display label derives as `C` + last 5 chars of `contract_number` — derived label, not a stored default). No counterparty field (SCA is the sole MVP client; additional clients indefinitely deferred). No contract value/ceiling (post-MVP, with budget tracking).
+- **Lifecycle / history / delete.** No state machine — `pending` / `active` / `expired` derived from `(start_date, end_date?)` + clock (ADR-0035 precedent; early termination is an `end_date` edit). History pattern: **audit log** — fee-schedule corrections are near-zero and prior-value disputes don't arise (confirmed from 2+ years of operational experience). Delete policy: **soft delete**.
+- **Project → Contract.** `Project.contract_id` — M:1, mandatory, direct typed ref. `create_project` gains a mandatory `contract` parameter (admin-side per ADR-0040; **amends ADR-0037**). No in-term validation at creation. **Immutable in MVP** — no mutation command.
 
-No ADRs were written this session.
+Entity roster 18 → 19 (Contract added). Cumulative tables below refreshed.
+
+**Out of scope of 6c-iv-a, unchanged → Step 6c-iv-b:** EmployeeRole contract-scoping (the `contract_id` addition + disjoint-ranges invariant restructure per-`(employee, role_type)` → per-`(employee, role_type, contract)` + rate-resolution lookup gaining the contract dimension + `change_employee_role_rate` dispatch impact); the WA Code default-flat-fee lookup mechanics; the blast-radius confirmation. 6c-iv-b amends ADR-0035 / 0039 / 0041 / 0020 / 0027.
+
+**New post-MVP carry-forward (ADR-0043):** `reassign_project_contract` — a `role >= admin` compound to change a project's contract after creation, cascading rate resolution + flat-fee lookups across the project's work. Recorded in `post-mvp.md`.
+
+**ADR numbering convention change:** with an unplanned session inserted, pre-assigned ADR numbers are now fragile — numbers are assigned at write time from here on. The write-off ADR took **ADR-0042** (next sequential); the Step 6c-ii predicate-table ADR is no longer pre-numbered (was "ADR-0042" in earlier plan text — those references are de-numbered to "the Step 6c-ii predicate-table ADR" throughout).
 
 **Cluster predicates carried forward — clusters 6–7 (deliberated session 13):**
 
 - **Cluster 6 — ContractorEngagement lifecycle.** `start_contractor_engagement`, `end_contractor_engagement` → `role ≥ coordinator`. Resolved as **named commands**, not implicit via CPR cycling-family lifecycle: the CPR Document *derives from* the engagement row (folding engagement into CPR lifecycle inverts the dependency); the timelines are independent (engagement can start before the CPR is drafted); multiple stints per `(wa_id, contractor_id)` need explicit open/close. Command-shape (signatures, pre-conditions) deferred to Step 6c-iii — ContractorEngagement sits in that restructure's blast radius. Date defaults captured for 6c-iii: `started_at` → row-creation date; `ended_at` → CPR-saved date (nullable, overridable).
 - **Cluster 7 — Cross-project commands.** Two findings. (a) **No special cross-project predicate primitive needed.** The ADR-0040 carry-forward worried predicates might need to read "both projects' coordinator rosters," but MVP-flat (locked clarification 1) has no per-project rosters — plain `role ≥ coordinator` suffices. When per-project scoping lands post-MVP the qualifier is a localized edit. (b) **`split_entry` → explicit row, `role ≥ coordinator`.** It's ADR-0028-named and structurally not-CRUD (one record becomes two); its command-shape is undefined and carried forward — no natural home step (candidate: Step 6d or a residual). **Correction logged:** the session-12 handoff/prompt's "cross-project overlap dismissal (ADR-0028 family)" framing was wrong — blocker #8 is fix-only, there is no dismissal command. (The Step 6b-residual-2 reframe revisits this regardless.)
 
-**Blocker-resolution model reframe — Step 6b-residual-2, sized & split (session 14):**
+**Blocker-resolution model reframe — Step 6b-residual-2: session 14a complete (ADR-0042), session 14b remaining:**
 
-Step 6b-residual-2 replaces ADR-0032's fix-only/dismissable binary with the `write-off` model (every blocker has a fix path plus, where coherent, a **default-resolution** command that writes off the conflicting entities). Sized session 14 as a Case 2 entry and split via **Option A** into **14a** (write-off model + binary reframe + nuclear guard + vocab reconciliation) and **14b** (11-blocker classification pass + per-blocker default-resolution commands). New test for the binary: "does a coherent default-resolution exist?" — expected to shrink rather than vanish, with #10 (non-terminal RFP not `saved` at closure) the candidate lone fix-only survivor. Session-14 note: a write-off's reason is not always blocker-registry-derived (an `expected`-code abandonment via `dismiss_wa_code` produces one) — the 14a model must allow non-blocker reasons. Full brief in `steps.md` → Step 6b-residual-2.
+14a settled the model — the `write-off` model, the `has-default-resolution | fix-only` binary reframe, the nuclear guard, and vocab reconciliation — all in **ADR-0042** (see Last session summary). **Session 14b remains:** the one-by-one classification pass over all 11 registry blockers (`has-default-resolution` vs. `fix-only` — #10, non-terminal RFP not `saved`, is the candidate lone fix-only survivor) plus per-blocker default-resolution command definitions. 14b amends ADR-0032's registry and ADR-0028 (cross-project overlap gains a default-resolution); chain-dismissal instances (ADR-0033/0039) gain `write_off`-Note emission. 14b is deferred behind the inserted Step 6c-iv. Full brief in `steps.md` → Step 6b-residual-2.
 
-**`write-off` term — locked (session 13):**
-
-`write-off` / `written-off` is the locked umbrella term for the accept-path exclusion: an entity that exists but doesn't count (toward billing/conflicts). It **carries a reason**, drawn from the blocker registry (which blocker's default-resolution produced the write-off) — audit/reporting-useful. `write-off` likely **subsumes `non_billable`** (ADR-0027). It does **not** replace `wasted` (ADR-0029 Deliverable derived flag) or `invalid` (ADR-0033 Lab Report state) — those are distinct concepts at different structural levels, not write-off reason-codes; whether they fold in at all is a Step 6b-residual-2 question, not settled. Runner-up term rejected: `excluded` (vaguer — excluded from *what*).
-
-**Locked clarifications carried from session 12 (still binding for ADR-0042):**
+**Locked clarifications carried from session 12 (still binding for the Step 6c-ii predicate-table ADR):**
 
 1. **Project-scoped predicate form is MVP-flat: plain `role ≥ coordinator`.** No `assigned_to(project)` qualifier in MVP — per-project coordinator scoping is post-MVP per ADR-0040. Adding the qualifier later is a localized edit to project-scoped rows.
 2. **Project-state immutability (ADR-0038 pattern #13) stays a pre-condition, NOT in the auth predicate.** Target-state-based, not caller-based; conflating muddies the static-analysis story ADR-0012 cites.
 3. **No system-caller primitive in the predicate vocabulary.** Cascade effects inherit auth from the user-facing command that initiated them. The predicate table enumerates user-facing commands only.
-4. **`dismiss_wa_code` cascade-shape question stays scope-flagged.** ADR-0042 predicates the user-facing `dismiss_wa_code` command only; cascade-shape design is now a candidate fold-in for Step 6b-residual-2.
+4. **`dismiss_wa_code` cascade-shape question stays scope-flagged.** The Step 6c-ii predicate-table ADR predicates the user-facing `dismiss_wa_code` command only; cascade-shape design is now a candidate fold-in for Step 6b-residual-2.
 
-**Cluster predicates carried from session 12 (clusters 1–5 — ADR-0042 will write these):**
+**Cluster predicates carried from session 12 (clusters 1–5 — the Step 6c-ii predicate-table ADR will write these):**
 
 - **Cluster 1 — Admin-side commands.** Explicit predicates: `create_employee_role`, `edit_employee_role`, `close_employee_role`, `change_employee_role_rate`, `create_project` → all `role ≥ admin`. `grant_user_role` / `revoke_user_role` are *parameterized* per ADR-0040 grant authority: `target ∈ {coordinator, auditor}` → `role ≥ admin`; `target ∈ {admin, superadmin}` → `role == superadmin`. **Class rule:** un-named admin-roster CRUD on {Employee, School, Contractor, User} → `role ≥ admin`.
 - **Cluster 2 — Project lifecycle.** `close_project`, `cancel_project`, `reopen_project` (both forms) → `role ≥ coordinator`. Uniform. Pre-conditions (ADR-0032 closure gate, ADR-0038 project-state guards) live outside the auth predicate per locked clarification (2).
-- **Cluster 3 — WA / WA Code / RFA.** `issue_wa`, `dismiss_wa_code`, `submit_rfa`, `approve_rfa` (manual path), `reject_rfa` (manual path), `withdraw_rfa` → `role ≥ coordinator`. WAAuthorization is composite-key-only, no commands. **Class-rule pattern:** ADR-0042 has two row types — explicit per-command rows for ADR-named commands, plus class-rule clauses for unnamed commands grouped by entity scope.
+- **Cluster 3 — WA / WA Code / RFA.** `issue_wa`, `dismiss_wa_code`, `submit_rfa`, `approve_rfa` (manual path), `reject_rfa` (manual path), `withdraw_rfa` → `role ≥ coordinator`. WAAuthorization is composite-key-only, no commands. **Class-rule pattern:** the predicate-table ADR has two row types — explicit per-command rows for ADR-named commands, plus class-rule clauses for unnamed commands grouped by entity scope.
 - **Cluster 4 — Sample Batch / Document / Deliverable / DepFiling / Time Entry.** `create_sample_batch`, `edit_sample_batch_composition`, `relink_sample_batch_wa_code`, `edit_document_scope`, `submit_deliverable`, `approve_deliverable` (manual path), `reject_deliverable` (manual path), `withdraw_deliverable` → all `role ≥ coordinator`. Per-`document_type` lifecycle dispatch commands (ADR-0024), Time Entry CRUD, and DepFiling CRUD + `edit_dep_filing_required_doc_types` fall under class rule. (`split_entry` is named in cluster 7 and gets its own explicit row.)
 - **Cluster 5 — Note / blocker.** `create_note`, `dismiss_blocker`, `comment_blocker` → `role ≥ coordinator`. **`edit_note` non-uniform:** predicate is `caller == note.created_by` (relationship-based, orthogonal to linear-hierarchy propagation — even superadmin cannot edit other users' notes).
 
@@ -85,7 +85,7 @@ Step 6b-residual-2 replaces ADR-0032's fix-only/dismissable binary with the `wri
 
 Surfaced during the WAAuthorization naming discussion. User pushed back on three points: (a) WA Code instance vs. the underlying code-type *config* are different things — codes are static enough to be code-side configuration; (b) reassignment is *not* rare — amendments are routine (2–3 per WA) and inter-project WA shuffling is exactly the disorder this app mitigates; (c) WA's contractual lifecycle is independent of project assignment — "this WA was issued for this project" is a reconciliation between two independent histories. Backlog items: (1) introduce **WABundle** entity (working name) parallel to Project — SCA's contractual identity, WA chain + line items, WA Codes live on the bundle; the bundle gets *assigned* to a project. (2) **WACodeConf** as code-side static config for code types. (3) Rename **WAAuthorization** → likely `WACodeAssignment` (post-MVP budget priority). (4) **`reassign_wa_project(wa, new_project, move_work: bool)`** compound — `move_work` flag controls whether related Time Entries / Sample Batches follow the WA; default TBD. (5) **Time Entry / Sample Batch keep direct `project_id`** (settled session 12) — empirical-truth principle. (6) Post-MVP priorities locked: (a) budget tracking on WACodeAssignment, (b) draft invoice generation. **ADR amendments expected at 6c-iii:** ADR-0020, ADR-0027, ADR-0030, ADR-0031, ADR-0041. Mis-attribution `reassign_wa_project` carry-forward folds in here. **Session-14 addition (item 6) — WA Code removal model:** `dismiss_wa_code` narrowed to `expected`/`pending_rfa` → `dismissed` (no hard-delete, optional `reason_text` → `audit_reason` Note); new `removed` terminal for issued-code removal; RFA becomes a hybrid instrument (`add`/`remove`/`budget` line-item types, additions system-derived + removals coordinator-authored, `approve_rfa` composition `(prior ∪ adds) \ removes`); third WA origin identified (SCA-direct corrected amendment, needs diff-based reconciliation); shared removal cascade across three triggers. Touchpoints: ADR-0027/0029/0030/0031/0033. Step 6b-residual-2's item 5 (WA-Code-scoped Document orphan cascade) dissolved here. This addition likely pushes 6c-iii past one window — Case 2 sizing when it is reached. Full brief in `steps.md` → Step 6c-iii.
 
-**Cumulative tables remain ADR-locked through ADR-0041** — no entity / pattern / vocabulary changes landed as ADRs this session (`write-off` is chat-locked but its model is Step 6b-residual-2's output, so it is not yet in the cumulative vocabulary table). Tables below carry forward unchanged.
+**Cumulative tables — ADR-locked through ADR-0043.** ADR-0043 (Step 6c-iv-a) adds the Contract entity, reflected in the tables below: the entity roster grows 18 → 19; Contract joins the audit-log history tier and the soft-delete delete-policy tier; the vocabulary gains Contract and `code_flat_fee_schedule`. No state-machine, pattern-menu, or role changes — Contract has no state machine (validity derived from dates), and the EmployeeRole / WA Code retrofit is Step 6c-iv-b.
 
 **Per-`document_type` assignments (cumulative):**
 
@@ -95,7 +95,7 @@ Surfaced during the WAAuthorization naming discussion. User pushed back on three
 | Cycling-family | CPR (RFA/RFP fork, 5 dates), FAMR (single-step review) |
 | Bespoke | Lab Report (3 states: `missing`, `saved`, `invalid`; 4 transitions including `saved → invalid` for coordinator-discovered errors and `invalid → saved` for amended reports); RFP (4 states: `missing`, `saved`, `rejected`, `withdrawn`; SCA closure-receipt artifact per ADR-0037; `rejected` and `withdrawn` terminal; no `invalid` path since RFPs are SCA-side) |
 
-**Entity roster (18 entities):**
+**Entity roster (19 entities):**
 
 | # | Entity | Notes |
 |---|---|---|
@@ -113,10 +113,11 @@ Surfaced during the WAAuthorization naming discussion. User pushed back on three
 | 12 | Deliverable | SCA-portal submission package. Bundle is a query over scoped Documents: derived required Documents (from Deliverable) + user-added Documents scoped to this Deliverable + user-added Documents scoped to WA Codes that map to this Deliverable (ADR-0041 reframes earlier "M:M" framing as single-scope on Document side). States: `pending_rfa` / `outstanding` / `under_review` / `approved` (ADR-0029). `wasted` derived flag. |
 | 13 | Contractor | On-site abatement (or other) third party. Admin-side roster. Linked to WAs via ContractorEngagement (ADR-0041). |
 | 14 | RFA | Request for Amendment; carries pending WA edits. M:1 mandatory `amends_wa_id` direct typed ref to WA, set at auto-draft creation (post-WA-issuance), immutable for RFA lifetime (ADR-0041). Project derived via WA → Project. May be auto-created during WA issuance reconciliation. |
-| 15 | Note | Polymorphic commentary; typed reference to any entity OR history record (ADR-0040). Subtypes `regular | blocker | resolution | audit_reason` (ADR-0032, ADR-0040). `authorship_class: 'user' | 'system'` + nullable `created_by`. Inter-Note `references` field. Regular Notes are creator-editable per ADR-0018; blocker, resolution, audit_reason Notes are immutable. Not deletable. |
+| 15 | Note | Polymorphic commentary; typed reference to any entity OR history record (ADR-0040). Subtypes `regular | blocker | resolution | audit_reason | write_off` (ADR-0032, ADR-0040, ADR-0042). `authorship_class: 'user' | 'system'` + nullable `created_by`. Inter-Note `references` field. Regular Notes are creator-editable per ADR-0018; blocker, resolution, audit_reason, write_off Notes are immutable. Not deletable. |
 | 16 | DepFiling | TRU-numbered regulatory filing bundle (ADR-0023). Project-scoped; editable `required_doc_types` set; Document-derivation source. No lifecycle. |
 | 17 | WAAuthorization | Associative entity for WA ↔ WA Code M:N. Composite key `(wa_id, wa_code_id)`. No additional fields in MVP; gains budget when budget tracking lands. (ADR-0041) |
 | 18 | ContractorEngagement | Associative entity for WA ↔ Contractor M:N with stint state. `(wa_id, contractor_id, started_at, ended_at?)`. Multiple rows per `(wa_id, contractor_id)` permitted when contractor closes CPR filing and is re-added. CPR Document derives per row. (ADR-0041) |
+| 19 | Contract | Contractual basis a project is opened against (ADR-0043). Schema: `contract_number` (uniqueness-constrained natural key), `start_date` / `end_date?`, `code_flat_fee_schedule` (inline non-temporal `{code_type, fee}` collection), optional `name` (null → derived display label `C` + last 5 chars of `contract_number`). No state machine — `pending` / `active` / `expired` derived from dates. Audit log; soft delete. Employee rates are FK-side (EmployeeRole gains `contract_id` in 6c-iv-b); code default flat fees inline here. `Project → Contract` M:1 mandatory, immutable in MVP. |
 
 Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT options, status enums, `document_type` registry, DepFiling template constants.
 
@@ -126,14 +127,14 @@ Values / lookups (not entities): Sample Type, Sample Subtype, Project Type, TAT 
 |---|---|
 | Comprehensive capture | Document, WA, RFA |
 | Lifecycle capture | Project, Sample Batch, Deliverable, EmployeeRole, WA Code, ContractorEngagement |
-| Audit log | Employee, User, Time Entry, Contractor, DepFiling |
+| Audit log | Employee, User, Time Entry, Contractor, DepFiling, Contract |
 | No history | School, Note, UserRole, WAAuthorization |
 
 **Per-entity delete policy:**
 
 | Policy | Entities | Notes |
 |---|---|---|
-| Soft delete (guarded hard-delete eligible) | Document, WA, RFA, Project, Sample Batch, Deliverable, EmployeeRole, Employee, User, Time Entry, Contractor, WA Code, DepFiling, ContractorEngagement | History-carrying or referenced by history records. |
+| Soft delete (guarded hard-delete eligible) | Document, WA, RFA, Project, Sample Batch, Deliverable, EmployeeRole, Employee, User, Time Entry, Contractor, WA Code, DepFiling, ContractorEngagement, Contract | History-carrying or referenced by history records. |
 | Hard delete | School, Note, UserRole, WAAuthorization | No history, no external history references. |
 
 **Roles (per ADR-0040 — linear hierarchy with conservative grant authority):**
@@ -161,6 +162,7 @@ Linear hierarchy is *emergent* — permission table authored as explicit `(role,
 11. **Blocker-as-Note with lazy materialization.** System-derived blockers stay derived (registry scan) until a coordinator engages (comment or dismissal). First engagement materializes a blocker Note (system-authored) with `surfaced_at` backfilled from entity history. Dismissable vs fix-only classification per registry. Cross-project blockers materialize as paired Notes linked via `paired_blocker_ref`. (ADR-0032)
 12. **Chain-dismissal.** When dismissing one blocker structurally causes another's condition to fire, the secondary materializes as already-dismissed atomically; the secondary's resolution Note `references` the primary dismissal Note. (ADR-0032; two concrete instances — ADR-0033 sample-collection-coverage → batch-orphan; ADR-0039 Time-Entry-out-of-role-range → batch-orphan via wa_code-null on collected batches.)
 13. **Project-state-driven immutability.** Entities whose project membership puts them in a parent project's "freezing" terminal state are immutable at command guard, with declared exceptions for commentary-only paths and parent-reopen escape hatches. Project's `closed` is the freezing terminal (billed-work snapshot); `cancelled` is the non-freezing terminal (abandoned work, available for reassignment). (ADR-0038)
+14. **Write-off / default-resolution.** An entity that exists but should not count (toward billing, conflicts) is excluded by an immutable `write_off` Note carrying a reason, rather than deleted or mutated; derived predicates compute over not-written-off entities, so exclusion dissolves the conditions the entity participated in. Produced by a guarded, coordinator-initiated **default-resolution** command (the nuclear option for resolving a blocker — mandatory justification, never auto-invoked) or as a reason-inheriting cascade of another command. Reversible only by an explicit superseding command (`revoke_write_off`). Subsumes pattern #10 (`wasted` is now an instance). (ADR-0042)
 
 **Vocabulary (cumulative):**
 - **Coordinator** — the app's user with project-tracking-dashboard access; job title "project manager"; function: tracking. Consumes the former placeholder entry "office staff who manage work, not an app user in MVP" — those people are now defined as app users via this role (ADR-0040).
@@ -173,12 +175,17 @@ Linear hierarchy is *emergent* — permission table authored as explicit `(role,
 - **DepFiling** — Regulatory filing bundle, TRU-numbered. New entity (ADR-0023).
 - **TRU** — Unique identifier the regulator assigns to a DepFiling. Natural key on DepFiling.
 - **ACP / VAR** — Document-type prefixes for regulatory forms (ACP13, ACP7, ACP15, ACP21, ACP8, VAR9, etc.). All simple `missing → saved`.
-- **Wasted** — derived flag on Deliverable: WA Code dismissed after documents prepared or submission attempted. Entity stays in current state; flag signals retroactive invalidity.
+- **Wasted** — a derived reporting *label* for a written-off Deliverable (ADR-0042 reframe of ADR-0029): the Deliverable's WA Code was dismissed/removed after documents were prepared or a submission attempted. No longer an independently-derived flag — "wasted" ⟺ the Deliverable has a `write_off` Note. Entity stays in its current state.
 - **Limbo chain** — WA `pending` → WA Code `expected` → Deliverable `pending_rfa`. Resolves atomically when `issue_wa` fires.
-- **Blocker** — A structural condition (registry entry from ADR-0032) or user-flagged Note declaring something is held up. Dismissable (real-world acceptance path exists) or fix-only (logical impossibility, must be resolved).
+- **Blocker** — A structural condition (registry entry from ADR-0032) or user-flagged Note declaring something is held up. Every registry blocker has a structural-fix path; the ADR-0042 reframe replaces the dismissable/fix-only binary with the derived property **has-default-resolution** vs. **fix-only** (per-blocker classification pass is session 14b).
 - **Materialized blocker** — A blocker that exists as a persisted Note record (vs purely-derived, registry-only). System-derived blockers materialize on first user engagement.
 - **Engagement** — A coordinator writing a comment about a blocker or dismissing it. The trigger for lazy materialization of system-derived blockers.
-- **Chain-dismissal** — When dismissing one blocker structurally causes another's condition to fire, the secondary is materialized as already-dismissed atomically. Linked via the resolution Note's `references` field.
+- **Chain-dismissal** — When dismissing one blocker structurally causes another's condition to fire, the secondary is materialized as already-dismissed atomically. Linked via the resolution Note's `references` field. Under ADR-0042 the secondary's resolution now also emits `write_off` Notes for the affected entities.
+- **Write-off / written-off** — an entity that exists and is retained (audit-preserved) but does not count toward billing aggregation or blocker/conflict derivation. Recorded by an immutable `write_off` Note on the entity carrying a `reason`; "written off" is a derived status (`∃ write_off Note not superseded by a `revoke_write_off`). A marker orthogonal to state machines. Subsumes the retired `non_billable` flag. (ADR-0042)
+- **Default-resolution** — a guarded, coordinator-initiated command that resolves a blocker by writing off the conflicting entities (so the blocker's predicate, computed over not-written-off entities, stops holding). The "nuclear option" alongside the always-available structural-fix path: never auto-invoked, requires a mandatory justification. A blocker **has-default-resolution** iff a coherent one exists — the coherence test: the condition dissolves by *excluding* a well-defined entity set, not by *creating/correcting* something. (ADR-0042)
+- **Cascade write-off** — a write-off produced as a side effect of a non-default-resolution command (e.g. `dismiss_wa_code` nulling `wa_code` on referencing records). Not separately guarded; inherits its `reason` from the initiating command — the reason the write-off model admits non-blocker reasons. (ADR-0042)
+- **`revoke_write_off`** — explicit command that lifts a write-off by writing an immutable superseding Note (Notes are not deletable); re-includes the entity in billing and blocker-derivation. Command shape is a carry-forward. (ADR-0042)
+- **`resolution_kind`** — discriminator on resolution Notes; under ADR-0042 the value set is `structural_fix | default_resolution | dismissal`, where `dismissal` is retained only for free-form user-flagged blockers (registry blockers resolve via `structural_fix` or `default_resolution`).
 - **On-site range / off-site sub-interval (Time Entry)** — `on_site_range` is the parent range of an entry; `off_site_sub_intervals` are project-committed time-away spans within the on-site range (currently always lab delivery). Sub-intervals are pairwise disjoint, entirely within on-site range, positive-duration. (ADR-0034)
 - **Gross on-site range** — the full `on_site_range` of a Time Entry, inclusive of off-site sub-intervals. Represents *project commitment*. Used by the cross-project overlap predicate (ADR-0028 amendment).
 - **Net on-site time** — `on_site_range` minus the union of off-site sub-intervals. Represents *physical presence at the parent project's site*. Used by blocker #9 (sample collection coverage).
@@ -188,6 +195,8 @@ Linear hierarchy is *emergent* — permission table authored as explicit `(role,
 - **Reopen-from-`closed` / reopen-from-`cancelled`** — the two `reopen_project` forms. From `closed`: requires `rfp_reason ∈ {rfp_rejected, rfp_withdrawn}`; cycles the RFP. From `cancelled`: pure state-flip; no structural reason captured (lifecycle capture + optional Note carry audit).
 - **WAAuthorization** — associative entity for WA ↔ WA Code (composite key `(wa_id, wa_code_id)`, ADR-0041). Gains budget when budget tracking lands.
 - **ContractorEngagement** — associative entity for WA ↔ Contractor with stint markers (`started_at`, `ended_at?`, ADR-0041). Multiple rows per `(wa_id, contractor_id)` allowed for repeat engagements; CPR derives per row.
+- **Contract** — the contractual basis a project is opened against (ADR-0043). Carries a `contract_number` (uniqueness-constrained natural key), a `start_date` / `end_date?` term, an inline non-temporal `code_flat_fee_schedule`, and an optional `name`. No state machine — validity (`pending` / `active` / `expired`) is derived from the term + clock. Employee billing rates are contract-scoped FK-side (EmployeeRole gains `contract_id`, 6c-iv-b); code default flat fees are contract-defined inline. `Project → Contract` is M:1 mandatory, set at `create_project`, immutable in MVP.
+- **`code_flat_fee_schedule` (Contract)** — an inline value collection of `{code_type, fee}` pairs on Contract: the default flat fee per WA code type for that contract. Non-temporal — fixed once for the contract's whole life. The code-type catalog itself (`WACodeConf`) is Step 6c-iii's work. (ADR-0043)
 - **`audit_reason` (Note subtype)** — immutable Note subtype attached to history records via optional `reason_text` on grant/revoke commands (ADR-0040).
 - **`amends_wa_id`** — RFA's mandatory direct typed reference to the WA being amended; set at auto-draft creation, immutable for RFA lifetime (ADR-0041).
 - **`scope_type` / `scope_id` (Document)** — single-scope discriminator + FK on Document; `scope_type ∈ {project, deliverable, wa_code}` (ADR-0041).
@@ -197,24 +206,28 @@ Linear hierarchy is *emergent* — permission table authored as explicit `(role,
 
 ## Open questions
 
-**For session 14a — write-off model (Step 6b-residual-2, model half):**
+**For Step 6c-iv-b — contract-scoping retrofit (NEXT — Case 3 entry):**
 
-- **Reframe the fix-only/dismissable binary — abstract.** New test: "does a coherent default-resolution exist?" not "is there a real-world acceptance path?" Decide the reframed binary structure. Do NOT do the per-blocker classification pass — that is 14b.
-- **Formalize the `write-off` model.** Umbrella state/concept: an entity that exists but doesn't count (toward billing/conflicts), carrying a **reason**. The reason is not always blocker-registry-derived (see Last session summary) — the model must allow non-blocker reasons.
-- **Nuclear-option guard shape.** Default-resolutions are destructive; the guard — require a justification Note (ADR-0032 dismissal-Note precedent), never auto-invoke. Confirm shape.
-- **`write-off` vs. existing vocab.** Confirm `write-off` subsumes `non_billable` (ADR-0027); decide whether `wasted` (ADR-0029) / `invalid` (ADR-0033) fold in or stay distinct.
+- **Attachment model is settled (ADR-0043):** employee rates FK-side, code default flat fees inline on Contract's `code_flat_fee_schedule`. 6c-iv-b applies it — it does not re-open the Contract entity definition.
+- **EmployeeRole contract-scoping.** EmployeeRole gains `contract_id`; disjoint-ranges invariant moves from per-`(employee, role_type)` to per-`(employee, role_type, contract)`; rate-resolution lookup gains the contract dimension (resolved Time Entry → project → contract); `change_employee_role_rate` (ADR-0039) dispatch keys on `(employee, role_type, contract)`. Amends ADR-0035 / 0039 / 0041.
+- **WA Code default flat fee against contract.** Looked up by `code_type` + (project →) contract against Contract's `code_flat_fee_schedule`; defines the contract side that Step 6c-iii's `WACodeConf` inherits. Amends ADR-0020 / 0027.
+- **Confirm blast-radius bound:** the code → required-docs / Deliverables / Sample-Batches derivation logic is unaffected (user-stated).
 
-**For session 14b — application (Step 6b-residual-2, enumerative half):**
+*(Step 6c-iv-a's open questions — attachment model, Contract attributes/identity, lifecycle/history/delete, Project → Contract wiring — are all resolved in ADR-0043. Session 14a's — binary reframe, write-off model, nuclear guard, vocab reconciliation — in ADR-0042.)*
+
+**For session 14b — application (Step 6b-residual-2, enumerative half — deferred behind Step 6c-iv):**
 
 - **11-blocker classification pass.** Each registry blocker: does a coherent default-resolution exist (→ has-default-resolution) or not (→ genuinely fix-only)? #10 (non-terminal RFP not `saved`) is the candidate lone survivor of the fix-only category.
 - **Per-blocker default-resolution command definitions.** For each blocker with a default-resolution: define the command. Cross-project overlap is the worked example (split the overlapped span out of both Time Entries, write off the slivers).
 
-**Deferred behind Step 6b-residual-2:**
-- **ADR-0042 write** — all seven predicate clusters are deliberated (see Last session summary); the per-`(role, command)` table is written *after* the reframe settles the command surface. STOP-AND-CONFIRM gate applies fully to the write.
-- **`split_entry` command-shape** — predicate is `role ≥ coordinator` (explicit row in ADR-0042); the command's actual shape (split point, re-assignment behavior) is undefined and has no natural home step. Candidate: Step 6d or a residual.
+**Deferred behind Step 6b-residual-2 and Step 6c-iv:**
+- **Step 6c-ii predicate-table ADR write** — all seven predicate clusters are deliberated (see the carried-forward cluster blocks above); the per-`(role, command)` table is written *after* the reframe (14a/14b) and Step 6c-iv settle the command surface. STOP-AND-CONFIRM gate applies fully to the write.
+- **`split_entry` command-shape** — predicate is `role ≥ coordinator` (explicit row in the predicate-table ADR); the command's actual shape (split point, re-assignment behavior) is undefined and has no natural home step. Candidate: Step 6d or a residual. ADR-0042 carry-forward — half-open interval semantics: Time Entry ranges are `[start, end)`; a boundary instant (and a sample collected at it) belongs to the entry *starting* at the boundary; gross duration is plain `end − start` (exclusive end is a limit, not "one unit prior"). Refines ADR-0034.
+- **`revoke_write_off` command shape** — lifts a write-off via an immutable superseding Note (ADR-0042). Parameters and guards undefined; no home step yet (candidate: alongside `split_entry`).
 
 **Carry-forwards worth re-checking when relevant:**
 - **Mis-attribution `reassign_wa_project(wa, new_project, move_work)` compound** — part of Step 6c-iii restructure scope. Optional `move_work` flag forces explicit intent; default value TBD.
+- **`reassign_project_contract` (post-MVP)** — compound to change a project's contract after creation; cascades rate resolution + flat-fee lookups across the project's work; `role >= admin`. In `post-mvp.md`. (ADR-0043 — `Project.contract_id` is immutable in MVP.)
 - **ContractorEngagement command-shape** — `start_contractor_engagement` / `end_contractor_engagement` predicates are `role ≥ coordinator` (session 13); signatures + pre-conditions deferred to Step 6c-iii (ContractorEngagement is in that restructure's blast radius). Date defaults: `started_at` → row-creation date; `ended_at` → CPR-saved date (nullable).
 - **Cross-project Sample Batch reassignment as a structured command**: in `post-mvp.md` alongside notifications.
 - **Retroactive rate corrections via Time-Entry rate snapshot** (carry-forward from ADR-0035): reversible additive change post-MVP if signal emerges.
@@ -224,7 +237,7 @@ Linear hierarchy is *emergent* — permission table authored as explicit `(role,
 - **WACodeAssignment budget fields** (current name: WAAuthorization budget fields) — added when budget tracking design lands; immediate post-MVP per user signal.
 - **Draft invoice generation against budgets** — second post-MVP priority.
 - **Billing Rate entity/table** — temporal `(subtype, TAT) → rate` lookup. Likely Step 6d or later. Follows the temporal rate resolution template formalized in ADR-0035 / ADR-0041.
-- **WA / WA Code / WAAuthorization rename + WABundle introduction** — Step 6c-iii (after ADR-0042). Full backlog in Last session summary.
+- **WA / WA Code / WAAuthorization rename + WABundle introduction** — Step 6c-iii (after the Step 6c-ii predicate-table ADR). Full backlog in the Restructure-session-backlog block of the Last session summary.
 - **Quarantine as a per-entity violation-handling pattern** — excluded from history-pattern menu (ADR-0013); remains deferred per ADR-0011. Step 6d.
 - **Bulk import file-upload relaxation** — 6b or implementation.
 - **Project structure for managing N `document_types`** — defer to implementation phase.
@@ -234,53 +247,52 @@ Linear hierarchy is *emergent* — permission table authored as explicit `(role,
 
 ## Next session
 
-**Step 6b-residual-2 / session 14a — write-off model.** The model half of the Option A split (see Last session summary): formalize the `write-off` model, reframe the fix-only/dismissable binary (abstract), specify the nuclear-option guard, reconcile vocab against `non_billable` / `wasted` / `invalid`. This is a **Case 3 entry** — scoped prompt below.
+**Step 6c-iv-b — Contract-scoping retrofit.** Step 6c-iv-a complete (ADR-0043 — Contract entity, Project → Contract, attachment model). Next is **6c-iv-b** — apply ADR-0043's attachment model: EmployeeRole gains `contract_id` + the disjoint-ranges invariant restructure; the WA Code default-flat-fee lookup; the blast-radius confirmation. **Case 3 entry** — scoped prompt below. Brief in `steps.md` → Step 6c-iv / Step 6c-iv-b.
 
 ### Prompt for the next session
 
-> Resume work. Next is **Step 6b-residual-2 / session 14a — write-off model**, the model half of the Option A split agreed session 14. This is a **Case 3 entry** — scoped below; read `steps.md` → Step 6b-residual-2 (the Session partition block) for the full split rationale.
+> Resume work. Next is **Step 6c-iv-b — Contract-scoping retrofit**, a **Case 3 entry** (scoped). Per `_workflow.md` Case 3: read this prompt + Open questions, read `decisions.md` (ADR-0043 — the just-written Contract ADR — load-bearing; ADR-0035 / 0039 / 0041 for EmployeeRole + rate-change + relationships; ADR-0020 / 0027 for WA Code), then enter planning mode — draft a session plan in chat, wait for explicit approval. STOP-AND-CONFIRM gate applies fully; do not touch files until approved.
 >
-> **Why this step exists:** Step 6c-ii session 13, working cluster 7 (cross-project commands), surfaced that ADR-0032's **fix-only/dismissable binary is partly dishonest** — a mechanical acceptance path always exists (mutate the conflicting data until the derived condition dissolves), and ADR-0028 calling cross-project overlap "fix-only" just pushed that mutation off-system into manual edits. The fix: bring it on-system as a defined per-blocker **default-resolution** command.
+> **Why this step exists:** Step 6c-iv (Contract entity, new requirement 2026-05-14) was split Option A. 6c-iv-a (done — ADR-0043) introduced Contract and fixed the **attachment model**: employee rates FK-side, code default flat fees inline on Contract's `code_flat_fee_schedule`. **6c-iv-b is the application half** — it retrofits EmployeeRole and WA Code to that model.
 >
-> **Scope of 14a (the conceptual half — NOT the 11-blocker pass, that is 14b):**
-> 1. **Reframe the fix-only/dismissable binary — abstract.** New test: not "is there a real-world acceptance path?" but "does a coherent default-resolution exist?" Decide the reframed binary structure (expected to shrink, not vanish — #10, non-terminal RFP not `saved` at closure, is the candidate lone fix-only survivor: the saved RFP *is* what closure means; no entity to write off). Do NOT do the per-blocker classification pass — that is 14b.
-> 2. **Formalize the `write-off` model.** `write-off` / `written-off` (term locked session 13) = umbrella state/concept: an entity that exists but doesn't count (toward billing/conflicts). Carries a **reason**. Session-14 finding: the reason is NOT always blocker-registry-derived — an `expected`-code abandonment via `dismiss_wa_code` produces a write-off with reason "code abandoned pre-issuance," not a blocker. The model must allow non-blocker reasons.
-> 3. **Nuclear-option guard.** Default-resolutions are destructive; guard them — require a justification Note (ADR-0032 dismissal-Note precedent), never auto-invoke. Confirm shape.
-> 4. **Vocab reconciliation.** `write-off` likely subsumes `non_billable` (ADR-0027); decide whether `wasted` (ADR-0029) / `invalid` (ADR-0033 Lab Report state) fold in or stay distinct.
+> **Scope of 6c-iv-b (items 3 + 4 + 5 of the shared brief in `steps.md` → Step 6c-iv):**
+> 1. **EmployeeRole contract-scoping** — EmployeeRole gains `contract_id`; the disjoint-ranges invariant moves from per-`(employee, role_type)` to per-`(employee, role_type, contract)` (an employee can hold the same role at different rates on different contracts, overlapping in time); the rate-resolution lookup gains the contract dimension (contract resolved Time Entry → project → contract); `change_employee_role_rate` (ADR-0039) dispatch keys on `(employee, role_type, contract)`. Amends ADR-0035 / 0039 / 0041.
+> 2. **WA Code default flat fee** — looked up by `code_type` + (project →) contract against Contract's `code_flat_fee_schedule`; defines the contract side that Step 6c-iii's `WACodeConf` inherits. Amends ADR-0020 / 0027.
+> 3. **Confirm blast-radius bound** — the code → required-docs / Deliverables / Sample-Batches derivation logic is unaffected (user-stated). Do not re-litigate.
 >
-> **Out of scope for 14a (→ 14b):** the one-by-one classification pass over all 11 registry blockers; per-blocker default-resolution command definitions.
+> **Output:** the retrofit ADR (amends ADR-0035 / 0039 / 0041 / 0020 / 0027); updated cumulative tables (EmployeeRole entity row gains `contract_id` + the restructured invariant).
 >
-> **Outputs:** an ADR (or the model-half of one) for the `write-off` model + binary reframe + nuclear guard; likely a vocab-reconciliation amendment to ADR-0027. The registry reclassification and per-blocker commands wait for 14b. Updated cumulative tables in `handoff.md` as needed (vocabulary; the pattern menu may gain a 14th entry — write-off / default-resolution).
+> **Out of scope of 6c-iv-b — do not pull in:** the Contract entity definition itself is settled by ADR-0043 — do not re-open it. Session 14b and the WA-removal work (Step 6c-iii item 6) are not part of Step 6c-iv.
 >
-> **Sequencing — do not lose this:** Execution order is **14a → 14b → ADR-0042 write (closes Step 6c-ii) → Step 6c-iii (rename + restructure) → Step 6d**. ADR-0042's predicate deliberation is *already done* — all seven clusters agreed in chat (clusters 1–5 session 12, clusters 6–7 session 13; see carried-forward cluster predicates above). ADR-0042 is purely a write, gated behind 14a+14b because the reframe adds a default-resolution command family ADR-0042 must enumerate.
+> **Sequencing — do not lose this:** execution order is **session 14a (done — ADR-0042) → 6c-iv-a (done — ADR-0043) → 6c-iv-b → session 14b → Step 6c-ii predicate-table ADR → Step 6c-iii → Step 6d**. ADR numbers are assigned at write time — no pre-assignment. The Step 6c-ii predicate clusters are all deliberated (see the carried-forward cluster blocks in the Last session summary); that ADR is a write, gated behind 14b.
 >
-> **State machines locked through ADR-0041:**
+> **State machines locked through ADR-0043:**
 > - With state machines: WA Code (6 states, ADR-0027), Deliverable (4 states, ADR-0029), WA (3 states, ADR-0030), RFA (5 states, ADR-0031), Lab Report `document_type` (3 states bespoke, ADR-0033), Project (3 states, ADR-0037), RFP `document_type` (4 states bespoke, ADR-0037).
-> - Without state machines: EmployeeRole (temporal validity, ADR-0035), UserRole (row existence, ADR-0036), DepFiling (no lifecycle, ADR-0023), Sample Batch (stateless per ADR-0038), WAAuthorization (immutable, ADR-0041), ContractorEngagement (stint markers, ADR-0041), School / Note / User / Employee / Contractor.
+> - Without state machines: EmployeeRole (temporal validity, ADR-0035), UserRole (row existence, ADR-0036), DepFiling (no lifecycle, ADR-0023), Sample Batch (stateless per ADR-0038), WAAuthorization (immutable, ADR-0041), ContractorEngagement (stint markers, ADR-0041), **Contract (validity derived from dates, ADR-0043)**, School / Note / User / Employee / Contractor.
 > - *Not yet ADR-locked (session-14 deliberation, queued for Step 6c-iii item 6):* WA Code gains a `removed` state and `dismiss_wa_code` narrows to `expected`/`pending_rfa`. The 6-state count above is unchanged until 6c-iii writes it.
 >
-> **Roster:** 18 entities through ADR-0041.
+> **Roster:** 19 entities through ADR-0043 (Contract is #19).
 > **Roles (ADR-0040):** superadmin / admin / coordinator / auditor; linear hierarchy emergent from explicit `(role, command) → permitted?` table.
-> **Pattern menu:** 13 design patterns cumulative through ADR-0038 — the reframe may add a 14th (write-off / default-resolution).
-> **Blocker registry:** 11 entries through ADR-0041 — this step reclassifies them.
+> **Pattern menu:** 14 design patterns cumulative through ADR-0042 (#14 — write-off / default-resolution). ADR-0043 added no pattern.
+> **Blocker registry:** 11 entries; the ADR-0042 reframe replaces the dismissable/fix-only binary with `has-default-resolution | fix-only` — the per-blocker reclassification pass is session 14b.
 > **Stack confirmed (no ADR yet, Step 8 will write):** backend Python/FastAPI/Ruff/SQLAlchemy/Pydantic/pytest; frontend Vite/React/TypeScript/TanStack Router/TanStack Query/openapi-ts/shadcn-ui/Storybook.
 >
 > **Process notes:**
 > - Casual back-and-forth. Self-monitor context. One topic per turn.
-> - STOP-AND-CONFIRM gate applies fully to all reframe deliberations and to every ADR write.
+> - STOP-AND-CONFIRM gate applies fully to all deliberations and to every ADR write.
 > - Do not write to `domain-model.md` (that's Step 6d).
 > - **Permission propagation rule:** adding a permission to a lower role propagates upward in the chain by default; non-chain changes require explicit user signal.
 > - **Recommendation strength:** state confidence on recommendations; when asked for contras, separate the exercise from any conclusion; don't flip out of agreeableness (`sessions.md` rule 5).
-> - **Session 14's WA-removal work is captured in `steps.md` → Step 6c-iii item 6** — not part of 14a; do not re-deliberate it.
+> - **Session 14b and the WA-removal work (Step 6c-iii item 6) are not part of Step 6c-iv-b** — do not pull them in.
 
 ## Pointers
 
 - Workflow protocol: `planning/_workflow.md`
 - File rules registry (generated): `planning/_file-rules.md`
 - Phase roster: `planning/phases.md`
-- Step list (current phase): `planning/steps.md` (Step 6a complete; Step 6b core complete; Step 6b-residual complete; Step 6c-i complete; Step 6c-ii deliberation complete sessions 12–13, ADR-0042 write deferred; Step 6b-residual-2 sized & split session 14 — Option A: 14a write-off model next, then 14b application; then ADR-0042 write closes 6c-ii; Step 6c-iii rename+restructure+WA-removal-model after; Step 6d after)
+- Step list (current phase): `planning/steps.md` (Step 6a complete; Step 6b core complete; Step 6b-residual complete; Step 6c-i complete; Step 6c-ii deliberation complete sessions 12–13, predicate-table ADR write deferred; Step 6b-residual-2 session 14a complete — ADR-0042 write-off model — 14b application remaining; Step 6c-iv split Option A into 6c-iv-a + 6c-iv-b; **Step 6c-iv-a complete — ADR-0043 Contract entity + attachment model; Step 6c-iv-b (contract-scoping retrofit) next**, then 14b, then the Step 6c-ii predicate-table ADR, then Step 6c-iii rename+restructure+WA-removal-model, then Step 6d)
 - Session conventions: `planning/sessions.md`
-- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0041)
+- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0043)
 - Framework (Step 1 output): `planning/framework.md`
 - Logic (Steps 2–4 output; all sections written): `planning/logic.md`
 - History patterns (Step 5 output): `planning/history-patterns.md`
