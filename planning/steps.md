@@ -238,7 +238,7 @@ Step 6b's core scope completed across eight sessions (lifecycle ADRs 0027–0037
 
 **Why this surfaced:** Step 6c-ii session 13, cluster 7 (cross-project commands). "Fix-only" is partly dishonest — a mechanical acceptance path always exists (mutate the conflicting data until the derived condition dissolves); ADR-0028 calling cross-project overlap "fix-only" just pushed that mutation off-system into manual edits. Bringing it on-system as a defined command is auditable and structured.
 
-**Sequencing — runs *before* the Step 6c-ii predicate-table ADR (6c-ii's deferred output).** The reframe adds a default-resolution command family; the predicate-table ADR's job is to enumerate the command surface, so it must wait for that surface to settle. This is the inverse of session 12's call to defer Step 6c-iii until *after* the predicate-table ADR — the WA restructure leaves predicates unchanged, this reframe does not. Execution order: session 14a (done) → Step 6c-iv (Contract entity, inserted 2026-05-14) → session 14b → Step 6c-ii predicate-table ADR → Step 6c-iii → Step 6d.
+**Sequencing — runs *before* the Step 6c-ii predicate-table ADR (6c-ii's deferred output).** The reframe adds a default-resolution command family; the predicate-table ADR's job is to enumerate the command surface, so it must wait for that surface to settle. This is the inverse of session 12's call to defer Step 6c-iii until *after* the predicate-table ADR — the WA restructure leaves predicates unchanged, this reframe does not. Execution order: session 14a (done) → Step 6c-iv-a (done) → Step 6c-iii-a → Step 6c-iv-b → session 14b → Step 6c-ii predicate-table ADR → Step 6c-iii-b → Step 6d.
 
 **Items in scope:**
 
@@ -272,7 +272,7 @@ Step 6b's core scope completed across eight sessions (lifecycle ADRs 0027–0037
 
 **Goal:** Map entity relationships (cardinality, ownership vs. reference, promotion decisions) and concrete authorization predicates. Roles scoped to project managers only (field staff deferred to post-MVP).
 
-Step 6c is partitioned into four sub-sessions (6c-i, 6c-ii, 6c-iii, 6c-iv; 6c-iv split Option A into 6c-iv-a / 6c-iv-b on 2026-05-14). The original brief is preserved here; sub-session briefs follow. Step 6c-iii (rename + restructure) was added during session 12 deliberation when the domain-model restructure surfaced; it sequences *after* 6c-ii closes so the predicate-table ADR lands against the current entity surface rather than being double-amended. Step 6c-iv (Contract entity) was added 2026-05-14 as a new requirement; despite the label it executes ahead of 6c-ii's predicate-table ADR and 6c-iii — see its own execution-order note.
+Step 6c is partitioned into sub-sessions (6c-i, 6c-ii, 6c-iii, 6c-iv). Two later splits, both 2026-05-14: 6c-iv split Option A into 6c-iv-a / 6c-iv-b; 6c-iii split into 6c-iii-a / 6c-iii-b when the Contract work established that the contract attaches to the WABundle, pulling WABundle introduction forward. The original brief is preserved here; sub-session briefs follow. Step 6c-iii (rename + restructure) was added during session 12 deliberation when the domain-model restructure surfaced; **6c-iii-a** (WABundle entity + contract re-attachment) executes early — ahead of 6c-iv-b, which depends on it — while **6c-iii-b** (the rename + WA-removal-model remainder) sequences *after* 6c-ii closes so the predicate-table ADR lands against the current entity surface rather than being double-amended. Step 6c-iv (Contract entity) was added 2026-05-14 as a new requirement; despite the label it executes ahead of 6c-ii's predicate-table ADR and 6c-iii-b — see its own execution-order note.
 
 **Original inputs:** Steps 6a–6b output (via `handoff.md`), `framework.md` (relationships), `logic.md` (authorization), `decisions.md`.
 
@@ -309,13 +309,49 @@ Step 6c is partitioned into four sub-sessions (6c-i, 6c-ii, 6c-iii, 6c-iv; 6c-iv
 
 **Done when:** Every named command across the Step 6b + 6b-residual ADR surface has an articulated authorization predicate. Predicates may be uniform (`role ≥ coordinator`, MVP-flat per the locked clarification (1)) for the project-scoped surface; non-uniform predicates (cross-project commands, `grant_user_role` / `revoke_user_role` parameterized per ADR-0040 conservative grant authority, `edit_note` creator-only) called out explicitly. Class-rule clauses cover un-named commands grouped by entity scope. The predicate-table ADR is written.
 
-#### Step 6c-iii — Rename + WA-domain restructure
+#### Step 6c-iii-a — WABundle entity, WA restructure, contract re-attachment
 
-**Goal:** Land a domain-model restructure that surfaced during Step 6c-ii session 12: introduce a contractual-identity entity above the WA chain, separate static code-type configuration from project-scoped code instances, and rename the M:N link table to a name that grows naturally into the immediate post-MVP budget tracking work. Folds in the Step 6b-residual-2 mis-attribution carry-forward and the WA Code removal model deliberated session 14 (item 6).
+**✓ COMPLETE (2026-05-14, ADR-0044).** WABundle introduced (entity #20 — `contract_id` required at create, three nullable-pre-issuance/unique SCA identifiers, audit log, soft delete, no state machine); WA restructured under it (`wabundle_id`, `version_seq` replacing `supersedes`, WA → Project derived, "version" vocabulary); Contract re-attached to the WABundle (amends ADR-0043 — `Project.contract_id` removed, contract mutable via `issue_wa` / `edit_wabundle`, `reassign_project_contract` dissolved); WA-initialization closure blocker added (amends ADR-0032). `create_project` is now a Project + WABundle + v0-WA compound. Amends ADR-0043 / 0017 / 0030 / 0041 / 0032.
+
+**Added 2026-05-14**, mid Step 6c-iv-b's planning. The Contract work (ADR-0043) retrofitted the contract onto Project, but deliberation established the contract is carried by the WA, not the project — so it re-attaches to the **WABundle** (the contractual-identity entity, originally 6c-iii item 1). WABundle introduction is pulled forward out of 6c-iii (now 6c-iii-b) because 6c-iv-b's `→ contract` resolution path depends on it.
+
+**Execution order:** runs after 6c-iv-a, *before* 6c-iv-b. Order: 14a (done) → 6c-iv-a (done) → **6c-iii-a** → 6c-iv-b → 14b → Step 6c-ii predicate-table ADR → 6c-iii-b → 6d.
+
+**Goal:** Introduce WABundle as the contractual-identity entity, restructure WA to sit under it, and re-attach Contract to WABundle — amending ADR-0043. Unblocks 6c-iv-b.
+
+**Settled inputs (not re-deliberated):**
+- **Project ↔ WABundle is 1:1; WA → WABundle is M:1** — the bundle holds the WA chain (initial + revisions).
+- WABundle carries: a contract link, WA Number, Service ID, Job Number (SCA's WA identifier, distinct from the project number — our own tracking id).
+- A WA revision may change only its WA Codes, `issued_date`, and `initialization_date`.
+- A new project with no issued WA initializes its WABundle with a first "missing" WA carrying expected WA Codes.
 
 **Items in scope:**
 
-1. **Introduce a contractual-identity entity** (working name `WABundle`) parallel to Project. Bundle is the SCA's contract identity — the WA chain (initial + amendments) plus line items. WA Codes live on the bundle (replaces ADR-0020's project-scoping). The bundle gets assigned to a project (M:1).
+1. **WABundle entity definition** — natural key (among WA Number / Service ID / Job Number, per ADR-0005's UUID-identity + uniqueness-constraint discipline); the field set; history pattern (from `history-patterns.md`); delete policy.
+2. **WA restructure** — WA sits under WABundle; WA's direct Project reference becomes derived-via-bundle; WA's own fields (`issued_date`, `initialization_date`); WA identity within the chain.
+3. **Contract re-attachment** — WABundle → Contract; amend ADR-0043 (Project.contract_id removed or demoted to a soft expected-contract; `create_project` parameter change; contract becomes authoritative-at-WA-issuance, correctable).
+
+**Out of scope — stays in 6c-iii-b:** WA Code reparenting (stays project-scoped per ADR-0020 for now — with Project ↔ WABundle 1:1 the `code → contract` path resolves either way), `WACodeConf`, the `WAAuthorization` rename, `reassign_wa_project` and the bundle ↔ project assignment-mutability question, the WA Code removal model.
+
+**Parked, to slot:** the `initialization_date` *closure-blocker* semantics — time entries dated before the most-recent non-superseded WA's `initialization_date` are blocked. The field itself lands here; the blocker behavior is a circle-back item, decided before wrap if context permits, else scheduled.
+
+**Inputs:** ADR-0017 (WA supersession), ADR-0020 (WA Code scoping), ADR-0030 (WA state machine), ADR-0041 (relationships), ADR-0043 (Contract), `handoff.md`'s Step 6c-iii backlog block + cumulative tables.
+
+**Outputs:** WABundle-introduction ADR + ADR-0043 amendment (likely one ADR); amendments to ADR-0020 / 0030 / 0017 / 0041 as needed; updated cumulative tables in `handoff.md` (entity roster 19 → 20, relationships, history-pattern + delete-policy assignments).
+
+**Estimate:** One session — three coupled decisions landing as one restructure. Split risk low (the cardinality reconciliation that was the sizing wildcard is now settled); flag a wrap point if it bloats.
+
+**Done when:** WABundle is defined (key, fields, history pattern, delete policy); WA's restructure relative to WABundle is settled; Contract is re-attached to WABundle and ADR-0043 is amended; the ADR(s) are written; cumulative tables refreshed.
+
+---
+
+#### Step 6c-iii-b — Rename + WA-domain restructure (remainder)
+
+**Goal:** Land the remainder of the WA-domain restructure that surfaced during Step 6c-ii session 12, after **Step 6c-iii-a** introduces the WABundle entity. Separates static code-type configuration from project-scoped code instances, renames the M:N link table to a name that grows naturally into the immediate post-MVP budget tracking work, and reparents WA Codes onto the WABundle. Folds in the Step 6b-residual-2 mis-attribution carry-forward and the WA Code removal model deliberated session 14 (item 6).
+
+**Items in scope:**
+
+1. **WA Code reparenting onto the WABundle** (replaces ADR-0020's project-scoping). The WABundle entity itself is introduced in **Step 6c-iii-a** (Project ↔ WABundle 1:1, WA → WABundle M:1 settled there); this step moves WA Codes to live on the bundle. *The original "introduce a contractual-identity entity" item moved to 6c-iii-a, where the Contract attaches to it.*
 2. **`WACodeConf` as code-side static config** for the code-type catalog. Possibly code-side rather than DB entity; settled here.
 3. **Rename `WAAuthorization`** to a name aligned with the new shape and the budget-priority direction (top contender `WACodeAssignment`).
 4. **`reassign_wa_project(wa, new_project, move_work: bool)` compound command** with optional `move_work` flag controlling whether related Time Entries / Sample Batches follow the WA or stay on the original project. Default value settled here.
@@ -334,20 +370,20 @@ Step 6c is partitioned into four sub-sessions (6c-i, 6c-ii, 6c-iii, 6c-iv; 6c-iv
 **Inputs:** ADR-0020, ADR-0027, ADR-0029, ADR-0030, ADR-0031, ADR-0033, ADR-0041, the Step 6c-ii predicate-table ADR (when written — deferred behind Steps 6b-residual-2 and 6c-iv), `planning/handoff.md` Last session summary (session 12 backlog detail + session 14 WA-removal detail).
 
 **Outputs:**
-- ADR for the restructure (entity introduction, scoping changes, rename, reassign compound).
+- ADR for the restructure (WA Code reparenting, scoping changes, rename, reassign compound).
 - ADR (or section of the restructure ADR) for the item-6 WA Code removal model.
 - Amendments to ADR-0020 (scoping rationale), ADR-0027 (WA Code parent ref + state machine: `removed` added, `dismiss_wa_code` narrowed, delete-substitution dropped), ADR-0029 (`wasted` re-derivation), ADR-0030 (WA's project relationship via bundle + third WA origin), ADR-0031 (RFA's bundle-vs-project routing TBD + hybrid line-item model), ADR-0033 (relink guard `removed` branch), ADR-0041 (relationship table refresh).
 - Updated cumulative tables in `handoff.md` (entity roster, relationships, vocabulary, WA Code state machine).
 
 **Estimate:** Originally one session; the session-14 addition of item 6 (WA Code removal model) likely pushes it over. Run Case 2 sizing when 6c-iii is reached.
 
-**Done when:** Contractual-identity entity is defined; WA Code's parent is settled (project vs. bundle); WAAuthorization is renamed; `reassign_wa_project(wa, new_project, move_work)` compound is specified with default `move_work` value settled; the item-6 WA Code removal model is written up (`dismiss_wa_code` narrowed, `removed` state, RFA hybrid line-item model, third WA origin); ADR amendments to 0020 / 0027 / 0029 / 0030 / 0031 / 0033 / 0041 written; entity roster + WA Code state machine cumulative tables refreshed.
+**Done when:** WA Codes are reparented onto the WABundle; WAAuthorization is renamed; `reassign_wa_project(wa, new_project, move_work)` compound is specified with default `move_work` value settled; the item-6 WA Code removal model is written up (`dismiss_wa_code` narrowed, `removed` state, RFA hybrid line-item model, third WA origin); ADR amendments to 0020 / 0027 / 0029 / 0030 / 0031 / 0033 / 0041 written; entity roster + WA Code state machine cumulative tables refreshed.
 
 ---
 
 #### Step 6c-iv — Contract entity (new requirement, 2026-05-14)
 
-**Execution order:** runs **next** — after Step 6b-residual-2 session 14a, *before* session 14b. The `6c-iv` label places it in the relationships family for topical coherence (it introduces an entity, new relationships, and an invariant restructure); it does **not** execute after 6c-iii. Order: 14a (done) → **6c-iv-a → 6c-iv-b** → 14b → Step 6c-ii predicate-table ADR → 6c-iii → 6d.
+**Execution order:** the `6c-iv` label places it in the relationships family for topical coherence (it introduces an entity, new relationships, and an invariant restructure); it does **not** execute after 6c-iii. Order: 14a (done) → 6c-iv-a (done) → **Step 6c-iii-a** (inserted 2026-05-14) → **6c-iv-b** → 14b → Step 6c-ii predicate-table ADR → 6c-iii-b → 6d. 6c-iv-b is gated behind 6c-iii-a — its contract-resolution path runs through the WABundle.
 
 **Goal:** Introduce the **Contract** entity and retrofit the model: projects are opened against a contract; EmployeeRole rates and WA Code default flat fees become contract-scoped. Entity roster 18 → 19.
 
@@ -403,7 +439,7 @@ Step 6c is partitioned into four sub-sessions (6c-i, 6c-ii, 6c-iii, 6c-iv; 6c-iv
 - **Item 4 — WA Code default flat fee against contract.** Looked up by code type + contract; defines the contract side that Step 6c-iii's `WACodeConf` work inherits.
 - **Item 5 — Blast-radius bound.** Confirm the code → required-docs / Deliverables / Sample-Batches derivation logic is unaffected — do not re-litigate.
 
-**Inputs:** 6c-iv-a's Contract-introduction ADR, ADR-0035 (EmployeeRole temporal shape), ADR-0039 (`change_employee_role_rate`), ADR-0020 (WA Code project-scoping), ADR-0027 (WA Code state machine), ADR-0041 (relationships), `handoff.md` cumulative tables, `decisions.md`.
+**Inputs:** 6c-iv-a's Contract-introduction ADR (ADR-0043); **Step 6c-iii-a's WABundle + contract-re-attachment ADR** — the contract now attaches to the WABundle, so 6c-iv-b's `→ contract` resolution path runs through it; ADR-0035 (EmployeeRole temporal shape), ADR-0039 (`change_employee_role_rate`), ADR-0020 (WA Code project-scoping), ADR-0027 (WA Code state machine), ADR-0041 (relationships), `handoff.md` cumulative tables, `decisions.md`.
 
 **Output:** The retrofit ADR — amendments to ADR-0035, ADR-0039, ADR-0041, ADR-0020, ADR-0027. Updated cumulative tables in `handoff.md` as needed.
 
