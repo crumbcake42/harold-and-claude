@@ -37,4 +37,9 @@
 - **What:** A derived signal on a project with an RFP in `saved` state for an extended period without SCA-side acknowledgement (approval payment, rejection, etc.). Surfaces in the coordinator UI as a "watch this" affordance; not a closure blocker (the project is already closed).
 - **Why interesting:** ADR-0037 leaves `saved` RFPs sitting indefinitely. In practice, SCA-side payment flows are bounded but can stall. A stale-RFP signal gives the coordinator a queryable view of "submissions waiting on SCA" without forcing additional state into the entity. Implementation can be a derived predicate over `(rfp.state = 'saved' AND rfp.saved_at < now() - threshold)`; the threshold is operational policy, not a domain decision.
 
+## Drop blocker #4 if it cannot fire in practice
+
+- **What:** Remove blocker registry entry #4 (Sample Batch COC `missing` at closure, ADR-0032 / ADR-0046) if MVP operation confirms it cannot fire. COC is created in `saved` state at batch creation per ADR-0033, and the model as written has no command-surface path to regress a COC out of `saved`.
+- **Why interesting:** Defensive registry entries that cannot fire add noise to the coordinator UI / surface and to the closure-gate evaluation without buying anything. Drop is a clean registry shrink (12 → 11) and a small simplification across the documents that reference the entry. Reversible if a regression-surface command is ever introduced.
+
 *(The former "Project → Contract reassignment" candidate — `reassign_project_contract` — was **dissolved by ADR-0044** and removed: with the Contract re-attached to the WABundle and made mutable in MVP via `edit_wabundle` / `issue_wa`, and all money-bearing values derived at read time, there is no heavy cascade to defer.)*

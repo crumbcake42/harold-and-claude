@@ -1307,3 +1307,283 @@ Entries are numbered sequentially. Once `accepted`, do not edit in place — sup
   - **Carry-forwards.**
     - **`WACodeConf` inherits the contract-side fee definition.** Step 6c-iii-b's code-type catalog work consumes the `code_flat_fee_schedule`-keyed-by-code-type contract established here and in ADR-0043.
     - **Step 6c-iv complete.** With 6c-iv-a (ADR-0043) and 6c-iv-b (this ADR) both landed, Step 6c-iv is done. Execution order resumes at session 14b.
+
+---
+
+## ADR-0046 — Blocker registry reclassification under the write-off model; per-blocker default-resolution commands
+
+- **Date:** 2026-05-15
+- **Decision:** Applies ADR-0042's `has-default-resolution | fix-only` reframe to all 12 registry blockers. **11 entries classified `has-default-resolution`; #10 (project's non-terminal RFP not in `saved` state at closure) is the lone `fix-only` survivor** — its coherence test fails because closure definitionally requires the RFP-saved state (the SCA-side closure receipt per ADR-0037), and no entity-exclusion dissolves a definitional-requirement condition. Decision 0 — command shape: **Hybrid.** A single generic `default_resolve(blocker, justification)` covers the 8 "write off the registry-declared target entity" entries (#1, #2, #3, #4, #5, #6, #9, #11, #12); three named compounds cover the structural cases — `resolve_overlap(blocker_note, justification)` and `resolve_overlap_paired(paired_blocker_note, justification)` for #8 (single-side vs. joint resolution), `resolve_open_rfa(rfa, justification)` for #7 (MVP add/remove-RFA case only). One reusable chain shape `te_batches_by_coverage` is defined once and invoked by 4 entries (#5, #8, #11, #12) — chained Sample Batches receive direct `write_off` Notes inheriting the primary's `justification`, replacing ADR-0033 / ADR-0039's older `wa_code`-nulling chain-dismissal mechanic. ADR-0032's registry schema gains per-entry default-resolution metadata (`target`, `command_shape`, optional `compound_names`, optional `chain`). Folds in three Cluster-1-settled structural changes: ADR-0033's #9 chain-dismissal instance dissolves entirely (#9's default-resolution writes off the Sample Batch directly; #2 stops holding derivationally), ADR-0039's #11 chain-dismissal instance is reframed to direct `write_off` Notes on the affected batches, ADR-0033's `relink_sample_batch_wa_code` gate relaxes — gains `OR batch trips #9` (**Fork A** — narrow relaxation for misfile recovery on healthy-`wa_code` batches). Amends ADR-0032 (registry reclassification + schema extension), ADR-0028 (#8 classification flip + default-resolution pointer), ADR-0033 (Fork A + #9 chain-dismissal dissolution), ADR-0039 (#11 chain-dismissal reframe). Closes the application-half of Step 6b-residual-2.
+- **Status:** accepted
+- **Context:** ADR-0042 (session 14a) established the write-off model — `write_off` Note subtype, default-resolution coherence test, `has-default-resolution | fix-only` binary as derived property, nuclear-option guard, closure-gate simplification — and explicitly deferred the per-blocker registry reclassification and the per-blocker default-resolution command definitions to session 14b. Session 14b ran as three deliberation clusters + this ADR-write turn. **Cluster 1 (#1, #2, #9, #11) and Decision 0** settled 2026-05-14 (session 14b-partial): Hybrid command shape locked; #1/#2/#9/#11 classified `has-default-resolution`; #9 received Fork A (relink-gate relaxation); the #9 chain-dismissal instance dissolved; the #11 chain-dismissal instance reframed. **Clusters 2 (#3–#6) and 3 (#7, #8, #10, #12)** settled 2026-05-15 (this session): all four Cluster-2 entries `has-default-resolution` (Sample Batch as target for #3/#4; Time Entry as target for #5, with `te_batches_by_coverage` chain — Daily Log is *evidence of presence*, not narrative, so its absence invalidates batches collected during the entry's coverage; DepFiling as target for #6, exercising only the blocker-derivation axis of the write-off model). Cluster 3: #7 split along RFA-purpose — add/remove RFAs `has-default-resolution` via `resolve_open_rfa` compound in MVP, budget RFAs deferred behind budget tracking and `fix-only` if introduced; #8 `has-default-resolution` with the two-compound paired-vs-single shape (single-side resolution lets the other paired blocker resolve derivationally per ADR-0032's auto-`structural_fix`); #10 `fix-only` as ADR-0042's named test-failure example; #12 `has-default-resolution` per ADR-0044's pre-classification, chain added for consistency with #5/#11.
+- **Alternatives considered:**
+  - *Decision 0 — all-named compounds (no generic).* Rejected: 8 of the 11 `has-default-resolution` entries collapse to identical "write off the target entity" semantics; naming 8 indistinguishable shells duplicates command-path machinery without operational signal. The generic with `blocker` dispatch reads the same registry the predicate evaluates.
+  - *Decision 0 — generic-only (no named compounds).* Rejected: #7 and #8 require *structural mutation* before write-off (`withdraw_rfa` + cascade `dismiss_wa_code`; `split_entry` + sliver write-off). A parameterized generic that branches on registry-declared compound shapes is more opaque than named compounds.
+  - *Chain-as-ad-hoc-per-entry.* Rejected in favour of the named `te_batches_by_coverage` shape: 4 instances share the same predicate; naming it once and referencing it from each registry entry avoids drift across instances.
+  - *Collapse the `has-default-resolution | fix-only` binary.* Rejected: the property tells the coordinator UI / surface which commands are available — even with one `fix-only` entry, it is operationally meaningful. The 11:1 skew is a domain finding (most blockers are conflict-style, exclusion-resolvable; one is a definitional requirement), not evidence the model needs adjusting.
+  - *Single `#8` command with `scope: paired | single` parameter.* Rejected: distinct audit semantics per command (paired write-offs with explicit `default_resolution` Notes on both sides vs. one-sided write-off with auto-derivational `structural_fix` on the other side) deserve distinct command names; parameter-flag-driven behavior changes are less introspectable from the audit log.
+  - *Preserve ADR-0033's / ADR-0039's `wa_code`-nulling chain-dismissal mechanic.* Rejected (Cluster 1): writing off the secondary entity directly is the cleaner expression of the model — the secondary's "this isn't billable" status is what we want recorded, and that's what `write_off` Notes do. The null-wa_code-then-materialize-#2-then-auto-dismiss machinery existed only to express that outcome via the older blocker-vocabulary; the reframe makes it redundant.
+  - *Default-resolution for #10 by writing off the `missing` RFP.* Rejected (ADR-0042's named test-failure example): ADR-0037's per-project invariant guarantees exactly one non-terminal RFP at any time, so writing off the `missing` RFP either immediately re-derives a fresh `missing` RFP (predicate still holds) or violates the invariant. Closure-definitional requirements admit no coherent default-resolution.
+  - *Default-resolution for #7's budget-RFA case.* Rejected (and moot for MVP — budget RFAs deferred per ADR-0031 / ADR-0027): SCA's authorized budget is the billable ceiling; the gap between billed and authorized is between two real numbers, not between an entity and a billing aggregate; the write-off model's exclusion axis does not apply. Coordinator must adjust the underlying Time Entries / Sample Batches downward — the structural-fix path.
+- **Consequences:**
+  - **Canonical post-reframe registry** (supersedes ADR-0032's original `dismissable | fix-only` table; includes ADR-0044's entry #12):
+
+    | # | Blocker | Classification | Target | Command shape | Compound names | Chain |
+    |---|---|---|---|---|---|---|
+    | 1 | Time Entry `wa_code = null` | has-default-resolution | Time Entry | generic | — | — |
+    | 2 | Sample Batch `wa_code = null` | has-default-resolution | Sample Batch | generic | — | — |
+    | 3 | Sample Batch Lab Report ∈ {`missing`, `invalid`} at closure | has-default-resolution | Sample Batch | generic | — | — |
+    | 4 | Sample Batch COC `missing` at closure | has-default-resolution | Sample Batch | generic | — | — |
+    | 5 | Time Entry no `daily_log` at closure | has-default-resolution | Time Entry | generic | — | `te_batches_by_coverage` |
+    | 6 | DepFiling required-doc `missing` at closure | has-default-resolution | DepFiling | generic | — | — |
+    | 7 | Open `draft`/`in_review` RFA at closure (add/remove RFA, MVP) | has-default-resolution | RFA | named-compound | [`resolve_open_rfa`] | — |
+    | 8 | Cross-project time overlap on Employee | has-default-resolution | (paired Time Entries) | named-compound | [`resolve_overlap`, `resolve_overlap_paired`] | `te_batches_by_coverage` |
+    | 9 | Sample collection time not in employee net on-site time | has-default-resolution | Sample Batch | generic | — | — |
+    | 10 | Project's non-terminal RFP not in `saved` state at closure | **fix-only** | — | — | — | — |
+    | 11 | Time Entry `(employee, role_type, contract, date)` not covered by EmployeeRole | has-default-resolution | Time Entry | generic | — | `te_batches_by_coverage` |
+    | 12 | Time Entry dated before head WA's `initialization_date` | has-default-resolution | Time Entry | generic | — | `te_batches_by_coverage` |
+
+    11 entries `has-default-resolution`, 1 entry `fix-only`. #4 flagged in `post-mvp.md` as a drop-candidate if MVP operation confirms it cannot fire in practice (COC is created in `saved` at batch creation per ADR-0033; no command-surface path to regress).
+
+  - **Decision 0 — Hybrid command shape. Command specs:**
+    - **`default_resolve(blocker, justification)`** — generic, for the 8 entries with `command_shape = generic`. Atomic algorithm:
+      1. Materialize the blocker Note if still derived-only (ADR-0032 engagement-materializes shape).
+      2. Write one immutable `write_off` Note on the registry-declared `target` entity: `reason = justification`, `references` the blocker Note.
+      3. If the entry declares a `chain`, emit one `write_off` Note per chained entity per the chain's predicate; each chained Note inherits the same `justification` as its `reason` and `references` the primary blocker Note.
+      4. Write one `resolution` Note on the blocker, `resolution_kind: default_resolution`.
+      Authorization: `role >= coordinator`.
+    - **`resolve_overlap(blocker_note, justification)`** — single-side compound for #8 (engages the materialized blocker Note on one side of a paired blocker):
+      1. Resolve `entry_self` (the Time Entry holding the engaging blocker Note) and `entry_other` (the paired entry on the other project).
+      2. Compute overlap `O = [max(starts), min(ends))` over the two `on_site_range`s (half-open per ADR-0042's `split_entry` carry-forward).
+      3. Invoke `split_entry` on `entry_self` at `O.start` / `O.end` (only at boundaries strictly interior to `entry_self`'s range), isolating the O-aligned sliver.
+      4. Write `write_off` Note on the sliver, `reason = justification`, `references` the blocker Note.
+      5. Chain via `te_batches_by_coverage` over the sliver — each affected batch gets a `write_off` Note inheriting `justification`, `references` the blocker Note.
+      6. Write `resolution` Note on the blocker, `resolution_kind: default_resolution`.
+      The paired blocker on `entry_other`'s side resolves derivationally — ADR-0032's auto-`structural_fix` Note fires when the predicate flips false (our sliver leaves the not-written-off domain).
+      Authorization: `role >= coordinator`.
+    - **`resolve_overlap_paired(paired_blocker_note, justification)`** — joint compound for #8 (engages the paired blocker as a unit):
+      1. Resolve both Time Entries.
+      2. Compute overlap `O`.
+      3. Invoke `split_entry` on both entries to isolate O-aligned slivers (each `split_entry` call only operates on its own entry; degenerates to no-op when the overlap matches the entry's full range — full containment).
+      4. Write one `write_off` Note per sliver (two total), both stamped with the same `justification`.
+      5. Chain via `te_batches_by_coverage` over both slivers — chained `write_off` Notes inherit the same `justification`.
+      6. Write `resolution` Notes (`resolution_kind: default_resolution`) on both materialized paired blocker Notes; if only one side is materialized, the other resolves derivationally per ADR-0032.
+      Authorization: `role >= coordinator`.
+    - **`resolve_open_rfa(rfa, justification)`** — MVP add/remove-RFA case for #7:
+      1. Invoke `withdraw_rfa` (ADR-0031). RFA → `withdrawn`; target codes return `rfa_in_review → pending_rfa`.
+      2. For each returned code, invoke `dismiss_wa_code` (ADR-0027). Codes transition `pending_rfa → dismissed`; the existing reference-nulling cascade nulls `wa_code` on referencing Time Entries / Sample Batches, which per ADR-0042's amendment to ADR-0027 is a *cascade write-off* — each affected TE / Sample Batch receives a `write_off` Note inheriting `justification`.
+      3. Auto-draft regeneration resolves naturally: no remaining `pending_rfa` codes for draft line items → regenerated draft is empty → empty-draft hard-deletes per ADR-0031.
+      4. Write one `resolution` Note on the blocker, `resolution_kind: default_resolution`.
+      Authorization: `role >= coordinator`. Out of scope for MVP: the budget-RFA case (see Carry-forwards).
+
+  - **Registry-schema extension (amends ADR-0032).** Per registry entry:
+    - `classification: has-default-resolution | fix-only`.
+    - `target: <entity_type>?` — populated for `has-default-resolution` entries; identifies what `default_resolve` writes off (generic) or what the compound's primary operates on (named-compound). For #8 the schema-level target is "paired Time Entries" — the concrete entities are derived from the blocker Note the compound is invoked against.
+    - `command_shape: generic | named_compound?` — null for `fix-only`.
+    - `compound_names: list<command_name>?` — populated only when `command_shape = named_compound`. List-typed to accommodate #8's two-compound pairing.
+    - `chain: chain_shape_name?` — null = no chain.
+    `fix-only` entries carry `classification` plus null on the other fields; the structural-fix path is described in the registry entry's prose (for #10: "obtain RFP from SCA, fire `close_project(rfp_file)`"); no command is registered against the entry.
+
+  - **Named chain shape: `te_batches_by_coverage`.** Spec — for a target Time Entry `TE`, the chained set is `{ batch : batch.employee == TE.employee AND batch.collection_time ∈ TE.on_site_range }` (half-open per `split_entry`'s carry-forward). For each chained batch, the system emits an immutable `write_off` Note: `target = batch`, `reason = primary_justification`, `references = primary_blocker_note`. **Direct write-off** — no `wa_code` nulling, no secondary blocker materialization, no auto-dismissal. Used by #5 (target TE), #8 (per sliver), #11 (target TE), #12 (target TE). Replaces ADR-0033's #9 chain-dismissal mechanic and ADR-0039's #11 chain-dismissal mechanic.
+
+  - **Cluster-1 structural follow-ons:**
+    - **ADR-0033 — `relink_sample_batch_wa_code` gate relaxation (Fork A).** Gate's permitted-state set extends from `{wa_code IS null, current code dismissed}` to `{wa_code IS null, current code dismissed, batch trips #9}`. Rationale: a healthy-`wa_code` batch that trips #9 is the misfile case — the structural fix is to relink to a code on the correct project, but the original gate forbade relink while `wa_code` was healthy. Fork A relaxes the gate narrowly (only when #9 holds), preserving the original gate's protective intent (no accidental relink on a sample-and-code-aligned batch) while unblocking misfile recovery without a write-off-then-relink dance. Composes independently with Step 6c-iii-b's planned `removed`-state amendment to the same guard.
+    - **ADR-0033 — #9 chain-dismissal instance dissolved.** The "concrete instance for blocker #9" subsection of ADR-0033's chain-dismissal section is removed entirely. Under the write-off model, #9's `default_resolve` writes off the Sample Batch directly; #2 (`wa_code = null` orphan) stops holding derivationally for the written-off batch — no #2 materialization, no auto-dismissal, no `wa_code` nulling. The previous chain machinery (null `wa_code` → materialize #2 → write paired auto-dismissal resolution Note referencing the primary) is fully replaced by single-target write-off.
+    - **ADR-0039 — #11 chain-dismissal instance reframed.** ADR-0039's "Chain-dismissal linkage" subsection is rewritten to describe `te_batches_by_coverage`: firing `default_resolve` on a #11-blocked Time Entry atomically writes the primary `write_off` Note on the Time Entry, the primary `resolution` Note on the blocker (`resolution_kind: default_resolution`), and per the chain — direct `write_off` Notes on Sample Batches whose `collection_time ∈ TE.on_site_range` (inheriting the primary's `justification`, `references` the primary blocker Note). No `wa_code` nulling. No #2 materialization. The original ADR-0039 steps (b)–(d) are superseded.
+
+  - **Pattern #12 (chain-dismissal) updated.** Now 4 concrete instances on the `te_batches_by_coverage` shape (#5, #8, #11, #12). The pattern's mechanism is restated: "when resolving one blocker structurally implies secondary entities should also leave the not-written-off domain, the registry entry declares a `chain` shape; resolution atomically emits direct `write_off` Notes on the chained entities, inheriting the primary's `justification`, `references` the primary blocker Note." The umbrella mechanism (declared chain, atomic secondary write-offs, `references` linkage) is general; `te_batches_by_coverage` is the only named chain shape in MVP. ADR-0033's older null-wa_code-and-materialize-#2 description is fully superseded.
+
+  - **Closure-gate restatement (no change, for reading clarity).** ADR-0042 collapsed the gate to "no registry blocker holds." This ADR confirms the gate evaluates each entry's predicate over not-written-off entities for all 11 `has-default-resolution` entries; #10's predicate evaluates structurally (no exclusion axis applies).
+
+  - **#12 write-offs and WA amendments — workflow note.** The #12 predicate keys on the *head* WA's `initialization_date`. If SCA later issues an amended WA version with a backdated `initialization_date`, the blocked set shifts — Time Entries previously pre-authorization may become authorized under the new head. **But existing `write_off` Notes from prior `default_resolve` invocations on #12 do not auto-lift** — per ADR-0042, lifting is explicit only (`revoke_write_off`). The coordinator must explicitly `revoke_write_off` to re-include previously-written-off Time Entries (and their chained batches) in billing. This is the general write-off semantic, not a #12 quirk — but #12 is the entry where it most likely surfaces operationally.
+
+  - **Amendments to other ADRs:**
+    - **ADR-0032 — registry reclassification + schema extension.** The original `dismissable | fix-only` table is replaced by the canonical table above; the registry schema is extended per the registry-schema-extension consequence. ADR-0032's lazy-materialization, cross-project paired-blocker mechanics, auto-`structural_fix` resolution-Note generation on derivational dissolution, and authorship-class fields all stand.
+    - **ADR-0028 — #8 classification flip + default-resolution pointer.** Cross-project overlap reclassified `fix-only → has-default-resolution`. ADR-0028's predicate-stays-derived stance, "no conflict entity" stance, gross-on-site-range slice (per ADR-0034 amendment), and paired-blocker materialization (per ADR-0032) all stand. The default-resolution is `resolve_overlap` / `resolve_overlap_paired`; `split_entry` (named in ADR-0028) is the structural prerequisite, command-shape carry-forward unchanged.
+    - **ADR-0033 — Fork A + #9 chain-dismissal dissolution.** Per the consequences above.
+    - **ADR-0039 — #11 chain-dismissal reframe to `te_batches_by_coverage`.** Per the consequences above.
+
+- **Carry-forwards:**
+  - **`revoke_write_off` command shape** — parameters, guards, audit shape; still no home step (carried from ADR-0042). Candidate: alongside `split_entry`, Step 6d or a residual.
+  - **`split_entry` command shape** — load-bearing for #8's compounds. When `split_entry`'s full shape is settled (split-point ergonomics, field-inheritance for `daily_log` / `wa_code` / off-site sub-intervals on the resulting sub-entries, batch reassignment at boundary), #8's compound specs should be re-validated against the final shape. Carry-forward unchanged from ADR-0028 / ADR-0042 — no home step yet.
+  - **#7 reclassification when budget RFAs land.** Post-MVP. The `has-default-resolution` MVP classification covers add/remove RFAs only. When budget-RFA line items become live (per ADR-0031's deferred `budget` line-item type, behind budget tracking), #7's registry entry needs to either (a) split into two registry entries, (b) carry per-RFA-type conditional classification, or (c) classify at evaluation time on the RFA's line-item composition. Decision deferred to the budget-tracking step.
+  - **ADR-0031 gap — auto-draft regeneration suppression at closure-gate.** ADR-0031 explicitly suppresses auto-draft regeneration on *cancelled* projects but is silent on projects in *closure-gate evaluation*. The `resolve_open_rfa` compound resolves itself (cascades empty the draft → empty-draft hard-deletes), but the bare `withdraw_rfa` structural-fix path during closure-gate can land in a `withdraw → fresh draft regenerates → #7 re-fires` loop. Flagged for ADR-0031 follow-up; not a 14b decision.
+  - **#4 drop candidate** — Sample Batch COC missing at closure. COC is created in `saved` at batch creation (ADR-0033) and has no command-surface path to regress in the model as written. Classification stays `has-default-resolution` defensively; flagged in `post-mvp.md` as a drop-candidate if MVP operation confirms it cannot fire in practice.
+
+---
+
+## ADR-0047 — Per-command authorization predicate table; class-rule clauses for unnamed commands; non-uniform predicates called out
+
+- **Date:** 2026-05-15
+- **Decision:** Per-`(role, command)` authorization predicate table for the full Step 6b + Step 6b-residual + Step 6b-residual-2 + Step 6c command surface, resolving ADR-0012's per-command-predicate carry-forward and consolidating the cluster-by-cluster predicate state deliberated across sessions 12–13. The table has **two row types**: (a) **explicit per-command rows** for every ADR-named command, with the predicate stated as `role >= <chain-level>` (uniform-chain commands) or as a non-uniform expression (parameterized, relationship-based, or otherwise off-chain commands); (b) **class-rule clauses** for unnamed commands grouped by entity scope, each clause naming the entity surface and the uniform predicate that applies. Project-scoped commands are MVP-flat per locked clarification 1 — plain `role >= coordinator`, no `assigned_to(project)` qualifier; per-project coordinator scoping is post-MVP and triggers chain-freeze when introduced. Project-state immutability (ADR-0038) stays a pre-condition outside the auth predicate per locked clarification 2. No system-caller primitive in the predicate vocabulary per locked clarification 3 — cascade effects inherit auth from the initiating user-facing command, and the table enumerates user-facing commands only. `dismiss_wa_code` cascade-shape is scope-flagged per locked clarification 4 — predicated here as a user-facing command only; cascade shape is Step 6c-iii-b's concern. Non-uniform predicates called out explicitly: `grant_user_role` / `revoke_user_role` parameterized per ADR-0040 conservative grant authority; `edit_note` is creator-only (`caller == note.created_by`, orthogonal to the linear hierarchy — even `superadmin` cannot edit other users' notes); `edit_wabundle` is `role >= admin` per ADR-0044 (sits among WA-domain commands that are otherwise `role >= coordinator`). Propagation rule per ADR-0040 stands — adding a permission to a lower chain role propagates upward unless explicitly signaled otherwise; non-chain changes (e.g., loosening an `auditor` row to permit a write) require explicit signal at the amendment turn. Resolves ADR-0012's per-command-predicate enumeration carry-forward.
+- **Status:** accepted
+- **Context:** ADR-0012 (declarative predicates over `(caller, command, target)`, evaluated first in the pipeline) carry-forwarded the per-command enumeration. ADR-0036 substrate-defined UserRole; ADR-0040 filled the concrete role catalog (`superadmin`/`admin`/`coordinator`/`auditor`), conservative grant authority, propagation default, and the "frozen-on-non-chain-introduction" property — explicit per-`(role, command)` rows so the hierarchy can be broken cleanly later. Sessions 12–13 deliberated all seven predicate clusters in chat, plus four substrate clarifications, and recorded the state in `handoff.md`'s cluster-predicate carry-forward blocks. The ADR write was deferred behind Step 6b-residual-2 (write-off model + per-blocker default-resolution commands; ADR-0042 + ADR-0046) and Step 6c-iv (Contract entity + WABundle + contract-scoping retrofit; ADR-0043 / ADR-0044 / ADR-0045) so the command surface would settle first. With both prerequisites closed (ADR-0046 closes the default-resolution command family; ADR-0044 introduces `edit_wabundle` as a non-uniform admin-side predicate within a coordinator-side cluster), the surface is complete and the table is writable. Step 6c-iii-b's WA-removal-model commands (`dismiss_wa_code` narrowing, `removed` state, hybrid RFA line items, third WA origin) are deliberately sequenced *after* this ADR: the predicates inherit `role >= coordinator` from class rules and any non-uniform predicate is a clean amendment at that turn, vs. waiting and risking another sizing trip.
+- **Alternatives considered:**
+  - *Pure structural inheritance — author the chain rule (`auditor ⊆ coordinator ⊆ admin ⊆ superadmin`) and derive permissions in code.* Rejected — ADR-0040's "freeze" property is the load-bearing constraint: a non-chain role (e.g., a future "rate-only admin" with admin's rate-setting authority but not user-grant authority) appended without refactoring requires explicit per-row authority. The propagation default plus per-row rows preserve the freedom; structural inheritance forecloses it.
+  - *All-named rows, no class rules.* Rejected — the explicit-row count would explode for negligible signal. Time Entry CRUD, DepFiling CRUD, per-`document_type` lifecycle dispatch commands (ADR-0024), admin-roster CRUD on {Employee, School, Contractor, User} all collapse to uniform `role >= <chain-level>` by entity scope; naming each command individually duplicates registry machinery that already exists. The two-row-type pattern (explicit + class clause) is the right compression — non-uniform predicates earn their explicit row.
+  - *Put project-state immutability (ADR-0038) inside the auth predicate.* Rejected per locked clarification 2 — it is target-state-based, not caller-based; folding it into the auth layer muddies the static-analysis story ADR-0012 cites and conflates orthogonal concerns. Stays a pre-condition.
+  - *System-caller primitive in the predicate vocabulary (`caller == 'system'` clause for cascade effects).* Rejected per locked clarification 3 — cascade effects inherit auth from the initiating user-facing command, which is the right audit story (the human who fired the originating command is accountable for the cascade). The table enumerates user-facing commands only.
+  - *Defer `revoke_write_off` until its command shape lands.* Rejected — the predicate is independent of the shape's parameters and guards, and the natural inheritance from the default-resolution family is `role >= coordinator`. Including it now is one row; if the future shape pressures the predicate (e.g., write-offs become sticky enough that lifting becomes administrative), it is a one-row amendment. Symmetry with the default-resolution family makes audit forensics cleaner (same actor class produces and lifts write-offs).
+  - *Defer `split_entry` until its command shape lands.* Not rejected — included now per cluster 7's explicit-row decision; same rationale as `revoke_write_off`. The predicate is `role >= coordinator` regardless of the eventual signature.
+- **Consequences:**
+
+  - **Table format.** Explicit rows are stated as `Command → <predicate>`. The predicate column carries either `role >= <chain-level>` (uniform-chain) or a non-uniform expression with a one-line gloss. Class-rule clauses appear under their cluster heading after the explicit rows and name the surface they cover.
+
+  - **Cluster 1 — Admin-side commands.**
+
+    Explicit rows (`role >= admin`):
+
+    | Command | Predicate | ADR origin |
+    |---|---|---|
+    | `create_employee_role` | `role >= admin` | ADR-0035 |
+    | `edit_employee_role` | `role >= admin` | ADR-0035 |
+    | `close_employee_role` | `role >= admin` | ADR-0035 |
+    | `change_employee_role_rate` | `role >= admin` | ADR-0039 (ADR-0045 adds `contract` parameter; predicate unchanged) |
+    | `create_project` | `role >= admin` | ADR-0037 (ADR-0043 adds `contract` parameter; ADR-0044 makes it a Project + WABundle + v0-WA compound; predicate unchanged) |
+
+    Non-uniform rows:
+
+    | Command | Predicate | Source |
+    |---|---|---|
+    | `grant_user_role(user, role_type, reason_text?)` | `target_role ∈ {coordinator, auditor}` → `role >= admin`; `target_role ∈ {admin, superadmin}` → `role == superadmin` | ADR-0040 conservative grant authority |
+    | `revoke_user_role(user, role_type, reason_text?)` | Mirrors `grant_user_role` (revoke authority = grant authority for that target role) | ADR-0040 |
+
+    **Class rule (Cluster 1):** un-named admin-roster CRUD on {Employee, School, Contractor, User} → `role >= admin`. Covers `create_*` / `edit_*` / `*_delete` (subject to entity delete policy) on those four entities for commands not separately named above. EmployeeRole has explicit rows (lifecycle commands per ADR-0035) and is not covered by this class rule. UserRole is not roster-CRUD — its grants/revokes are explicit non-uniform rows above.
+
+  - **Cluster 1 carry-forward — ADR-0044 (`edit_wabundle`).**
+
+    | Command | Predicate | Source |
+    |---|---|---|
+    | `edit_wabundle(wabundle, fields)` | `role >= admin` | ADR-0044 |
+
+    Non-uniform vs. its WA-domain neighbours (which are `role >= coordinator` — Cluster 3 below). `edit_wabundle` corrects WABundle metadata post-issuance (`contract_id`, `wa_number`, `service_id`, `job_number`); `issue_wa` (`role >= coordinator`) is the coordinator-side path that sets/confirms those four SCA-supplied facts at issuance. The split reflects ADR-0044's stance that mutating the WABundle's contractual identity after the fact is an administrative correction, not a project-tracking operation.
+
+  - **Cluster 2 — Project lifecycle.** Uniform `role >= coordinator`:
+
+    | Command | Predicate | ADR origin |
+    |---|---|---|
+    | `close_project(project, rfp_file)` | `role >= coordinator` | ADR-0037 |
+    | `cancel_project(project)` | `role >= coordinator` | ADR-0037 |
+    | `reopen_project(project)` (from `closed`, requires `rfp_reason ∈ {rfp_rejected, rfp_withdrawn}`) | `role >= coordinator` | ADR-0037 |
+    | `reopen_project(project)` (from `cancelled`, pure state-flip) | `role >= coordinator` | ADR-0037 |
+
+    Pre-conditions (ADR-0032 closure gate, ADR-0038 project-state-driven guards, ADR-0037 RFP-state guards) are not in the auth predicate per locked clarification 2.
+
+  - **Cluster 3 — WA / WA Code / RFA.** Uniform `role >= coordinator`:
+
+    | Command | Predicate | ADR origin |
+    |---|---|---|
+    | `issue_wa(wa, ...)` | `role >= coordinator` | ADR-0030 (extended by ADR-0044 to populate WABundle's four SCA-supplied facts; predicate unchanged) |
+    | `dismiss_wa_code(wa_code)` | `role >= coordinator` | ADR-0027 (cascade shape is Step 6c-iii-b's concern; predicate covers the user-facing command only per locked clarification 4) |
+    | `submit_rfa(rfa)` | `role >= coordinator` | ADR-0031 |
+    | `approve_rfa(rfa)` (manual path; auto path is system-triggered and inherits this predicate's accountability via the user-facing command that anchored the SCA portal event) | `role >= coordinator` | ADR-0031 |
+    | `reject_rfa(rfa)` (manual path; auto path likewise) | `role >= coordinator` | ADR-0031 |
+    | `withdraw_rfa(rfa)` | `role >= coordinator` | ADR-0031 |
+
+    **WAAuthorization** is composite-key-only (ADR-0041); no commands, no row, no class rule.
+
+  - **Cluster 4 — Sample Batch / Document / Deliverable / DepFiling / Time Entry.**
+
+    Explicit rows (uniform `role >= coordinator`):
+
+    | Command | Predicate | ADR origin |
+    |---|---|---|
+    | `create_sample_batch(...)` | `role >= coordinator` | ADR-0033 |
+    | `edit_sample_batch_composition(batch, composition)` | `role >= coordinator` | ADR-0033 |
+    | `relink_sample_batch_wa_code(batch, new_wa_code)` | `role >= coordinator` | ADR-0033 (gate relaxation per ADR-0046 Fork A; predicate unchanged) |
+    | `edit_document_scope(document, new_scope)` | `role >= coordinator` | ADR-0041 |
+    | `submit_deliverable(deliverable)` | `role >= coordinator` | ADR-0029 |
+    | `approve_deliverable(deliverable)` (manual path) | `role >= coordinator` | ADR-0029 |
+    | `reject_deliverable(deliverable)` (manual path) | `role >= coordinator` | ADR-0029 |
+    | `withdraw_deliverable(deliverable)` | `role >= coordinator` | ADR-0029 |
+
+    **Class rules (Cluster 4):**
+    - **Time Entry CRUD** (create, edit, delete subject to delete policy; structural shape per ADR-0034 + ADR-0041) → `role >= coordinator`.
+    - **DepFiling CRUD** + `edit_dep_filing_required_doc_types` (ADR-0023) → `role >= coordinator`.
+    - **Per-`document_type` lifecycle dispatch commands** (ADR-0024 menu — simple `missing → saved`, cycling-family transitions, bespoke transitions for Lab Report and RFP) → all `role >= coordinator`. Covers Document save / cycling / state-transition commands not separately named.
+
+  - **Cluster 5 — Note / blocker.**
+
+    Explicit rows (uniform `role >= coordinator`):
+
+    | Command | Predicate | ADR origin |
+    |---|---|---|
+    | `create_note(...)` | `role >= coordinator` | ADR-0018 (broadened by ADR-0040) |
+    | `dismiss_blocker(blocker, ...)` | `role >= coordinator` | ADR-0032 (free-form user-flagged blockers; registry blockers resolve via the default-resolution family below) |
+    | `comment_blocker(blocker, comment_text)` | `role >= coordinator` | ADR-0032 |
+
+    Non-uniform row:
+
+    | Command | Predicate | Source |
+    |---|---|---|
+    | `edit_note(note, new_text)` | `caller == note.created_by` (relationship-based; orthogonal to the linear hierarchy — `superadmin` is **not** exempt: no user may edit another user's Note) | ADR-0018 (creator-only editability) |
+
+    `edit_note`'s relationship predicate is the only row in the table that breaks the chain pattern entirely (not just narrowing it like `grant_user_role`'s parameterization). Audit rationale: a Note is a person's authored statement; permitting a higher-role override would destroy the authorship semantics that ADR-0040's `audit_reason` subtype and ADR-0032's `blocker`/`resolution` subtypes rely on (`audit_reason` and `blocker`/`resolution` Notes are immutable regardless; this row covers only `regular` Notes, which are the editable subtype). The propagation default does **not** apply — this row is non-chain by construction.
+
+    Notes are not deletable per ADR-0018; no delete row exists.
+
+  - **Cluster 6 — ContractorEngagement.** Uniform `role >= coordinator`:
+
+    | Command | Predicate | ADR origin |
+    |---|---|---|
+    | `start_contractor_engagement(wa, contractor)` | `role >= coordinator` | ADR-0041 + session 13 cluster 6 |
+    | `end_contractor_engagement(engagement)` | `role >= coordinator` | ADR-0041 + session 13 cluster 6 |
+
+    Signatures + pre-conditions (date defaults: `started_at` → row-creation date; `ended_at` → CPR-saved date, nullable, overridable) are deferred to Step 6c-iii-b — the engagement entity is in that restructure's blast radius. Predicate is settled here and survives the restructure.
+
+  - **Cluster 7 — Cross-project commands.** No special cross-project predicate primitive in MVP-flat (locked clarification 1). When per-project coordinator scoping lands post-MVP the qualifier is a localized edit on project-scoped rows; cross-project predicates would then need to read both projects' coordinator rosters, but that is post-MVP work.
+
+    Explicit row:
+
+    | Command | Predicate | ADR origin |
+    |---|---|---|
+    | `split_entry(time_entry, split_point[, second_split_point])` | `role >= coordinator` | ADR-0028-named; shape carry-forward (ADR-0028 / ADR-0042 / ADR-0046) |
+
+    Command shape (split-point ergonomics, field-inheritance for `daily_log` / `wa_code` / off-site sub-intervals on resulting sub-entries, batch reassignment at boundary) is undefined and has no natural home step (candidate: Step 6d or a residual). Predicate is settled here.
+
+  - **Default-resolution command family — ADR-0046 carry-forward.** Uniform `role >= coordinator`:
+
+    | Command | Predicate | ADR origin |
+    |---|---|---|
+    | `default_resolve(blocker, justification)` | `role >= coordinator` | ADR-0046 (generic shape; covers 8 `has-default-resolution` registry entries — #1, #2, #3, #4, #5, #6, #9, #11, #12 minus the named-compound cases) |
+    | `resolve_overlap(blocker_note, justification)` | `role >= coordinator` | ADR-0046 (single-side compound for #8) |
+    | `resolve_overlap_paired(paired_blocker_note, justification)` | `role >= coordinator` | ADR-0046 (joint compound for #8) |
+    | `resolve_open_rfa(rfa, justification)` | `role >= coordinator` | ADR-0046 (MVP add/remove-RFA compound for #7) |
+
+  - **Write-off lift — ADR-0042 carry-forward.**
+
+    | Command | Predicate | Source |
+    |---|---|---|
+    | `revoke_write_off(write_off_note, ...)` | `role >= coordinator` | ADR-0042 (carry-forward) |
+
+    Included now (vs. deferred alongside its command-shape work) per session-14b deliberation: the predicate is independent of the shape's parameters and guards, and the natural inheritance from the default-resolution family is `role >= coordinator` (symmetry — the same actor class produces and lifts write-offs, which keeps audit forensics clean). If the future shape pressures the predicate (e.g., write-offs become sticky enough that lifting becomes administrative), one-row amendment. Scope at this turn: scenario (a) — the general "lift a write-off" primitive (e.g., a Sample Batch written off when COC was broken, later restored when COC and Lab Report arrive). Scenario (b) — misattribution-on-closed-project recovery — is a layered compound that needs `revoke_write_off` plus an ADR-0038 closed-project exception plus the post-MVP cross-project Sample Batch reassignment command; each is a separate decision, predicates added by amendment when those land.
+
+  - **Locked clarifications (restated for self-contained reading).**
+    1. **MVP-flat coordinator scoping.** Project-scoped predicate form is plain `role >= coordinator`. No `assigned_to(project)` qualifier in MVP. Per-project coordinator scoping is post-MVP per ADR-0040 and triggers chain-freeze (the table's "frozen" property — non-chain rows from that point on).
+    2. **Project-state immutability stays a pre-condition.** ADR-0038's project-state-driven immutability rule is target-state-based, not caller-based, and is enforced as a command pre-condition outside the auth predicate. Conflating muddies the static-analysis story ADR-0012 cites.
+    3. **No system-caller primitive in the predicate vocabulary.** Cascade effects inherit auth from the initiating user-facing command. The table enumerates user-facing commands only. The accountable actor for a cascade is the human who fired the originating command.
+    4. **`dismiss_wa_code` cascade-shape scope-flagged.** The predicate above covers the user-facing `dismiss_wa_code` command only; the cascade shape (reference-nulling on Time Entries / Sample Batches, narrowing under the WA-removal model, the `removed` terminal state, the third WA origin) is Step 6c-iii-b's concern.
+
+  - **Class-rule pattern (codified).** The table has two row types: (a) **explicit per-command rows** for ADR-named commands, with the predicate stated per-row; (b) **class-rule clauses** for unnamed commands grouped by entity scope, each clause naming the entity surface and the uniform predicate. Class rules cover the long tail of CRUD-style commands whose predicates collapse to a uniform `role >= <chain-level>` by entity ownership. Adding a new ADR-named command in the covered surface adds an explicit row by default; explicit rows take precedence over the class rule for the same command.
+
+  - **Cascade rule (codified).** A command's cascade effects (compound-command branches, derivation-driven secondary transitions, ADR-0042 cascade write-offs, ADR-0031 auto-draft regeneration, ADR-0027 reference-nulling) execute under the initiating user-facing command's authorization; no separate predicate is evaluated per cascade step. The audit log records the human who fired the originating command as the actor for the full cascade. This is the design pattern behind locked clarification 3.
+
+  - **Propagation rule (codified, per ADR-0040 + memory).** Adding a permission to a lower chain role propagates upward to all higher chain roles by default (the chain property is preserved). Non-chain changes — granting a write command to `auditor`, restricting a chain role from a command its sub-role can run, introducing a non-chain role — require explicit signal at the amendment turn. The `edit_note` row (`caller == note.created_by`, applies to all roles including `superadmin`) is a non-chain row by construction; no propagation applies.
+
+  - **Authorization predicate evaluation order.** Per ADR-0012, the predicate is evaluated first in the pipeline, before well-formedness invariants (ADR-0010) and lifecycle guards (ADR-0009). Pre-conditions outside the auth predicate (project-state immutability per ADR-0038, closure-gate per ADR-0032, RFP-state guards per ADR-0037, supersession-immutability per ADR-0030) evaluate after authorization succeeds. Unauthorized commands fail without state mutation or history write (ADR-0011).
+
+  - **Amendments to other ADRs.**
+    - **ADR-0012 (declarative predicates over `(caller, command, target)`):** per-command predicate enumeration carry-forward resolved. The predicate substrate (declarative, evaluated first in the pipeline) survives; this ADR fills the cell-by-cell content.
+    - **ADR-0040 (role catalog + grant authority + propagation):** per-command enumeration carry-forward resolved; the explicit-row authoring discipline, the propagation default, and the conservative grant authority all stand. The `grant_user_role` / `revoke_user_role` parameterized rows above are this ADR's concrete instantiation of ADR-0040's grant table.
+
+- **Carry-forwards:**
+  - **`split_entry` command shape.** Predicated here (`role >= coordinator`); shape (split-point ergonomics, field-inheritance for `daily_log` / `wa_code` / off-site sub-intervals on resulting sub-entries, batch reassignment at boundary) is undefined. No home step (candidate: Step 6d or a residual). Load-bearing for ADR-0046's `resolve_overlap` / `resolve_overlap_paired` compounds — when settled, those compound specs should be re-validated against the final shape.
+  - **`revoke_write_off` command shape.** Predicated here (`role >= coordinator`); shape (parameters, guards, audit trail of the superseding Note's content) is undefined. Candidate: alongside `split_entry`, Step 6d or a residual.
+  - **ADR-0031 auto-draft regeneration suppression at closure-gate.** The bare `withdraw_rfa` structural-fix path during closure-gate can land in a `withdraw → fresh draft regenerates → #7 re-fires` loop; the `resolve_open_rfa` compound resolves itself. Flagged for ADR-0031 follow-up. Not a predicate-table concern — surfaces only if any ADR-0031 amendment changes the user-facing surface.
+  - **Step 6c-iii-b commands (WA-removal model).** `dismiss_wa_code` narrowed (`expected` / `pending_rfa` → `dismissed`); new `removed` terminal for issued-code removal; RFA hybrid line-item types (`add` / `remove` / `budget` deferred); third WA origin (SCA-direct corrected amendment). Predicates will inherit `role >= coordinator` from class rules or land as explicit rows by amendment to this ADR when those commands are introduced. `dismiss_wa_code`'s `reason_text?` parameter is a signature change, not a predicate change.
+  - **Post-MVP per-project coordinator scoping.** Triggers the chain-freeze: the `role >= coordinator` rows become non-chain (`role >= coordinator AND assigned_to(target.project)` or similar). Localized edit to project-scoped rows; admin-side rows unaffected. `post-mvp.md` candidate.
+  - **Future non-chain roles** (e.g., "rate-only admin," "external SCA-contact role"): each addition appends a column to the table; existing rows are not refactored, per ADR-0040's "frozen" property.
+  - **Security-immediate revoke runtime semantics** (session invalidation on `revoke_user_role`): implementation concern, deferred to auth implementation step. Unaffected by this ADR.
+  - **Audit-log UI surfacing `audit_reason` Notes inline** (ADR-0040 carry-forward): implementation concern, deferred to frontend work.
+
+---
