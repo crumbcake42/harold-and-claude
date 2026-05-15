@@ -432,6 +432,8 @@ Step 6c is partitioned into sub-sessions (6c-i, 6c-ii, 6c-iii, 6c-iv). Two later
 
 ##### Step 6c-iv-b — Contract-scoping retrofit
 
+**✓ COMPLETE (2026-05-14, ADR-0045).** EmployeeRole gains a mandatory `contract_id` (M:1 → Contract); the disjoint-ranges invariant restructures per-`(employee, role_type, contract)`; the rate-resolution lookup keys on `(employee, role_type, contract, date)`, with `contract` resolved via the **contract-resolution path** `→ project → WABundle → contract`; `change_employee_role_rate` (ADR-0039) gains a `contract` parameter; the ADR-0039/0041 out-of-role-range blocker predicate generalizes (no new registry entry — registry stays at 12). WA Code default flat fee is a read-time derivation against `Contract.code_flat_fee_schedule` (a code type absent from the schedule → null/unpriced, no blocker); WA Code stays project-scoped. Blast radius confirmed bounded — the contract dimension is a money-resolution axis only. Amends ADR-0035 / 0039 / 0041 / 0020; **ADR-0027 dropped** from the planned amendment set — no WA Code state-machine touchpoint exists. **Step 6c-iv complete** (6c-iv-a + 6c-iv-b both landed).
+
 **Goal:** Apply 6c-iv-a's attachment model to EmployeeRole and WA Code. The application half of Step 6c-iv — covers items 3 + 4 + 5 of the shared brief.
 
 **In scope:**
