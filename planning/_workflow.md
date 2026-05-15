@@ -114,6 +114,7 @@ a. **`planning/handoff.md`** — move Next session → Last session summary; adv
 b. **`planning/decisions.md`** — append ADR entries for any decisions finalized in the session.
 c. **Other files** — consult `planning/_file-rules.md` to identify any other files that need updating based on work done.
 d. **`planning/_file-rules.md`** — regenerate if any planning file's `## File contract` block changed during the session. See regeneration procedure below.
+e. **Draft a commit message** — produce a concise one-line subject + short body summarizing what landed (ADRs touched, file deltas). Present in chat. Do not run `git commit` without an explicit second signal from the user.
 
 ---
 
