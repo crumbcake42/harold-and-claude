@@ -351,6 +351,13 @@ Step 6c is partitioned into sub-sessions (6c-i, 6c-ii, 6c-iii, 6c-iv). Two later
 
 **Goal:** Land the remainder of the WA-domain restructure that surfaced during Step 6c-ii session 12, after **Step 6c-iii-a** introduces the WABundle entity. Separates static code-type configuration from project-scoped code instances, renames the M:N link table to a name that grows naturally into the immediate post-MVP budget tracking work, and reparents WA Codes onto the WABundle. Folds in the Step 6b-residual-2 mis-attribution carry-forward and the WA Code removal model deliberated session 14 (item 6).
 
+**Session partition (agreed 2026-05-15 — by item-cluster seam):** Step 6c-iii-b tripped the Case 2 fit checklist — **Signal 1** (two independently-deliberable decision clusters: items 1–5 = WABundle restructure surface, item 6 = WA Code removal model + RFA hybrid line items + third WA origin), **Signal 3** (>60 min — item 6 alone carries 5+ ADR amendments on top of items 1–5's own touchpoints), **Signal 5** (cross-concern reach: entity/relationship/scoping vs. state-machine/command-surface/RFA model). Split along the item-cluster seam:
+- **Step 6c-iii-b-i — WABundle restructure surface.** Items 1–5.
+- **Step 6c-iii-b-ii — WA Code removal model.** Item 6.
+- Seam rationale: items 1–5 share the WABundle as their pivot (entity, relationship, identifier work); item 6 is state-machine surgery + RFA hybrid line-item model + cascade design whose only contact with the restructure is that WA Codes happen to live on the bundle. Time Entry / Sample Batch (item 5) stay project-scoped, so item 6's cascade design is independent of the reparent.
+
+**Execution order:** 6c-iii-b-i → 6c-iii-b-ii. Listed order in the brief; item 6's cascade reads cleaner against the post-reparent relationship picture.
+
 **Items in scope:**
 
 1. **WA Code reparenting onto the WABundle** (replaces ADR-0020's project-scoping). The WABundle entity itself is introduced in **Step 6c-iii-a** (Project ↔ WABundle 1:1, WA → WABundle M:1 settled there); this step moves WA Codes to live on the bundle. *The original "introduce a contractual-identity entity" item moved to 6c-iii-a, where the Contract attaches to it.*
@@ -377,9 +384,47 @@ Step 6c is partitioned into sub-sessions (6c-i, 6c-ii, 6c-iii, 6c-iv). Two later
 - Amendments to ADR-0020 (scoping rationale), ADR-0027 (WA Code parent ref + state machine: `removed` added, `dismiss_wa_code` narrowed, delete-substitution dropped), ADR-0029 (`wasted` re-derivation), ADR-0030 (WA's project relationship via bundle + third WA origin), ADR-0031 (RFA's bundle-vs-project routing TBD + hybrid line-item model), ADR-0033 (relink guard `removed` branch), ADR-0041 (relationship table refresh).
 - Updated cumulative tables in `handoff.md` (entity roster, relationships, vocabulary, WA Code state machine).
 
-**Estimate:** Originally one session; the session-14 addition of item 6 (WA Code removal model) likely pushes it over. Run Case 2 sizing when 6c-iii is reached.
+**Estimate:** Sized 2026-05-15 — Case 2 fit checklist signals 1 (independently-deliberable decision clusters), 3 (>60 min), 5 (cross-concern reach) fired. Split along the item-cluster seam into 6c-iii-b-i (items 1–5, WABundle restructure surface) + 6c-iii-b-ii (item 6, WA Code removal model).
 
 **Done when:** WA Codes are reparented onto the WABundle; WAAuthorization is renamed; `reassign_wa_project(wa, new_project, move_work)` compound is specified with default `move_work` value settled; the item-6 WA Code removal model is written up (`dismiss_wa_code` narrowed, `removed` state, RFA hybrid line-item model, third WA origin); ADR amendments to 0020 / 0027 / 0029 / 0030 / 0031 / 0033 / 0041 written; entity roster + WA Code state machine cumulative tables refreshed.
+
+---
+
+##### Step 6c-iii-b-i — WABundle restructure surface
+
+**Goal:** Land items 1–5 of Step 6c-iii-b — the WABundle-reparenting + rename + reassignment surface. State-machine and RFA-model work (item 6) deferred to 6c-iii-b-ii.
+
+**In scope:**
+- **Item 1 — WA Code reparenting onto WABundle.** Move WA Code's parent reference from Project (ADR-0020) to WABundle (ADR-0044). Mechanical given Project ↔ WABundle 1:1. Shortens the contract-resolution path (ADR-0045) from `code → project → WABundle → contract` to `code → WABundle → contract`. Amends ADR-0020.
+- **Item 2 — `WACodeConf` as code-side static config** for the code-type catalog. Settle: DB entity vs. pure code-side config. Step 6c-iv-b's WA Code default flat fee (ADR-0045) keys on code type — inherits whatever shape lands here.
+- **Item 3 — Rename `WAAuthorization` → `WACodeAssignment`** (top contender). Aligns with immediate post-MVP budget priority. Amends ADR-0041.
+- **Item 4 — `reassign_wa_project(wa, new_project, move_work: bool)` compound.** With Project ↔ WABundle 1:1, the semantics of "reassign WA's project" need deliberation (does the WA move to a different bundle? does only the WA move while WA Codes stay on the old bundle?). `move_work` default value settled here. Folds in the mis-attribution carry-forward.
+- **Item 5 — Confirm direct `project_id` on Time Entry / Sample Batch** (settled session 12 per the empirical-truth principle). Surface in the relationship-table refresh.
+
+**Inputs:** ADR-0020 (WA Code scoping), ADR-0030 (WA state machine), ADR-0041 (relationships), ADR-0044 (WABundle), ADR-0045 (contract-resolution path), `handoff.md` cumulative tables.
+
+**Output:** ADR for the WABundle restructure surface (WA Code reparenting + `WACodeConf` decision + rename + `reassign_wa_project` + relationship-table refresh). Amends ADR-0020, ADR-0030, ADR-0041. Updated cumulative tables in `handoff.md` (entity roster — WA Code parent change; relationships; vocabulary — `WACodeConf`, `WACodeAssignment`, `reassign_wa_project`).
+
+**Done when:** WA Code's parent is reparented onto WABundle; `WACodeConf` placement settled (DB entity vs. code-side); `WAAuthorization` renamed (likely `WACodeAssignment`); `reassign_wa_project` semantics + `move_work` default settled; direct `project_id` on Time Entry / Sample Batch confirmed in the relationship-table refresh; the ADR is written; cumulative tables refreshed.
+
+---
+
+##### Step 6c-iii-b-ii — WA Code removal model
+
+**Goal:** Land item 6 of Step 6c-iii-b — WA Code removal model + `dismiss_wa_code` narrowing + new `removed` terminal + RFA hybrid line-item model + third WA origin + shared removal cascade. Deliberated session 14; shape is settled, this step writes it up.
+
+**In scope:**
+- `dismiss_wa_code` narrowed: valid targets `expected` / `pending_rfa` only; `issued → dismissed` dropped; never hard-deletes (ADR-0027's delete-substitution dropped); optional `reason_text` → `audit_reason` Note via ADR-0040.
+- New `removed` terminal state: `issued → removed` via RFA removal line item or SCA-direct corrected amendment.
+- RFA hybrid instrument: line items typed `add | remove | budget` (budget deferred behind budget tracking); additions stay system-derived, removals coordinator-authored; `approve_rfa` composition `(prior ∪ adds) \ removes`; resolution polymorphic on line-item type.
+- Third WA origin: SCA-direct corrected amendment (no RFA behind it); diff-based reconciliation against superseded WA (codes added → `issued`; codes dropped → `removed` + cascade; unchanged → `issued`). Likely shape: one externally-received-WA path branching on the version-chain marker, with `approve_rfa` staying the separate firm-initiated path.
+- Shared removal cascade across three triggers (`dismiss_wa_code`, `approve_rfa` removal line items, SCA-direct amendment path): null `wa_code` on referencing Time Entries / Sample Batches → `write_off` Note + closure blocker, inheriting the trigger's reason.
+
+**Inputs:** ADR-0027 (WA Code state machine), ADR-0029 (`wasted` derivation), ADR-0030 (WA state machine / origins), ADR-0031 (RFA state machine), ADR-0033 (relink guard), ADR-0044 (WABundle), ADR-0046 (write-off model), 6c-iii-b-i's restructure ADR (when written).
+
+**Output:** ADR for the WA Code removal model (likely a separate ADR; may land as a section of 6c-iii-b-i's ADR if cleaner — settle at write time). Amends ADR-0027 (`removed` added, `dismiss_wa_code` narrowed, delete-substitution dropped), ADR-0029 (`wasted` re-derivation — trigger extended `dismissed` → `dismissed OR removed`), ADR-0030 (third WA origin / `issue_wa` generalization), ADR-0031 (RFA hybrid line-item model), ADR-0033 (`relink_sample_batch_wa_code` guard gains a `removed` branch). Updated cumulative tables — WA Code state machine, vocabulary.
+
+**Done when:** `dismiss_wa_code` narrowing + `removed` terminal + RFA hybrid line-item model + third WA origin + shared cascade are written up; ADR amendments to 0027 / 0029 / 0030 / 0031 / 0033 written; cumulative tables refreshed.
 
 ---
 

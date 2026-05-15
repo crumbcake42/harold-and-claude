@@ -42,4 +42,11 @@
 - **What:** Remove blocker registry entry #4 (Sample Batch COC `missing` at closure, ADR-0032 / ADR-0046) if MVP operation confirms it cannot fire. COC is created in `saved` state at batch creation per ADR-0033, and the model as written has no command-surface path to regress a COC out of `saved`.
 - **Why interesting:** Defensive registry entries that cannot fire add noise to the coordinator UI / surface and to the closure-gate evaluation without buying anything. Drop is a clean registry shrink (12 → 11) and a small simplification across the documents that reference the entry. Reversible if a regression-surface command is ever introduced.
 
+## Upload newly issued WA file at `approve_rfa`
+
+- **What:** When recording that an RFA was approved, allow the coordinator to upload the SCA-issued amendment-WA file in the same flow, attaching it to the next-generated WA version (the row produced by `approve_rfa` per ADR-0031). MVP path is two acts — `approve_rfa` produces the new WA version; the coordinator separately uploads the WA file against that version's Document slot.
+- **Why interesting:** Approval and file receipt arrive on the same SCA email in practice; compressing the two acts into one flow matches the operator's mental model and shaves a step where the new version row otherwise sits with an empty WA-file slot for a finite window. No model-side change — purely a UX bundling of an existing command + an existing Document upload — so the carry-forward cost is minimal. Composes with the third-WA-origin path (Step 6c-iii-b-ii) if that path ends up sharing the same upload affordance.
+
+---
+
 *(The former "Project → Contract reassignment" candidate — `reassign_project_contract` — was **dissolved by ADR-0044** and removed: with the Contract re-attached to the WABundle and made mutable in MVP via `edit_wabundle` / `issue_wa`, and all money-bearing values derived at read time, there is no heavy cascade to defer.)*
