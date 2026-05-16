@@ -62,6 +62,13 @@
 
 ---
 
+## mvp.md
+
+**Holds:** The MVP feature cut — ≤7 must-have features (each one sentence + brief expansion), the defensible "not now" list with per-item rationale, the in-MVP carve-outs that may slip, and the in-MVP command-shape carry-forwards whose mechanics land in the implementation phase (distinct from "not now").
+**Update when:** A must-have is added or cut; a "not now" item is promoted to MVP; an in-MVP carve-out is resolved (kept or slipped); a command-shape carry-forward's mechanics are settled (move out of the carry-forward list). Source decision is ADR-0050; substantive shape changes require a superseding ADR before editing.
+
+---
+
 ## decisions.md
 
 **Holds:** Append-only log of finalized design decisions (ADRs), each self-contained with date, status, context, alternatives considered, and consequences.

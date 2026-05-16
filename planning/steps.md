@@ -514,6 +514,8 @@ Step 6c is partitioned into sub-sessions (6c-i, 6c-ii, 6c-iii, 6c-iv). Two later
 
 ## Step 7 — MVP feature cut
 
+**✓ COMPLETE (2026-05-15, ADR-0050).** Case-3 scoped — the MVP cut. Three load-bearing forks (D1: hard-parts + usable-internal-tool; D2: full RFA cycle + third WA origin in; D3: full closure-gate + write-off + default-resolution in) plus three carve-outs (C1: multi-contract kept; C2: all four roles kept; C3: DepFiling kept) settled at the STOP-AND-CONFIRM gate before the write. `planning/mvp.md` written: 6 must-have features (Project lifecycle / WA+WA Code+RFA cycle / TE+SB / Documents+Deliverables+DepFilings / Closure gate+blockers+write-off / Roster+role admin) — under the ≤7 ceiling; categorized "not now" list folding in `post-mvp.md` verbatim + authorization/role-surface + billing-adjacent + model/config-evolution deferrals; one carve-out (`resolve_overlap_paired` slip-eligible behind `split_entry`); 7 command-shape carry-forwards listed (in MVP, mechanics pinned implementation-phase). `post-mvp.md` superseded as the active holding pen — retained for trace continuity. No new entities, no new design patterns, no amendments to other ADRs. ADR-0050 records the cut + the three forks + the three carve-outs + the "is this tracked at the office today?" framing test.
+
 **Goal:** Decide what the proof-of-concept must demonstrate. Cut ruthlessly.
 
 **Inputs:** `domain-model.md`, `decisions.md`, `handoff.md`
@@ -524,7 +526,7 @@ Step 6c is partitioned into sub-sessions (6c-i, 6c-ii, 6c-iii, 6c-iv). Two later
 
 **Estimate:** 30–45 min
 
-**Done when:** `mvp.md` lists ≤7 must-have features, each one sentence, and a defensible "not now" list.
+**Done when:** `mvp.md` lists ≤7 must-have features, each one sentence, and a defensible "not now" list. ✓ (Complete; ADR-0050 + `mvp.md` landed 2026-05-15. 6 must-haves, under the ceiling.)
 
 ---
 
