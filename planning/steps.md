@@ -544,6 +544,56 @@ Step 6c is partitioned into sub-sessions (6c-i, 6c-ii, 6c-iii, 6c-iv). Two later
 
 **Done when:** Each major stack/architecture choice has an ADR with at least one alternative considered.
 
+**Session partition (agreed 2026-05-15 — Option B, coupling-respecting seam):** Step 8 tripped the Case 2 fit checklist — **Signal 1** (5 sub-decisions in ~3 coupling-groups: lang/runtime + framework, persistence + history-impl, deployment), **Signal 3** (>60 min with 5 sub-decisions + new file), **Signal 4** (input reading >3 substantial planning files: `mvp.md`, `framework.md`, `logic.md`, `history-patterns.md`, `domain-model.md` § history-patterns), **Signal 5** (cross-concern reach: runtime/serving vs. storage/history-impl). Split along the coupling-respecting seam — runtime-stack decisions in one session, data-layer decisions + the architecture sketch in the other:
+- **Step 8a — Stack (language/runtime + framework + deployment).** Runtime-stack triple. Deployment rides with runtime (lang constrains deployment options more than persistence does).
+- **Step 8b — Persistence + history-impl shape + `architecture.md`.** Load-bearing data-layer pair + the one-page sketch (lands here after all 5 decisions are settled, avoiding drafting twice).
+
+Options considered: Option A (handoff's original suggested seam — stack vs. data+deployment) — rejected; deployment couples more naturally with runtime than with persistence. Option C (3-way split — lang/framework | persistence/history-impl | deployment + architecture) — rejected; deployment alone doesn't carry a session.
+
+**Execution order:** 8a → 8b → Step 9.
+
+---
+
+### Step 8a — Stack (language/runtime + framework + deployment)
+
+**Goal:** Decide the runtime stack — language/runtime, web/app framework, deployment shape. Three coupled decisions; the lang choice rules in/out most framework and deployment options.
+
+**In scope:**
+1. **Language/runtime.** Candidate axes: ecosystem maturity for the use case, team familiarity, type-system shape (informs invariant-enforcement story per `logic.md`), deployment options it opens up.
+2. **Framework.** Web/app framework choice within the lang ecosystem. Constrained by the command-pipeline shape (`logic.md`: commands as named operations + mandatory history capture at command boundary per ADR-0008) — the framework must comfortably host that pipeline.
+3. **Deployment shape.** Monolith vs. service split (the brief's framing); container vs. serverless; managed vs. self-hosted. MVP audience is the user's own office (per `mvp.md`) — operational simplicity weights heavy.
+
+**Out of scope — stays in 8b:** persistence engine, history implementation shape, `architecture.md` (the one-page sketch lands in 8b after all 5 decisions are settled).
+
+**Inputs:** `mvp.md` (the cut — defines what the stack must support), `framework.md` (substrate), `logic.md` (command pipeline; framework must host it), `decisions.md` (esp. ADR-0001 stale-scaffolding stance — existing `backend/` / `frontend/` directories treated as stale, unconstrained), `handoff.md`.
+
+**Outputs:** ADR(s) for language/runtime + framework + deployment shape (single ADR per concern or bundled — decide at session head; if bundled, name the bundle). ADR numbers at write time: starting at **ADR-0051**.
+
+**Estimate:** 30–45 min.
+
+**Done when:** Language/runtime + framework + deployment shape are each picked, with at least one alternative considered per decision; the supporting ADR(s) are written.
+
+---
+
+### Step 8b — Persistence + history-impl shape + `architecture.md`
+
+**Goal:** Decide the data layer — persistence engine + history implementation shape — and write the one-page architecture sketch covering the full stack (8a's runtime + 8b's data layer).
+
+**In scope:**
+1. **Persistence engine.** RDBMS (Postgres / SQLite / …) vs. event store vs. document store vs. hybrid. Constrained by 8a's stack + by the history-impl shape (next item).
+2. **History implementation shape.** Event store vs. append-only tables vs. temporal tables vs. hybrid. Must honestly support all 4 patterns in use across 21 entities per `domain-model.md`: Comprehensive (3 — Document / WA / RFA), Lifecycle (6 — Project / Sample Batch / Deliverable / EmployeeRole / WA Code / ContractorEngagement), Audit log (7 — Employee / User / Time Entry / Contractor / DepFiling / Contract / WABundle), No history (5 — School / Note / UserRole / WACodeAssignment / WABundleSite). Per-pattern reconstructability requirements in `history-patterns.md` constrain honest choices. ADR-0008 (mandatory capture at command boundary) is load-bearing on whichever impl shape lands. ADR-0003 was superseded by ADR-0006 (per-entity decision).
+3. **`planning/architecture.md`** — one-page sketch (component boxes, data flow). New file; add a `## File contract` block. Lands here after all 5 decisions are settled.
+
+**Out of scope:** stack-side decisions (settled in 8a); conceptual data model + DDL (Step 9); roadmap (Step 9); phase-transition ADR (Step 9).
+
+**Inputs:** 8a's stack ADR(s); `history-patterns.md` (the pattern menu); `domain-model.md` § History patterns per entity (3/6/7/5 distribution); `mvp.md`; `framework.md`; `decisions.md` (esp. ADR-0006 per-entity history; ADR-0008 mandatory capture); `handoff.md`.
+
+**Outputs:** ADR(s) for persistence + history-impl shape (single ADR or bundled — decide at session head). `planning/architecture.md` — new file with `## File contract` block. Updated cumulative tables in `handoff.md` if any settled vocabulary changes.
+
+**Estimate:** 45–60 min.
+
+**Done when:** Persistence + history-impl shape are picked with at least one alternative considered each; whichever history-impl shape lands honestly supports all 4 history patterns in use; `architecture.md` is written and reads as a one-page sketch (component boxes + data flow); ADR(s) written.
+
 ---
 
 ## Step 9 — Data model sketch & roadmap
