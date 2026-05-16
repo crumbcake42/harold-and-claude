@@ -36,93 +36,87 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Current phase
 
-**Conceptualization** — steps are planning-only, no code is written. **Step 7 (MVP feature cut) complete — `planning/mvp.md` written + ADR-0050 landed.** **Step 8 partitioned 2026-05-15 (session 20) along the coupling-respecting seam (Option B) — 8a (stack: language/runtime + framework + deployment) → 8b (persistence + history-impl shape + `architecture.md`).** Conceptualization-phase work remaining: **Step 8a → Step 8b → Step 9 (data-model sketch + roadmap + phase-transition ADR)**. See `planning/phases.md` for the full phase roster and `planning/steps.md` for the current step list.
+**Conceptualization** — steps are planning-only, no code is written. **Step 8a (stack: language/runtime + framework + deployment) complete 2026-05-15 (session 21) — ADR-0051 landed.** Stack pinned at Python 3.12+ / FastAPI / SQLAlchemy 2.0 / Alembic / Pydantic / Ruff / Pytest on the backend; TS / React / Vite / TanStack Router / TanStack Query / openapi-ts / Storybook on the frontend; monolith container on managed PaaS (vendor TBD at implementation), Neon free-tier Postgres as dev default on both work machines + SQLite as offline fallback. Conceptualization-phase work remaining: **Step 8b → Step 9 (data-model sketch + roadmap + phase-transition ADR)**. See `planning/phases.md` for the full phase roster and `planning/steps.md` for the current step list.
 
 ## Last session summary
 
-**Session 20 — Step 8 sizing + partition. ✓ COMPLETE (2026-05-15).** Case-2 sizing session — ran the fit checklist on Step 8 at session head. **Four signals fired (1, 3, 4, 5):**
-- Signal 1 — 5 sub-decisions cluster into ~3 coupling-groups: (lang/runtime + framework), (persistence + history-impl shape), (deployment).
-- Signal 3 — >60 min with 5 sub-decisions + new file.
-- Signal 4 — input reading >3 substantial planning files (`mvp.md`, `framework.md`, `logic.md`, `history-patterns.md`, `domain-model.md` § history-patterns).
-- Signal 5 — cross-concern reach (runtime/serving vs. storage/history-impl).
+**Session 21 — Step 8a Stack ADR. ✓ COMPLETE (2026-05-15, ADR-0051).** Case-3 scoped — the runtime-stack triple (language/runtime + framework + deployment). All three sub-decisions canvassed at the STOP-AND-CONFIRM gate before the write.
 
-**Step 8 partitioned along the coupling-respecting seam (Option B):**
-- **Step 8a — Stack (language/runtime + framework + deployment).** Runtime-stack triple. Deployment rides with runtime; lang choice rules in/out most deployment options.
-- **Step 8b — Persistence + history-impl shape + `architecture.md`.** Load-bearing data-layer pair + the one-page sketch (lands here after all 5 decisions are settled, avoiding drafting twice).
+**Local decision at session head:** Bundled into a single ADR-0051 ("Runtime stack") rather than three separate ADRs — the three decisions are coupled (lang rules in/out framework and deployment), and ADR-0009/0010/0012's three-way split was structurally justified by *different declaration surfaces* (state machine / entity / command) which this triple does not share.
 
-**Options considered:** Option A (handoff's original suggested seam — stack vs. data+deployment) — rejected; deployment couples more naturally with runtime than with persistence. Option C (3-way split — lang/framework | persistence/history-impl | deployment + architecture) — rejected; deployment alone doesn't carry a session.
+**Three sub-decisions settled:**
+- **(D1) Language/runtime → Python 3.12+ on CPython** (backend); TypeScript on Node for frontend tooling. Canvassed against TS-on-Node (agent's initial recommendation) and TS-on-Bun/Deno; non-candidates Rust/Go/JVM/C#/Elixir ruled out at canvass head. Settled Python after honest comparison: the openapi-ts → TanStack Query pipeline cancels the FE-BE-type-sharing argument for TS; Pydantic does runtime validation more honestly than zod (schema *is* the validator); SQLAlchemy 2.0 + Alembic migration maturity meaningfully exceeds Drizzle/Prisma. Residual TS exhaustiveness edge mitigated in Python with discipline (Pydantic discriminated unions + `match`/`case` + base `Command` class + `assert_never`).
+- **(D2) Framework → FastAPI backend + React/Vite/TanStack frontend.** Backend canvassed against Django (admin-UI win not enough to justify weight at MVP's narrow admin surface) and plain Starlette/Flask (weaker validation story). Frontend canvassed against Next.js (RSC/middleware/caching machinery overkill for an internal tool — user's "bloat" concern operationally correct) and Remix. Supporting libs pinned: SQLAlchemy 2.0 + Alembic + Pydantic + Ruff + Pytest (backend); Vite + TanStack Router + TanStack Query + openapi-ts + Storybook + ESLint + Prettier (frontend). Architectural pin: routes are transport, commands are the unit — thin `Command` base class + dispatcher (design carried to implementation phase) hosts the `logic.md` pipeline.
+- **(D3) Deployment → monolith container on managed PaaS (vendor TBD)**, static SPA on same platform CDN, dev DB config-driven with **Neon free-tier Postgres** as default on both work machines + **SQLite as offline fallback**, CI tests against Postgres, engine-specific code behind adapter boundary. Rejected: service split (no scale/cadence/isolation pressure), serverless (cold-start UX tax + pooling/background-job complexity), major-cloud-direct AWS/GCP (weeks of IAM/VPC/IaC plumbing at MVP scale), self-hosted VPS (sysadmin load not worth $5-20/month savings). User's initial SQLite-as-dev-default proposal revised after honest pushback on the ADR-0010 concurrency-bug class — Machine B's constraint is Docker-lock not internet-lock, so Neon resolves it at $0/month.
 
-**Files touched:** `planning/steps.md` — Step 8 expanded with the partition note + Step 8a + Step 8b sub-session briefs (mirroring the Step 6c-iii-b / Step 6c-iv pattern). `planning/handoff.md` — Current phase line, Last session summary, Open questions, Next session pointer + prompt, Pointers step-list line. No ADRs written; no other planning files touched. `_file-rules.md` not regenerated (no file contracts changed).
+**Carry-forwards (per ADR-0051):** specific PaaS vendor (implementation kickoff); `Command` base class + dispatcher design (implementation); frontend test runner pick (implementation); stale-scaffolding cleanup of `backend/` and `frontend/` (implementation per ADR-0001); persistence engine + history-impl shape + `architecture.md` (Step 8b — next session).
+
+**Step 8b inheritance:** ADR-0051 passes one constraint forward — the persistence engine must be SQLAlchemy-supported, RDBMS-class, available as a managed offering on the chosen PaaS, AND support concurrency primitives strong enough for ADR-0010's cross-entity-invariant-revalidation requirement. Postgres overwhelmingly likely but not foreclosed.
+
+**Files touched:** `planning/decisions.md` — ADR-0051 appended. `planning/handoff.md` — Current phase line, Last session summary, Open questions, Next session pointer + prompt, Pointers step-list + Decisions log lines. No other planning files touched. `_file-rules.md` not regenerated (no file contracts changed).
 
 ---
 
-*(Prior session retained for context — Session 19 / Step 7 / `mvp.md` / ADR-0050.)*
+*(Prior session retained for context — Session 20 / Step 8 sizing + partition.)*
 
-**Session 19 — Step 7 ADR write. ✓ COMPLETE (2026-05-15, ADR-0050).** Case-3 scoped — the MVP cut. Three load-bearing forks (D1: hard-parts + usable-internal-tool; D2: full RFA cycle + third WA origin in; D3: full closure-gate + write-off + default-resolution in) plus three carve-outs (C1: multi-contract kept; C2: all four roles kept; C3: DepFiling kept) settled at the STOP-AND-CONFIRM gate before the write. `planning/mvp.md` written (~140 lines): 6 must-have features (Project lifecycle / WA+WA Code+RFA cycle / TE+SB / Documents+Deliverables+DepFilings / Closure gate+blockers+write-off / Roster+role admin) — under the ≤7 ceiling; categorized "not now" list folding in `post-mvp.md` verbatim + authorization/role-surface + billing-adjacent + model/config-evolution deferrals; one carve-out (`resolve_overlap_paired` slip-eligible behind `split_entry`); 7 command-shape carry-forwards (in MVP, mechanics pinned implementation-phase). `post-mvp.md` superseded as the active holding pen. No new entities, no new design patterns, no amendments to other ADRs. `_file-rules.md` regenerated (added `mvp.md` entry).
+**Session 20 — Step 8 sizing + partition. ✓ COMPLETE (2026-05-15).** Case-2 sizing — Step 8 tripped 4 fit-checklist signals (1: 5 sub-decisions in ~3 coupling-groups; 3: >60 min with 5 sub-decisions + new file; 4: input reading >3 substantial planning files; 5: cross-concern reach runtime/serving vs. storage/history-impl). Partitioned along Option B (coupling-respecting seam): **Step 8a — Stack (language/runtime + framework + deployment)** → **Step 8b — Persistence + history-impl shape + `architecture.md`**. Options A (handoff's original suggested seam — stack vs. data+deployment) and C (3-way split with deployment alone) rejected. `planning/steps.md` and `planning/handoff.md` updated; no ADRs written; no other planning files touched.
 
 ---
 
 ## Open questions
 
-**No carry-forward open questions land on Step 8a.** Step 7's "not now" list (in `mvp.md`) covers all deferred surface; the seven command-shape carry-forwards (in `mvp.md` § Command-shape carry-forwards) are *in MVP* and their mechanics land in the implementation phase — not Step 8a's concern.
+**Carried into Step 8b from ADR-0051:** the persistence engine must be **SQLAlchemy-supported, RDBMS-class, available as a managed offering on the chosen PaaS, AND support concurrency primitives strong enough for ADR-0010's cross-entity-invariant-revalidation requirement** (serializable transactions, advisory locks, or equivalent). Postgres is overwhelmingly likely but ADR-0051 does not foreclose alternatives. The dev-default Neon Postgres + SQLite-offline-fallback shape from ADR-0051 also constrains 8b's choice — engine must accommodate that env-config model.
 
-**For the next session — Step 8a (stack: language/runtime + framework + deployment):**
+**For the next session — Step 8b (persistence + history-impl shape + `architecture.md`):**
 
-Step 8a picks the runtime stack — the three coupled decisions where the lang choice rules in/out most framework and deployment options. Per `steps.md` → Step 8a: decide only what the next step needs.
+Step 8b decides the data layer (persistence engine + history-impl shape) and writes the one-page architecture sketch covering both 8a's runtime layer and 8b's data layer.
 
-**Items in scope (per `steps.md` → Step 8a):**
+**Items in scope (per `steps.md` → Step 8b):**
 
-1. **Language/runtime.** Candidate axes: ecosystem maturity for the use case, team familiarity, type-system shape (informs invariant-enforcement story per `logic.md`), deployment options it opens up.
-2. **Framework.** Web/app framework within the lang ecosystem. Must comfortably host the command-pipeline shape (`logic.md`: commands as named operations + mandatory history capture at command boundary per ADR-0008).
-3. **Deployment shape.** Monolith vs. service split; container vs. serverless; managed vs. self-hosted. MVP audience is the user's own office (per `mvp.md`) — operational simplicity weights heavy.
+1. **Persistence engine.** RDBMS (Postgres / SQLite-and-Postgres / …) vs. event store vs. document store vs. hybrid. Constrained by the ADR-0051 inheritance (see above).
+2. **History implementation shape.** Event store vs. append-only tables vs. temporal tables vs. hybrid. Must honestly support all 4 patterns in use across 21 entities per `domain-model.md`: Comprehensive (3 — Document / WA / RFA), Lifecycle (6 — Project / Sample Batch / Deliverable / EmployeeRole / WA Code / ContractorEngagement), Audit log (7 — Employee / User / Time Entry / Contractor / DepFiling / Contract / WABundle), No history (5 — School / Note / UserRole / WACodeAssignment / WABundleSite). Per-pattern reconstructability requirements in `history-patterns.md` constrain honest choices. ADR-0008 (mandatory capture at command boundary) is load-bearing on whichever impl shape lands. ADR-0003 was superseded by ADR-0006 (per-entity decision).
+3. **`planning/architecture.md`** — one-page sketch (component boxes, data flow). New file; add a `## File contract` block. Lands here after both data-layer decisions settle, avoiding drafting the sketch twice.
 
-**Out of scope — deferred to 8b:** persistence engine, history implementation shape, `architecture.md` (lands in 8b after all 5 decisions are settled, avoiding drafting the sketch twice).
+**Inputs (per the step brief):** ADR-0051 (8a's stack — defines what data-layer choices the runtime can host); `history-patterns.md` (the pattern menu); `domain-model.md` § History patterns per entity (3/6/7/5 distribution); `mvp.md`; `framework.md`; `decisions.md` (esp. ADR-0006 per-entity history; ADR-0008 mandatory capture; ADR-0010 invariant-isolation requirement); `handoff.md` (this file).
 
-**Inputs (per the step brief):** `mvp.md` (the cut), `framework.md`, `logic.md`, `decisions.md` (esp. ADR-0001 stale-scaffolding stance — existing `backend/` / `frontend/` directories treated as stale, unconstrained), `handoff.md` (this file).
-
-**Local decision at session head:** single ADR per concern, or bundled into one ADR? If bundled, name the bundle. The three decisions are coupled enough that one ADR may read more naturally; the three sub-rationales remain distinct.
+**Local decision at session head:** single bundled ADR for persistence + history-impl, or split into two? They're coupled (history-impl shape depends on engine capabilities — e.g., temporal tables need engine support, append-only history tables are engine-neutral) but conceptually separable in ways ADR-0051's three sub-decisions weren't. Decide at session head.
 
 **Process notes:**
-- STOP-AND-CONFIRM gate applies. Each sub-decision (language/runtime, framework, deployment) surfaces its options + tradeoffs in chat before any ADR write.
-- "Decide only what the next step needs" — Step 8's brief explicitly cautions against over-deciding. Step 8b picks up the data layer; Step 9 picks up the conceptual data model + roadmap. 8a should leave room for downstream choices that don't yet have load-bearing context.
+- STOP-AND-CONFIRM gate applies. Each sub-decision (persistence engine, history-impl shape) surfaces options + tradeoffs in chat before any ADR write.
+- `architecture.md` lands AFTER both ADR sub-decisions settle, to avoid drafting the sketch twice.
 - Recommendation strength: state confidence; when asked for contras, separate the exercise from any conclusion; don't flip out of agreeableness (`sessions.md` rule 5).
 
 ## Next session
 
-**Step 8a — Stack (language/runtime + framework + deployment).** Case-3 scoped — the partition decision settled session 20; this session is one of the two halves of Step 8. Goal: pick language/runtime + framework + deployment shape; write the supporting ADR(s). Brief in `steps.md` → Step 8a. Execution order: Step 7 ✓ → Step 8 partitioned ✓ → **Step 8a** → Step 8b (persistence + history-impl + `architecture.md`) → Step 9 (data model sketch + roadmap + phase-transition ADR + pre-transition ADR consolidation pass). ADR numbers at write time: starting at **ADR-0051**.
+**Step 8b — Persistence + history-impl shape + `architecture.md`.** Case-3 scoped — the partition decision settled session 20; Step 8a settled session 21 (ADR-0051). Goal: pick persistence engine + history-impl shape; write the supporting ADR(s); draft `planning/architecture.md` after both data-layer decisions settle. Brief in `steps.md` → Step 8b. Execution order: Step 7 ✓ → Step 8 partitioned ✓ → Step 8a ✓ → **Step 8b** → Step 9 (data model sketch + roadmap + phase-transition ADR + pre-transition ADR consolidation pass). ADR numbers at write time: starting at **ADR-0052**.
 
 ### Prompt for the next session
 
-> Resume work. Next is **Step 8a — Stack (language/runtime + framework + deployment)**. Brief in `steps.md` → § Step 8a. Case-3 scoped — the partition was settled session 20.
+> Resume work. Next is **Step 8b — Persistence + history-impl shape + `architecture.md`**. Brief in `steps.md` → § Step 8b. Case-3 scoped — Step 8a settled session 21 (ADR-0051).
 >
-> **Read first:** this prompt + the Open questions block above + `mvp.md` (the cut — defines what the stack must support) + `framework.md` (substrate) + `logic.md` (command pipeline; framework must host it — commands as named operations, mandatory history capture at command boundary per ADR-0008) + `decisions.md` for ADR pointers (esp. ADR-0001 stale-scaffolding stance — existing `backend/` / `frontend/` directories treated as stale; stack choices unconstrained).
+> **Read first:** this prompt + the Open questions block above + **ADR-0051** in `decisions.md` (the stack-side decisions; constrains 8b's persistence engine to SQLAlchemy-supported, RDBMS-class, managed PaaS offering, ADR-0010 isolation primitives, and the Neon-dev/SQLite-offline env-config model) + `history-patterns.md` (the pattern menu) + `domain-model.md` § History patterns per entity (3/6/7/5 distribution across Comprehensive / Lifecycle / Audit log / No history) + `framework.md` (entity/state taxonomy) + `decisions.md` for ADR pointers (esp. ADR-0006 per-entity history; ADR-0008 mandatory capture; ADR-0010 invariant-isolation requirement).
 >
-> **Items in scope (per `steps.md` → Step 8a):**
-> 1. **Language/runtime.** Candidate axes: ecosystem maturity, team familiarity, type-system shape (informs invariant-enforcement story per `logic.md`), deployment options.
-> 2. **Framework.** Web/app framework within the lang ecosystem. Must host the command pipeline.
-> 3. **Deployment shape.** Monolith vs. service split; container vs. serverless; managed vs. self-hosted. MVP audience is the user's own office — operational simplicity weights heavy.
+> **Items in scope (per `steps.md` → Step 8b):**
+> 1. **Persistence engine.** Constrained by ADR-0051 inheritance. Postgres overwhelmingly likely but not foreclosed.
+> 2. **History implementation shape.** Event store / append-only tables / temporal tables / hybrid. Must honestly support all 4 patterns in use across 21 entities; per-pattern reconstructability requirements in `history-patterns.md` constrain honest choices.
+> 3. **`planning/architecture.md`** — one-page sketch (component boxes, data flow). New file; needs a `## File contract` block. Lands after both ADR sub-decisions settle, to avoid drafting twice. Add `architecture.md` entry to `_file-rules.md` (regen) when it lands.
 >
-> Single ADR per concern or bundled — decide at session head; if bundled, name the bundle.
->
-> **Out of scope — do not pull in (deferred to 8b):**
-> - Persistence engine.
-> - History implementation shape (event store vs. append-only tables vs. temporal tables vs. hybrid).
-> - `planning/architecture.md` (one-page sketch lands in 8b after all 5 stack decisions settle, avoiding double-drafting).
+> Single bundled ADR or split into two — decide at session head.
 >
 > **Out of scope — later steps:**
 > - Conceptual data model + DDL (Step 9).
 > - Roadmap (Step 9).
 > - Phase-transition ADR + pre-transition ADR consolidation pass (Step 9).
-> - MVP feature cut (Step 7 — settled in ADR-0050 / `mvp.md`).
+> - Stack-side decisions (settled in ADR-0051 — runtime, framework, deployment, dev DB workflow).
 > - Command-shape carry-forwards (implementation phase per `mvp.md` § Command-shape carry-forwards).
 >
-> **Sequencing:** Step 7 ✓ → Step 8 partitioned ✓ → **Step 8a (this session)** → Step 8b → Step 9 → (phase transition).
+> **Sequencing:** Step 7 ✓ → Step 8 partitioned ✓ → Step 8a ✓ → **Step 8b (this session)** → Step 9 → (phase transition).
 >
-> **Reference:** 21 entities (post-ADR-0048), 14 design patterns, roles `superadmin`/`admin`/`coordinator`/`auditor`, 10-entry blocker registry, Conceptualization phase carries ADR-0001 through ADR-0050. The MVP cut is 6 must-have features (Project lifecycle / WA+WA Code+RFA cycle / TE+SB / Documents+Deliverables+DepFilings / Closure gate+blockers+write-off / Roster+role admin). Full detail in `domain-model.md` + `mvp.md`.
+> **Reference:** 21 entities (post-ADR-0048), 14 design patterns, roles `superadmin`/`admin`/`coordinator`/`auditor`, 10-entry blocker registry, Conceptualization phase carries ADR-0001 through ADR-0051. Stack pinned: Python 3.12+ / FastAPI / SQLAlchemy 2.0 / Alembic / Pydantic backend + TS / React / Vite / TanStack frontend on managed-PaaS monolith deployment with Neon-dev / SQLite-offline DB config. Full detail in `domain-model.md` + `mvp.md` + ADR-0051.
 >
 > **Process notes:**
 > - STOP-AND-CONFIRM gate applies — each sub-decision surfaces in chat with options + tradeoffs before any ADR write.
-> - "Decide only what the next step needs" — leave room for 8b and downstream choices that don't yet have load-bearing context.
+> - `architecture.md` lands AFTER both ADR sub-decisions settle.
 > - Recommendation strength: state confidence; when asked for contras, separate the exercise from any conclusion; don't flip out of agreeableness (`sessions.md` rule 5).
 
 ## Pointers
@@ -130,9 +124,9 @@ Step 8a picks the runtime stack — the three coupled decisions where the lang c
 - Workflow protocol: `planning/_workflow.md`
 - File rules registry (generated): `planning/_file-rules.md` (last regenerated 2026-05-15)
 - Phase roster: `planning/phases.md`
-- Step list (current phase): `planning/steps.md` (Step 6 ✓ COMPLETE — 6a / 6b core / 6b-residual / 6b-residual-2 / 6c-i / 6c-ii / 6c-iii-a / 6c-iii-b-i / 6c-iii-b-ii / 6c-iv-a / 6c-iv-b / 6d all complete; **Step 7 ✓ COMPLETE**; **Step 8 partitioned 2026-05-15 — 8a (stack: lang/runtime + framework + deployment) → 8b (persistence + history-impl + `architecture.md`)**; next: **Step 8a**)
+- Step list (current phase): `planning/steps.md` (Step 6 ✓ COMPLETE — 6a / 6b core / 6b-residual / 6b-residual-2 / 6c-i / 6c-ii / 6c-iii-a / 6c-iii-b-i / 6c-iii-b-ii / 6c-iv-a / 6c-iv-b / 6d all complete; **Step 7 ✓ COMPLETE**; **Step 8 partitioned 2026-05-15 — 8a ✓ COMPLETE (ADR-0051), 8b next (persistence + history-impl shape + `architecture.md`)**; next: **Step 8b**)
 - Session conventions: `planning/sessions.md`
-- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0050; next ADR at write time: ADR-0051)
+- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0051; next ADR at write time: ADR-0052)
 - **MVP scope (Step 7 output):** `planning/mvp.md` — 6 must-have features + categorized "not now" list + 1 carve-out + 7 command-shape carry-forwards + pointers. Canonical MVP-scope reference.
 - **Domain model (Step 6d output):** `planning/domain-model.md` — rolled-up domain projection: 21 entities, relationship table, per-entity lifecycles, authorization predicates (via ADR-0047), history patterns, delete policy, 14 design patterns, 10-entry blocker registry, vocabulary, deferred / open questions
 - Framework (Step 1 output): `planning/framework.md`
