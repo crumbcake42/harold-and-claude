@@ -2,7 +2,7 @@
 
 *Generated index — do not edit manually. Regenerate by following the procedure in `planning/_workflow.md` (`_file-rules.md` regeneration procedure). Trigger: any `## File contract` block changes, or stale detection during Path B.*
 
-*Last regenerated: 2026-05-12*
+*Last regenerated: 2026-05-15*
 
 ---
 
@@ -52,6 +52,13 @@
 
 **Holds:** The menu of per-entity history patterns and the selection criteria for choosing between them. Established in Step 5 before domain mapping. Every entity defined in Step 6 must choose from this menu.
 **Update when:** A pattern is added, removed, or revised (requires a superseding ADR in `decisions.md` before editing). Selection criteria may be refined during domain mapping if edge cases surface, but the pattern set itself is stable.
+
+---
+
+## domain-model.md
+
+**Holds:** The rolled-up domain projection — the entities, relationships, lifecycles, authorization predicates, history patterns, design patterns, blocker registry, and vocabulary that map `framework.md` / `logic.md` / `history-patterns.md` onto the SCA-tracker domain. Standalone reference for a framework-aware reader.
+**Update when:** A domain-shape ADR lands in `decisions.md` (entity added/removed/renamed; relationship shape changes; lifecycle/state-machine change; predicate row added/changed; design pattern added/retired; vocabulary term added/revised). The handoff's cumulative tables are the in-flight working surface during a session; this file is the post-session source of truth between sessions.
 
 ---
 
