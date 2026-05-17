@@ -47,6 +47,15 @@
 - **What:** When recording that an RFA was approved, allow the coordinator to upload the SCA-issued amendment-WA file in the same flow, attaching it to the next-generated WA version (the row produced by `approve_rfa` per ADR-0031). MVP path is two acts — `approve_rfa` produces the new WA version; the coordinator separately uploads the WA file against that version's Document slot.
 - **Why interesting:** Approval and file receipt arrive on the same SCA email in practice; compressing the two acts into one flow matches the operator's mental model and shaves a step where the new version row otherwise sits with an empty WA-file slot for a finite window. No model-side change — purely a UX bundling of an existing command + an existing Document upload — so the carry-forward cost is minimal. Composes with the third-WA-origin path (Step 6c-iii-b-ii) if that path ends up sharing the same upload affordance.
 
+## Second frontend authorization flow
+
+- **What:** Add a second authorization flow on the frontend to authenticate against another service's API (in addition to the existing auth). Out of scope for MVP; revisit once core flows are stable.
+- **Why interesting:** Open questions to resolve before scoping:
+  - Which service/API?
+  - Is this user-delegated auth (OAuth-style, per-user tokens) or service-level (shared credential)?
+  - Does the frontend call that API directly, or does our backend broker the call?
+  - Token storage/refresh strategy and how it composes with the existing auth session.
+
 ---
 
 *(The former "Project → Contract reassignment" candidate — `reassign_project_contract` — was **dissolved by ADR-0044** and removed: with the Contract re-attached to the WABundle and made mutable in MVP via `edit_wabundle` / `issue_wa`, and all money-bearing values derived at read time, there is no heavy cascade to defer.)*
