@@ -13,14 +13,22 @@ To inject a blocker or unplanned work mid-phase: insert a tagged step into `step
 
 ## Phase 1 — Conceptualization
 
-**Status:** current
+**Status:** complete (2026-05-17, ADR-0054)
 **Goal:** Produce the abstract framework, logic layer, and domain model that implementation will be built on — no code written.
-**Steps:** [planning/steps.md](steps.md)
+**Steps:** [archived](steps.archive/conceptualization.md)
 
 ---
 
 ## Phase 2 — Implementation
 
+**Status:** current
+**Goal:** Build the MVP per `planning/mvp.md` and `planning/roadmap.md` — 6 must-have features delivered as 9 sequential milestones (M0 Foundations → M8 Cutover prep) on the stack pinned by ADR-0051 + ADR-0052.
+**Steps:** [planning/steps.md](steps.md)
+
+---
+
+## Phase 3 — TBD
+
 **Status:** not started
-**Goal:** TBD — to be scoped before Phase 1 ends.
+**Goal:** TBD — to be scoped before Phase 2 ends. Likely candidates: post-MVP feature delivery (per `mvp.md` § Not now); office-onboarding-and-operations once the MVP cutover lands.
 **Steps:** TBD

@@ -22,8 +22,8 @@
 
 ## steps.md
 
-**Holds:** Ordered list of steps within the current phase — goal, inputs, outputs, done-when criteria, and decision options pre-canvassed for each step.
-**Update when:** A step is added, split, reordered, or completed; phase restructuring occurs. Canonical step list; `handoff.md`'s next-session pointer references it by section heading.
+**Holds:** Ordered list of steps within the Implementation phase. Each step maps to a milestone from `planning/roadmap.md` (M0 → M8). The first step (M0 Foundations) opens with a full brief; subsequent steps carry short stubs pointing at the roadmap, with full briefs expanded as each step lands (Case 2 sizing per `_workflow.md`).
+**Update when:** A step is opened (expand its stub into a full brief — Goal / In scope / Inputs / Outputs / Estimate / Done when); a step completes (mark complete inline; advance `handoff.md`'s next-session pointer); a step partitions (split per `_workflow.md`'s Case 2 protocol). Adding a feature beyond `mvp.md`'s 6 must-haves requires a superseding ADR before editing.
 
 ---
 
@@ -80,6 +80,13 @@
 
 **Holds:** The MVP feature cut — ≤7 must-have features (each one sentence + brief expansion), the defensible "not now" list with per-item rationale, the in-MVP carve-outs that may slip, and the in-MVP command-shape carry-forwards whose mechanics land in the implementation phase (distinct from "not now").
 **Update when:** A must-have is added or cut; a "not now" item is promoted to MVP; an in-MVP carve-out is resolved (kept or slipped); a command-shape carry-forward's mechanics are settled (move out of the carry-forward list). Source decision is ADR-0050; substantive shape changes require a superseding ADR before editing.
+
+---
+
+## roadmap.md
+
+**Holds:** Ordered implementation milestones with rough sizing (S/M/L) covering the MVP feature surface from `mvp.md`, the 7 command-shape carry-forwards, and the 5 implementation-phase carry-forwards from ADR-0051 + ADR-0052. Each milestone is a coherent unit of work that delivers a slice of the system and unblocks the next; the new Implementation-phase `steps.md` (created at phase transition) breaks each milestone into sessions.
+**Update when:** A milestone is partitioned, merged, reordered, or completed; a carry-forward's landing milestone changes; a "not now" item is promoted to MVP and absorbed into a milestone. Substantive scope changes (e.g., adding a feature beyond `mvp.md`'s 6 must-haves) require a superseding ADR before editing.
 
 ---
 
