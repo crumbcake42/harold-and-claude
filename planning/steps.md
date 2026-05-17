@@ -11,49 +11,106 @@ Ordered plan for the Implementation phase of `sca-tracker`. Each step maps 1:1 t
 
 ## Step 1 — M0 Foundations (L)
 
+**Partitioned 2026-05-17 (Option A — substrate-then-decisions, 5 sub-steps).** Case 2 fit checklist fired signals 1, 2, 3, 4, 5; partition required. Option A chosen because (a) M0.1 is mechanical with no deliberation overhead — lets the implementation branch get a cheap first commit (and gives Claude auto mode an easy "no-decisions" first attempt at the workplan); (b) decision sub-steps land in dependency order (PaaS picks Postgres flavor → primitives bind to that flavor → dispatcher consumes the primitives → adapter wraps the Postgres specifics). Option B (decisions-first) rejected — delays mechanical-confidence-building and stacks 2–3 sessions of pure deliberation before any code lands. Option C (3-step coarser partition) rejected — bundles 2–3 substantive decisions in one session, risking the stacking-decisions anti-pattern.
+
 **Goal:** Stand up the plumbing the rest of the Implementation phase consumes — repo skeletons, CI, the `Command` base class + dispatcher carrying the `logic.md` pipeline, history infrastructure with dispatcher-enforced capture, the adapter boundary for Postgres-specific features, and the deferred ADR-0051 / ADR-0052 carry-forwards (PaaS pick, per-invariant isolation primitives, audit-log write timing).
+
+**Sub-step roster:**
+
+| Sub-step | Title | Size | Branch | ADRs expected |
+|---|---|---|---|---|
+| **1.1** | M0.1 Scaffolding (cleanup + repo skeletons + CI) | M | `m0/01-scaffolding` | none — mechanical |
+| **1.2** | M0.2 PaaS vendor pick + managed-Postgres offering | S | `m0/02-paas-pick` | ADR-0055 |
+| **1.3** | M0.3 Data-layer primitives (isolation + audit-log timing) | S–M | `m0/03-data-layer-primitives` | ADR-0056 (possibly two) |
+| **1.4** | M0.4 `Command` base class + dispatcher + history infrastructure | L | `m0/04-dispatcher-and-history` | ADR-0057 if dispatcher design surfaces ADR-worthy decisions |
+| **1.5** | M0.5 Adapter boundary for Postgres-specific features + integration check | S | `m0/05-adapter-boundary` | none expected |
+
+**Execution order:** 1.1 → 1.2 → 1.3 → 1.4 → 1.5 → (Step 1 ✓; merge `m0/foundations` → `dev` with `--no-ff`; tag `m0-complete` on dev). Each sub-step branch off `m0/foundations`; sub-step merges back into `m0/foundations` with FF. Step 2 (M1 Roster) follows.
+
+**Inputs:** `planning/mvp.md`, `planning/roadmap.md` § M0, `planning/architecture.md`, `planning/data-model.md`, `planning/framework.md`, `planning/logic.md`, `planning/history-patterns.md`, `planning/decisions.md` (esp. ADR-0001, ADR-0051, ADR-0052), `planning/handoff.md`.
+
+**Done when:** All 5 sub-steps complete; M1 can begin (M0 dispatcher + history infrastructure can host M1's first command, e.g., `create_employee`).
+
+---
+
+### Step 1.1 — M0.1 Scaffolding (M)
+
+**Goal:** Land the mechanical scaffolding — clean the stale `backend/` and `frontend/` directories, stand up the backend + frontend repo skeletons per ADR-0051, wire CI. No deliberation, no ADRs.
 
 **In scope:**
 
-1. **Stale-scaffolding cleanup.** Per ADR-0001 + ADR-0051: the existing `backend/` and `frontend/` directories were scaffolded in an earlier pre-conceptualization pass and are treated as starting-from-zero. Clear or repurpose them at the start of this step; commit the deletion separately so the cleanup is auditable.
-2. **PaaS vendor pick + managed-Postgres offering name.** ADR-0051 carry-forward. Neon was the dev default for both work machines; the production PaaS + managed-Postgres offering pick lands here as an ADR (likely ADR-0055).
-3. **Backend repo skeleton.** Python 3.12+ on CPython + FastAPI + SQLAlchemy 2.0 + Alembic + Pydantic + Ruff + Pytest per ADR-0051. Initial migration scaffold; project layout decisions; dependency pinning.
-4. **Frontend repo skeleton.** TypeScript on Node + Vite + React + TanStack Router + TanStack Query + openapi-ts + Storybook + ESLint + Prettier per ADR-0051. FastAPI's OpenAPI schema generates typed TanStack Query hooks via openapi-ts; wire that pipeline.
-5. **CI pipeline.** Integration test suite against Postgres (Neon ephemeral branch per PR or docker-compose Postgres in the runner per ADR-0051). Backend + frontend lint + test + typecheck on PR.
-6. **`Command` base class + dispatcher.** Carry-forward from ADR-0051 + ADR-0052. Pipeline order from `logic.md`: auth (ADR-0012 predicate evaluation per ADR-0047) → lifecycle (ADR-0009) → apply → invariants (ADR-0010) → history (ADR-0008 / ADR-0052) → commit. No handler-level skip of history capture; the framework surface does not expose a skip path per ADR-0052.
-7. **History infrastructure.** Per-entity append-only history tables (3 comprehensive — Document / WA / RFA; 6 lifecycle — Project / Sample Batch / Deliverable / EmployeeRole / WA Code / ContractorEngagement) + shared `command_audit_log` (polymorphic `(entity_type, entity_id)`) per ADR-0052. Common-metadata columns. Comprehensive-pattern `snapshot` JSONB; lifecycle-pattern `from_state` / `to_state` / `transition_name` / `state_context`. Reference snapshotting rule (typed-UUID refs only) per ADR-0013 + ADR-0052 § S5.
-8. **Per-invariant isolation-primitive assignment.** ADR-0052 carry-forward. `SERIALIZABLE` default + `pg_try_advisory_xact_lock` opt-in. First per-invariant choices land as part of this step (subsequent invariants choose primitives as they're implemented in later milestones). Lands as an ADR (likely ADR-0056).
-9. **Audit-log write timing.** ADR-0052 carry-forward. In-txn vs. post-commit pick. Lands as the same or a separate ADR.
-10. **Adapter boundary for Postgres-specific features.** JSONB ops, advisory locks, `SERIALIZABLE` isolation live behind a documented adapter per ADR-0051. SQLite offline fallback path is buildable but **not production-equivalent** (acknowledged in ADR-0051; restate in code-level docs).
+1. **Stale-scaffolding cleanup.** Per ADR-0001 + ADR-0051: clear the existing `backend/` and `frontend/` directories. Commit the deletion separately so the cleanup is auditable in the log.
+2. **Backend repo skeleton.** Python 3.12+ on CPython + FastAPI + SQLAlchemy 2.0 + Alembic + Pydantic + Ruff + Pytest per ADR-0051. Initial migration scaffold (no domain entities yet — just the Alembic baseline). Project layout decisions for where commands / entities / handlers / dispatcher will live (light decisions; surface at session head if any are non-obvious). Dependency pinning.
+3. **Frontend repo skeleton.** TypeScript on Node + Vite + React + TanStack Router + TanStack Query + openapi-ts + Storybook + ESLint + Prettier per ADR-0051. Wire the openapi-ts pipeline (FastAPI OpenAPI schema → typed TanStack Query hooks) so the contract is enforced from M1 onward.
+4. **CI pipeline.** Backend + frontend lint + test + typecheck on PR. Integration test suite against Postgres (docker-compose Postgres in the runner for now; Neon ephemeral-branch wiring waits until M0.2 picks the PaaS).
 
 **Out of scope:**
 
-- Domain-entity DDL (Employee, Project, etc.) — lands per-entity in M1+.
-- File storage backend (M5).
-- Per-invariant primitive choices for invariants that haven't been implemented yet (later milestones).
+- PaaS vendor pick — M0.2 (Step 1.2).
+- Per-invariant isolation primitives + audit-log write timing — M0.3 (Step 1.3).
+- `Command` base class + dispatcher + history infrastructure — M0.4 (Step 1.4).
+- Adapter boundary code — M0.5 (Step 1.5).
+- Any domain entity, command, or handler — M1+.
 
-**Inputs:** `planning/mvp.md`, `planning/roadmap.md`, `planning/architecture.md`, `planning/data-model.md`, `planning/framework.md`, `planning/logic.md`, `planning/history-patterns.md`, `planning/decisions.md` (esp. ADR-0001, ADR-0051, ADR-0052), `planning/handoff.md`.
+**Inputs:** ADR-0001 (stale-scaffolding); ADR-0051 (runtime stack); `architecture.md` § component diagram; `roadmap.md` § M0; `planning/handoff.md`.
 
 **Outputs:**
 
-- Cleaned-up `backend/` + `frontend/` (cleanup commit separate from skeleton commits).
-- Backend skeleton (FastAPI + SQLAlchemy 2.0 + Alembic + Pydantic + Ruff + Pytest), runnable + tested.
-- Frontend skeleton (Vite + React + TanStack Router + TanStack Query + openapi-ts + Storybook + ESLint + Prettier), runnable + tested.
-- CI workflow(s) green on a sample integration test.
-- `Command` base class + dispatcher implementation, with the full pipeline + dispatcher-enforced history write.
-- History infrastructure: base `command_audit_log` migration; per-entity history-table generator / pattern (per-entity tables land as their entities do).
-- Adapter boundary code (JSONB / advisory-lock / isolation wrappers).
-- ADR(s) for PaaS pick + Postgres offering; per-invariant isolation primitives; audit-log write timing. Estimated 1–3 new ADRs starting at ADR-0055.
+- Cleaned `backend/` and `frontend/` directories (cleanup commit separate from skeleton commits).
+- Backend skeleton: runnable `uvicorn` server with a healthcheck endpoint; Alembic baseline migration in place; `pytest` runs green on a sample test; `ruff check` clean.
+- Frontend skeleton: runnable `vite` dev server with a sample TanStack-routed page; `tsc --noEmit` clean; ESLint + Prettier clean; Storybook scaffolding runnable; openapi-ts pipeline wired against a placeholder OpenAPI schema.
+- CI workflow(s): green on the sample tests + lint + typecheck. docker-compose Postgres in the runner.
+- No ADRs.
 
-**Estimate:** L per `roadmap.md`. Multi-session — partition per Case 2 fit checklist when the step opens.
+**Estimate:** M.
 
 **Done when:**
 
-- `backend/` + `frontend/` skeletons exist, green on CI, runnable locally.
-- Dispatcher pipeline is implemented, with a sample command (could be a no-op for testing) flowing through auth → lifecycle → apply → invariants → history → commit.
-- A sample entity's history table is written by the dispatcher; `command_audit_log` is wired.
-- ADR(s) for the three deferred decisions (PaaS pick, isolation primitives, audit-log timing) are written.
-- M1's first command (e.g., `create_employee`) can be implemented atop the foundation in the next milestone.
+- Both skeletons start locally with a single command (e.g., `make dev` or equivalent).
+- CI is green on a PR-style integration test run.
+- The openapi-ts pipeline successfully regenerates the frontend client from a sample backend OpenAPI schema.
+- The `backend/` and `frontend/` directories contain only the new skeletons (no leftover stale-scaffolding files).
+- Repository is ready for M0.2's PaaS pick to land without scaffolding changes.
+
+---
+
+### Step 1.2 — M0.2 PaaS vendor pick + managed-Postgres offering (S)
+
+**Brief:** Pick the production PaaS vendor + managed-Postgres offering (ADR-0055). Candidates to canvass: managed PaaS bundles (Render / Fly.io / Railway); AWS (RDS + EB / Lightsail); GCP (Cloud SQL + Cloud Run); Azure equivalents; stay-on-Neon (production-tier). Trade-offs: managed-bundle simplicity vs. cloud-vendor integration depth vs. cost vs. ops familiarity. Neon is the dev default per ADR-0051; the production pick may or may not be the same.
+
+**Roadmap pointer:** `planning/roadmap.md` § M0 item 2.
+
+**Branch:** `m0/02-paas-pick` off `m0/foundations`.
+
+---
+
+### Step 1.3 — M0.3 Data-layer primitives (S–M)
+
+**Brief:** Resolve ADR-0052's two deferred carry-forwards as a coupled pair (both are data-layer enforcement-mechanism decisions): per-invariant isolation-primitive assignment (`SERIALIZABLE` default + `pg_try_advisory_xact_lock` opt-in; first per-invariant choices land here — likely candidates per `domain-model.md` § Design patterns #3 closure-readiness cluster + EmployeeRole disjoint-ranges per ADR-0045); audit-log write timing (in-txn vs. post-commit). Lands as ADR-0056 (possibly two).
+
+**Roadmap pointer:** `planning/roadmap.md` § M0 items 8–9.
+
+**Branch:** `m0/03-data-layer-primitives` off `m0/foundations`.
+
+---
+
+### Step 1.4 — M0.4 `Command` base class + dispatcher + history infrastructure (L)
+
+**Brief:** The load-bearing substrate. Implement the `Command` base class + dispatcher per ADR-0051 + ADR-0052, with the `logic.md` pipeline: auth (ADR-0012 predicate eval per ADR-0047) → lifecycle (ADR-0009) → apply → invariants (ADR-0010) → history (ADR-0008 / ADR-0052) → commit. No handler-level skip of history capture; framework surface does not expose a skip path. History infrastructure per ADR-0052: per-entity append-only tables generator (3 comprehensive — Document / WA / RFA; 6 lifecycle — Project / Sample Batch / Deliverable / EmployeeRole / WA Code / ContractorEngagement) + shared `command_audit_log` (polymorphic `(entity_type, entity_id)`) with timing per M0.3. Common-metadata columns; comprehensive-pattern `snapshot` JSONB; lifecycle-pattern `from_state` / `to_state` / `transition_name` / `state_context`; reference-snapshotting rule (typed-UUID refs only) per ADR-0013 + ADR-0052 § S5. ADR-0057 if dispatcher design surfaces ADR-worthy decisions. Likely needs Case 2 partitioning itself when opened.
+
+**Roadmap pointer:** `planning/roadmap.md` § M0 items 6–7.
+
+**Branch:** `m0/04-dispatcher-and-history` off `m0/foundations`.
+
+---
+
+### Step 1.5 — M0.5 Adapter boundary for Postgres-specific features (S)
+
+**Brief:** Wrap the Postgres-specific features (JSONB ops; advisory locks per M0.3 choice; `SERIALIZABLE` isolation) behind a documented adapter per ADR-0051. SQLite offline-fallback path uses degraded equivalents; buildable but **not production-equivalent** (acknowledged in ADR-0051 + ADR-0052; restate in code-level docs). Integration check: a sample command flows through the full pipeline (dispatcher → invariants under chosen isolation → history write at chosen timing → commit) via the adapter; both Postgres and SQLite paths build (Postgres production-equivalent; SQLite degraded).
+
+**Roadmap pointer:** `planning/roadmap.md` § M0 item 10.
+
+**Branch:** `m0/05-adapter-boundary` off `m0/foundations`.
 
 ---
 

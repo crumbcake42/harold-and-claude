@@ -25,6 +25,8 @@ The single source of truth between sessions. Read this first.
 > If two decisions are genuinely inseparable, say so and explain why — but default to splitting. Roadmap length is not a constraint; splitting a session into more sessions is preferred over rushing a decision.
 >
 > **This gate exists because prior sessions (twice on 2026-04-28) stacked or pre-answered decisions by writing the answer into a file before agreement.** "The artifact is the deliberation" (rule 1 in `planning/sessions.md`) means the doc canvasses options before landing — it does **not** mean writing first and asking later. The gate is on **writes** (ADRs, planning files), not on **opinions**. Agreement on the position is gated on the chat-side proposal; the doc then writes it up.
+>
+> **Gate applies to source code too.** Phase 2's surface includes implementation files; the "writes vs. opinions" framing covers source files. Non-trivial structural code decisions and ADR proposals earn a chat-side canvass before the write.
 
 ---
 
@@ -36,98 +38,118 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Current phase
 
-**Implementation** — Phase 2, current as of 2026-05-17 per ADR-0054 (phase-transition; Conceptualization closed). The 9-milestone roadmap from `planning/roadmap.md` (M0 Foundations → M8 Cutover prep) is the canonical milestone-shape source; `planning/steps.md` mirrors the milestones as 9 steps (Step 1 = M0 Foundations with full brief; Steps 2–9 are stubs that expand into full briefs as each step opens per Case 2 sizing). Conceptualization-phase steps archived to `planning/steps.archive/conceptualization.md`. See `planning/phases.md` for the full phase roster and `planning/steps.md` for the current step list.
+**Implementation** — Phase 2, current as of 2026-05-17 per ADR-0054 (phase-transition; Conceptualization closed). The 9-milestone roadmap from `planning/roadmap.md` (M0 Foundations → M8 Cutover prep) is the canonical milestone-shape source; `planning/steps.md` mirrors the milestones as 9 steps. **Step 1 (M0) partitioned 2026-05-17 (Option A — substrate-then-decisions) into 5 sub-steps (Step 1.1 → Step 1.5).** Currently on the **`m0/foundations`** branch (milestone integration branch off `dev`; see [[project-branching-convention]] and `planning/phases.md` pointers).
 
 ## Last session summary
 
-**Session 25 — Step 9b: consolidation pass + `roadmap.md` + phase-transition ADR. ✓ COMPLETE (2026-05-17, ADR-0053 + ADR-0054, closes Conceptualization phase).** Case-3 scoped; ran the session-head sizing check first, then proceeded as a single Case-3 session per the partition mitigation's escape hatch.
+**Session 25 — Step 9b: consolidation pass + `roadmap.md` + phase-transition ADR + Step 1 partition + branch ops. ✓ COMPLETE (2026-05-17, ADR-0053 + ADR-0054, closes Conceptualization phase; opens Implementation phase + Step 1 partitioned).** Case-3 scoped; ran the session-head sizing check first, then proceeded as a single Case-3 session per the partition mitigation's escape hatch.
 
-**Session-head sizing check finding.** Scan of `decisions.md` for ADRs amended 2+ times turned up **18 ADRs** crossing the literal threshold — far past the session-23 preview's "1 firm + 1–2 borderline" estimate. Per the partition mitigation, this triggered re-running the Case 2 fit checklist on 9b. Three positions surfaced:
-- **Position A (strict literal):** partition 9b into 9b + 9c + 9d... — 4–6 sessions of consolidation before phase-transition.
-- **Position B (narrowed test):** apply a tighter qualifying test ("the original ADR's text misleads a present-day reader about the current model"). Only **ADR-0032** crosses that bar — its `dismissable | fix-only` binary, closure-gate text, Note subtype set, and registry size are all wrong relative to the current model after ADR-0042 / 0046 / 0049 + single-amender additions.
-- **Position C (skip entirely):** rolled-up artifacts (`data-model.md` / `domain-model.md` / `mvp.md` / `architecture.md` / `roadmap.md`) already serve as Phase 2's foundation; the ADR log is the deliberation record.
+**Session-head sizing check finding.** Scan of `decisions.md` for ADRs amended 2+ times turned up **18 ADRs** crossing the literal threshold — far past the session-23 preview's "1 firm + 1–2 borderline" estimate. Per the partition mitigation, this triggered re-running the Case 2 fit checklist on 9b. **Position B-narrowed accepted:** consolidate ADR-0032 alone via ADR-0053; the 17 other 2+-amender ADRs stay standing (their amender chains preserve correctly-readable models). The deviation from the literal "2+ amendments" framing of `steps.md` line 612 is recorded honestly in ADR-0054's Alternatives considered.
 
-**Position B-narrowed accepted.** Consolidate ADR-0032 alone via ADR-0053; the 17 other 2+-amender ADRs stay standing (their amender chains preserve correctly-readable models). The deviation from the literal "2+ amendments" framing of `steps.md` line 612 is recorded honestly in ADR-0054's Alternatives considered.
+**ADR-0053 written (consolidates ADR-0032 — blocker-and-resolution model).** Position 1a (narrow): supersedes ADR-0032 only; ADR-0042 / 0046 / 0049 stay accepted. Position 2a (reread-of-current-model). Body covers current blocker-and-resolution model: Note subtypes (`regular | blocker | resolution | audit_reason | write_off`); polymorphic target; lazy materialization; closure gate = "no registry blocker holds" over not-written-off entities; canonical 10-entry registry (gap-preserving numbering since #1/#2 retired post-keep-FK); registry schema; chain shape `te_batches_by_coverage`; default-resolution command family; nuclear-option guard.
 
-**ADR-0053 written (consolidates ADR-0032 — blocker-and-resolution model).** Position 1a (narrow): supersedes ADR-0032 only; ADR-0042 / 0046 / 0049 stay accepted. Position 2a (reread-of-current-model): fresh shape, not ADR-0032's old binary-centered structure. Body covers: Note subtypes (`regular | blocker | resolution | audit_reason | write_off`); polymorphic target (entity OR history record per ADR-0040); lazy materialization; user-flagged blockers; cross-project paired-blocker materialization; resolution semantics (structural_fix / default_resolution / dismissal); closure gate = "no registry blocker holds" over not-written-off entities; canonical 10-entry registry (gap-preserving numbering since #1/#2 retired post-keep-FK); registry schema `(target, command_shape, optional compound_names, optional chain)`; chain shape `te_batches_by_coverage`; default-resolution command family (`default_resolve` generic + `resolve_overlap` / `resolve_overlap_paired` / `resolve_open_rfa` named compounds + `revoke_write_off`); nuclear-option guard; design pattern references (#11, #12, #14). ADR-0032 status flipped to `superseded by ADR-0053` (body preserved for deliberation context per "phase boundary doesn't make deliberation context worth less" framing).
+**`planning/roadmap.md` written.** Fork 1b (medium granularity, 9 milestones) + Fork 2a (S/M/L sizing only). Milestone table M0–M8 with per-milestone expansion + ordering rationale + carry-forward landing index for all 7 command-shape carry-forwards + 5 implementation-phase carry-forwards + `resolve_overlap_paired` conditional carve-out + pointers.
 
-**`planning/roadmap.md` written.** Fork 1b (medium granularity, 9 milestones) + Fork 2a (S/M/L sizing only, no week estimates). Milestone table: M0 Foundations (L), M1 Roster (M), M2 Contract+Project+WABundle (M), M3 WA+WA Code+RFA cycle (L), M4 Time Entry+Sample Batch (M), M5 Documents+Deliverables+DepFilings (L), M6 Closure gate+blockers+write-off (L), M7 Reads+reporting (M), M8 Cutover prep (S–M). Strictly sequential at the backend slice; frontend parallelizes within milestones. Per-milestone expansion paragraphs + ordering rationale + carry-forward landing index (all 7 command-shape carry-forwards + 5 implementation-phase carry-forwards from ADR-0051/0052 + the `resolve_overlap_paired` conditional carve-out land in specific milestones) + pointers.
+**ADR-0054 written (phase-transition).** Records the consolidation-pass deviation honestly; pre-enumerates Phase 3 as a stub. Triggers the four `phases.md` writes (lightweight gate).
 
-**ADR-0054 written (phase-transition).** "Conceptualization phase complete; Implementation phase begins." Records the consolidation-pass deviation (Position B-narrowed) honestly in Alternatives considered; pre-enumerates Phase 3 as a stub per `phases.md`'s just-in-time enumeration principle. Triggers the four `phases.md` writes (lightweight gate).
+**Four `phases.md` writes executed** (lightweight gate): Phase 1 → complete with archive pointer; Phase 2 → current with concrete Goal; `planning/steps.md` archived to `planning/steps.archive/conceptualization.md`; new `planning/steps.md` written; Phase 3 stub appended.
 
-**Four `phases.md` writes executed** (lightweight gate per `_workflow.md`): (a) Phase 1 status `current → complete` with archive pointer; (b) Phase 2 status `not started → current` with concrete Goal (build the MVP per `mvp.md` + `roadmap.md`) + Steps pointer; (c) `planning/steps.md` archived to `planning/steps.archive/conceptualization.md` (new directory created); (d) new `planning/steps.md` written for Implementation phase (9 steps mirroring M0–M8; Step 1 full brief, Steps 2–9 stubs with roadmap pointers); Phase 3 stub appended.
+**Branch ops executed (post-completion-protocol, per user-approved branching convention):**
 
-**Files touched:** `planning/decisions.md` (ADR-0053 + ADR-0054 appended; ADR-0032 status flipped). `planning/roadmap.md` (new). `planning/phases.md` (Phase 1/2 flipped; Phase 3 stub added). `planning/steps.md` (replaced — old archived). `planning/steps.archive/conceptualization.md` (new — archive of the conceptualization-phase steps). `planning/_file-rules.md` (regenerated — roadmap.md entry added; steps.md File contract refreshed for Implementation phase; phases.md unchanged; last-regen date 2026-05-17). `planning/handoff.md` (this file — phase pointer, last session summary, next session pointer + prompt, open questions, pointers).
+1. Step 9b commit landed on `take1` as `97d5e3e`.
+2. FF-merged `take1` → `main` (planning artifacts now on `main`).
+3. Tagged `phase-1-complete` at `97d5e3e` on `main` (clean-slate rewind anchor).
+4. Created `dev` from `main` (long-lived per-attempt integration branch).
+5. Created `m0/foundations` from `dev` (milestone integration branch).
+6. Currently checked out on `m0/foundations`. Working tree clean post-Step-1-partition write.
+
+**Branching convention (saved to memory as [[project-branching-convention]]):** `main` (finalized) → `dev` (ongoing implementation; per-attempt, disposable) → `m<N>/<slug>` (milestone working branches off dev) → `m<N>/<sub-slug>` (sub-step branches off the milestone branch, when partitioned). Tags as rewind anchors on `main`: `phase-1-complete` (applied), `m<X>-complete` (per milestone), `mvp-shipped` (at MVP cutover). No type-prefixes (`feature/`, `bugfix/`); no `vN/` prefix.
+
+**Step 1 (M0 Foundations) partitioned 2026-05-17 (Option A — substrate-then-decisions).** Case 2 fit checklist on Step 1 fired signals 1, 2, 3, 4, 5. Option A chosen because (a) M0.1 is mechanical with no deliberation overhead — lets the implementation branch get a cheap first commit (and gives Claude auto mode an easy "no-decisions" first attempt at the workplan); (b) decision sub-steps land in dependency order (PaaS picks Postgres flavor → primitives bind to it → dispatcher consumes the primitives → adapter wraps the Postgres specifics). Option B (decisions-first) rejected — delays mechanical-confidence-building and stacks 2–3 sessions of pure deliberation before any code lands. Option C (3-step coarser partition) rejected — bundles 2–3 substantive decisions in one session, risking the stacking-decisions anti-pattern.
+
+**Five sub-steps (1.1 → 1.5; full briefs in `steps.md` § Step 1):** 1.1 M0.1 Scaffolding (M — cleanup + repo skeletons + CI; no ADRs); 1.2 M0.2 PaaS pick (S — ADR-0055); 1.3 M0.3 Data-layer primitives (S–M — isolation + audit-log timing; ADR-0056, possibly two); 1.4 M0.4 Dispatcher + history infrastructure (L — likely needs further partitioning when opened; ADR-0057 if dispatcher design surfaces ADR-worthy decisions); 1.5 M0.5 Adapter boundary (S; no ADRs expected).
+
+**Files touched:** `planning/decisions.md` (ADR-0053 + ADR-0054 appended; ADR-0032 status flipped). `planning/roadmap.md` (new). `planning/phases.md` (Phase 1/2 flipped; Phase 3 stub added). `planning/steps.md` (replaced — old archived; then Step 1 partitioned into 5 sub-steps inline). `planning/steps.archive/conceptualization.md` (new — archive of the conceptualization-phase steps). `planning/_file-rules.md` (regenerated). `planning/handoff.md` (rewritten for phase-2 + post-partition state). `.claude/memory/project_branching_convention.md` (new — branching convention saved). `.claude/memory/MEMORY.md` (index updated).
 
 ---
 
 ## Open questions
 
-**For the next session (Step 1 / M0 Foundations) — open at session head:**
+**For the next session (Step 1.1 / M0.1 — Scaffolding) — surface at session head:**
 
-- **Step 1 fit assessment.** M0 is sized L per `roadmap.md` and will not fit one session. The next session must run the Case 2 fit checklist before any work and propose a partition. Likely partition seams (surface as candidate options):
-  - **Per-decision seam:** PaaS pick + Postgres offering as one session (write ADR-0055); per-invariant isolation primitives + audit-log write timing as another (write ADR-0056 or two ADRs); `Command` base class + dispatcher + history infrastructure as a third; repo skeletons + CI + adapter boundary as a fourth.
-  - **Substrate-then-decisions seam:** repo skeletons + CI as one session; then the three ADR-laden sessions in any order.
-  - **Decisions-first seam:** all three ADRs in one session (PaaS, isolation primitives, audit-log timing) before any code lands.
-- **PaaS vendor candidates to canvass.** Neon is the dev default (per ADR-0051); production options include managed PaaS bundles (Render / Fly.io / Railway), AWS (RDS / Lightsail / EB), GCP (Cloud SQL / Cloud Run), Azure equivalents, and stay-on-Neon (Neon is also a production offering, not just dev). Surface the trade-offs at session head; recommend at the gate.
-- **Per-invariant isolation primitives — first per-invariant choices.** ADR-0052 pinned the available primitives (`SERIALIZABLE` default + `pg_try_advisory_xact_lock` opt-in); the per-invariant choices for M0's substrate invariants are open. Domain-model.md § Design patterns #3 (closure-readiness derivation cluster) and the EmployeeRole disjoint-ranges invariant (per `(employee, role_type, contract)` per ADR-0045) are likely first candidates for advisory-lock evaluation.
-- **Audit-log write timing.** In-txn (atomic with the entity mutation) vs. post-commit (best-effort, async). ADR-0052 explicitly permits post-commit but flags in-txn as "stronger than the pattern promises." Trade-offs: in-txn ties audit-log durability to the command's success (cleaner audit story; but a failing audit-log write rolls back the command, which may be too strict for non-critical commands); post-commit decouples but risks audit-log loss on crash between commit and audit write.
+- **Project-layout decisions in the backend skeleton.** Where do entity definitions live? Where do command classes live? Where does the dispatcher live? Where does the adapter boundary code (Postgres-specific wrappers) live? Per the gate, surface candidate layouts before committing structure. Light decisions — but they shape every M1+ entity addition. Likely candidates: `app/entities/`, `app/commands/`, `app/dispatcher/`, `app/adapters/postgres/`, `app/adapters/sqlite/`. Don't pre-decide — canvass at session head.
+- **Project-layout decisions in the frontend skeleton.** Where do generated API hooks live (from openapi-ts)? Where does TanStack Router config live? Light decisions; same canvass rule.
+- **Sample command for CI tests.** M0.1's done-when criteria includes "openapi-ts pipeline successfully regenerates the frontend client from a sample backend OpenAPI schema" + "CI is green on a PR-style integration test run." A no-op or healthcheck command is sufficient for the sample; do not introduce a domain entity (those land in M1+).
+- **Docker-compose Postgres config for CI.** Pick a Postgres version (15+ per ADR-0052); decide whether to seed any baseline data (likely no — CI tests run from empty schema). Neon ephemeral-branch wiring is deferred to M0.2 (PaaS pick).
+- **`make dev` vs. equivalent.** Pick a per-skeleton runner convention. Make / just / npm-script / package.json scripts. Light decision; pick one and document.
+
+**For the milestone (M0 Foundations) broadly:**
+
+- **M0.4 Dispatcher + history infrastructure is sized L — likely needs further partitioning when opened.** Run Case 2 fit checklist at M0.4's session head; candidate seam: dispatcher (pipeline + auth/lifecycle/invariants integration) as one sub-sub-step, history-infrastructure (per-entity table generator + `command_audit_log` + capture wiring) as another.
+- **Sub-step branches off `m0/foundations`** per the branching convention. Sub-step merges back into `m0/foundations` with FF. M0 closes when all five sub-steps merge to `m0/foundations`; `m0/foundations` then merges to `dev` with `--no-ff`, tag `m0-complete` on `dev`.
+- **MVP-attempt-1 rewind protocol** (per [[project-branching-convention]]): if implementation attempt 1 tanks, tag `dev` as `attempt-1-archived` (or delete `dev`), recreate `dev` fresh from `main` (or `phase-1-complete` tag), restart at M0. All attempt-1 history preserved through milestone branches + tags.
 
 **Carried into Phase 2 broadly:**
 
-- **Adapter boundary scope.** Postgres-specific features (JSONB, advisory locks, `SERIALIZABLE`) live behind the adapter per ADR-0051. M0 establishes the boundary; subsequent milestones add features behind it as they need them. SQLite offline fallback is buildable but **not production-equivalent** (explicit per ADR-0051).
+- **Adapter boundary scope.** Postgres-specific features live behind the adapter per ADR-0051. M0 establishes the boundary (M0.5); subsequent milestones add features behind it as they need them. SQLite offline fallback is buildable but **not production-equivalent** (explicit per ADR-0051 + ADR-0052).
 - **Carry-forward landings.** All 7 command-shape carry-forwards land in specific milestones per `roadmap.md` § Carry-forward landing index. When each milestone opens, the carry-forwards landing in it should be raised at session head so the brief covers them.
 - **MVP carve-out tracking.** `resolve_overlap_paired` (blocker #8 joint compound) ships in M6 conditionally on `split_entry`'s mechanics. If `split_entry` proves heavier than estimated when M6 opens, `resolve_overlap_paired` slips post-MVP per ADR-0050. Re-evaluate at M6 session head.
 
 **Process notes (apply to Phase 2 generally):**
 
-- **STOP-AND-CONFIRM gate stays in force.** Each step opens with chat-side deliberation before any code or ADR write. Code is files, no exception. The gate's "writes vs. opinions" framing applies to source code as much as to planning docs.
-- **`Command` base class + dispatcher is the structural anchor for all of Phase 2.** ADR-0008's atomicity (entity mutation + history write in the same transaction) is framework-enforced via the dispatcher; no handler-level skip. Verify this invariant at every M1+ command-add.
+- **STOP-AND-CONFIRM gate stays in force, including for source code.** Each step / sub-step opens with chat-side deliberation before any code or ADR write.
+- **`Command` base class + dispatcher is the structural anchor for all of Phase 2.** ADR-0008's atomicity (entity mutation + history write in the same transaction) is framework-enforced via the dispatcher (lands in M0.4); no handler-level skip. Verify this invariant at every M1+ command-add.
 - **Engine-portability discipline (ADR-0051 + ADR-0052).** Postgres-specific features stay behind the adapter; SQLite offline fallback uses degraded equivalents. Explicit not production-equivalent.
 - **`mvp.md` is the canonical MVP scope reference.** Adding a feature beyond the 6 must-haves requires a superseding ADR. `mvp.md` § Carve-outs tracks the slip-eligible items; § Command-shape carry-forwards tracks the in-MVP-but-shape-deferred items.
 
 ## Next session
 
-**Step 1 — M0 Foundations.** First step of the Implementation phase. Sized L per `roadmap.md`. Will not fit one session — the next session opens with a Case 2 fit checklist run + partition proposal. Brief in `steps.md` → § Step 1. Execution order: Step 1 → Step 2 → ... → Step 9 (sequential per `roadmap.md` § Ordering rationale).
+**Step 1.1 — M0.1 Scaffolding.** First sub-step of M0 Foundations; first executable session of Phase 2. Mechanical scaffolding: clean stale `backend/` + `frontend/` directories; stand up backend repo skeleton (FastAPI + SQLAlchemy 2.0 + Alembic + Pydantic + Ruff + Pytest); stand up frontend repo skeleton (Vite + React + TanStack Router + TanStack Query + openapi-ts + Storybook + ESLint + Prettier); wire CI (lint + test + typecheck on PR; docker-compose Postgres in the runner). No ADRs; no domain entities. Brief in `steps.md` → § Step 1.1.
+
+**Branch:** create `m0/01-scaffolding` off `m0/foundations` at session open. Sub-step work happens there; merge back to `m0/foundations` with FF on completion. Two-digit zero-padded sub-step prefix per [[project-branching-convention]] (sorts lexicographically in GitHub branch listings).
+
+**Execution order within Step 1:** 1.1 (this session) → 1.2 → 1.3 → 1.4 → 1.5 → Step 1 ✓ (merge to `dev` with `--no-ff`; tag `m0-complete` on `dev`) → Step 2 (M1 Roster).
 
 ### Prompt for the next session
 
-> Resume work. Next is **Step 1 — M0 Foundations** (Phase 2 / Implementation, first step). Brief in `steps.md` → § Step 1. This is the first step of a new phase; foundations work needed before any domain command can land.
+> Resume work. Next is **Step 1.1 — M0.1 Scaffolding** (Phase 2 / Implementation; first sub-step of Step 1 / M0 Foundations). Brief in `steps.md` → § Step 1.1.
 >
-> **Read first:** this prompt + the Open questions block above + `planning/_workflow.md` (Case 2 protocol — Step 1 is L and will need partitioning) + `planning/roadmap.md` § M0 (canonical milestone shape) + `planning/steps.md` § Step 1 (per-step brief) + `planning/architecture.md` (component diagram + out-of-band concerns) + `planning/data-model.md` (history-table topology) + `planning/decisions.md` (esp. ADR-0001 stale-scaffolding, ADR-0051 runtime stack, ADR-0052 data layer, ADR-0053 blocker-and-resolution model, ADR-0054 phase-transition).
+> **Branch setup at session open:** Currently on `m0/foundations` (milestone integration branch, off `dev`, off `main`). Create `m0/01-scaffolding` off `m0/foundations` for the sub-step work (two-digit zero-padded sub-step prefix sorts lexicographically in GitHub branch listings). Merge back to `m0/foundations` with FF on completion. See [[project-branching-convention]] for full structure.
 >
-> **Session-head Case 2 sizing check (before drafting anything):**
-> 1. Run the `_workflow.md` Case 2 fit checklist on Step 1 / M0. M0 is sized L per `roadmap.md`; this is essentially guaranteed to trip at least signals 1 (>1 deliberable decisions), 2 (>1 new artifact), 3 (>60 min). Partition is required, not optional.
-> 2. Propose 2–3 partition options with trade-offs (candidate seams in the Open questions block above). Default recommendation: surface the **substrate-then-decisions seam** as the cleanest cut — repo skeletons + CI first (no deliberation; mechanical scaffold work), then ADR sessions for PaaS pick, isolation primitives + audit-log timing, dispatcher + history infrastructure in sequence.
-> 3. On consensus, write the revised step entries to `steps.md`; update `handoff.md`'s next-session pointer to the first sub-step.
-> 4. Fall through to Case 3 for the first sub-step.
+> **Read first:** this prompt + the Open questions block above + `planning/steps.md` § Step 1.1 (full brief) + `planning/roadmap.md` § M0 (canonical milestone shape) + ADR-0001 (stale-scaffolding) + ADR-0051 (runtime stack) + `planning/architecture.md` (component diagram + out-of-band concerns).
 >
-> **In scope (per `steps.md` § Step 1, partition-pending):**
-> 1. Stale-scaffolding cleanup of `backend/` + `frontend/` (ADR-0001 + ADR-0051).
-> 2. PaaS vendor pick + managed-Postgres offering (ADR — likely ADR-0055).
-> 3. Backend repo skeleton (FastAPI + SQLAlchemy 2.0 + Alembic + Pydantic + Ruff + Pytest).
-> 4. Frontend repo skeleton (Vite + React + TanStack Router + TanStack Query + openapi-ts + Storybook + ESLint + Prettier).
-> 5. CI pipeline (Postgres integration tests).
-> 6. `Command` base class + dispatcher with logic.md pipeline (auth → lifecycle → apply → invariants → history → commit).
-> 7. History infrastructure (per-entity tables substrate + `command_audit_log` + dispatcher-enforced capture).
-> 8. Per-invariant isolation-primitive assignment (ADR — likely ADR-0056 or bundled with #9).
-> 9. Audit-log write timing (in-txn vs post-commit; ADR or bundled with #8).
-> 10. Adapter boundary code for Postgres-specific features.
+> **Session-head canvass (per the gate, before any code lands):**
+> 1. **Project-layout decisions.** Surface candidate backend + frontend layouts (entity / command / dispatcher / adapter dirs on backend; generated-API-hooks / router-config dirs on frontend). Pick a layout per the user's preference; document in the skeleton.
+> 2. **Runner convention.** Pick `make` / `just` / package.json scripts / equivalent. Confirm before writing.
+> 3. **Docker-compose Postgres config.** Confirm Postgres 15+; confirm no baseline data seeded; minimal `docker-compose.yml` for CI use.
 >
-> **Out of scope (Phase 2 later milestones):** Domain-entity DDL (M1+); file storage backend (M5); per-invariant primitive choices for invariants that haven't been implemented yet (later milestones as their invariants land).
+> **In scope (per `steps.md` § Step 1.1):**
+> 1. Stale-scaffolding cleanup of `backend/` + `frontend/` (per ADR-0001; cleanup commit separate from skeleton commits).
+> 2. Backend repo skeleton: FastAPI healthcheck endpoint runnable via `uvicorn`; Alembic baseline migration; sample `pytest` test runs green; `ruff check` clean; dependency pinning.
+> 3. Frontend repo skeleton: Vite dev server runnable; sample TanStack-routed page; `tsc --noEmit` clean; ESLint + Prettier clean; Storybook scaffolding runnable; openapi-ts pipeline wired against a placeholder OpenAPI schema.
+> 4. CI workflow(s): lint + test + typecheck + integration test (against docker-compose Postgres) green on PR.
+>
+> **Out of scope:**
+> - PaaS vendor pick (M0.2 / Step 1.2).
+> - Per-invariant isolation primitives + audit-log timing (M0.3 / Step 1.3).
+> - `Command` base class + dispatcher + history infrastructure (M0.4 / Step 1.4).
+> - Adapter boundary code (M0.5 / Step 1.5).
+> - Any domain entity / command / handler (M1+).
 >
 > **Process notes:**
-> - **STOP-AND-CONFIRM gate applies to code, not just docs.** Phase 2's surface includes implementation files — the gate's "writes vs. opinions" framing covers source files. Each ADR proposal and each non-trivial structural code decision earns a chat-side canvass before the write.
-> - **ADR numbering.** Next ADR at write time: **ADR-0055**.
+> - **STOP-AND-CONFIRM gate applies to code.** Layout / runner / docker-compose decisions earn a chat-side canvass before files land.
+> - **No ADRs in this sub-step.** If a layout decision feels ADR-worthy (e.g., it pre-commits the dispatcher-package shape in a non-trivial way), pause and surface — the dispatcher is M0.4's concern, not M0.1's.
+> - **Cleanup commit separate from skeleton commits.** Audit-trail discipline per ADR-0001.
+> - **Merge back to `m0/foundations` with FF** when done; do not merge to `dev` yet (`dev` waits until all of M0 lands).
+> - **ADR numbering.** Next ADR at write time: **ADR-0055** (M0.2 / Step 1.2).
 > - **`mvp.md` is the canonical MVP scope reference.** Adding a feature beyond the 6 must-haves requires a superseding ADR.
-> - **Engine-portability discipline.** Postgres-specific features stay behind the adapter; SQLite offline fallback uses degraded equivalents — explicitly not production-equivalent.
 
 ## Pointers
 
 - Workflow protocol: `planning/_workflow.md`
 - File rules registry (generated): `planning/_file-rules.md` (last regenerated 2026-05-17)
 - Phase roster: `planning/phases.md` (Phase 1 ✓ complete 2026-05-17; Phase 2 current; Phase 3 stub)
-- Step list (current phase): `planning/steps.md` (Phase 2 / Implementation — 9 steps mirroring roadmap M0–M8; Step 1 full brief, Steps 2–9 stubs)
+- Step list (current phase): `planning/steps.md` (Phase 2 / Implementation — 9 steps mirroring roadmap M0–M8; **Step 1 partitioned into 5 sub-steps 2026-05-17**; Steps 2–9 stubs)
 - Archived step list (Phase 1): `planning/steps.archive/conceptualization.md`
 - Session conventions: `planning/sessions.md`
 - Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0054; next ADR at write time: **ADR-0055**)
@@ -138,6 +160,7 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 - **Architecture (Step 8b output):** `planning/architecture.md` — one-page sketch: component diagram (Browser → CDN/SPA → API container → managed Postgres on managed PaaS), boundary semantics per layer, successful-command 10-step data flow, out-of-band concerns (file storage / background jobs / notifications / auth) flagged for implementation phase, pointers.
 - **Consolidated blocker model (Session 25 / ADR-0053):** `planning/decisions.md` § ADR-0053 — current blocker-and-resolution model (supersedes ADR-0032).
 - **Phase-transition (Session 25 / ADR-0054):** `planning/decisions.md` § ADR-0054 — phase-transition ADR.
+- **Branching convention (memory):** [[project-branching-convention]] — `main` → `dev` → `m<N>/<slug>` → `m<N>/<sub-slug>`; tags on `main` as rewind anchors (`phase-1-complete` applied; `m<X>-complete` per milestone; `mvp-shipped` at MVP cutover); no type-prefixes; no `vN/`.
 - Framework (Step 1 output): `planning/framework.md`
 - Logic (Steps 2–4 output): `planning/logic.md`
 - History patterns (Step 5 output): `planning/history-patterns.md`
