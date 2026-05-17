@@ -2,7 +2,7 @@
 
 *Generated index — do not edit manually. Regenerate by following the procedure in `planning/_workflow.md` (`_file-rules.md` regeneration procedure). Trigger: any `## File contract` block changes, or stale detection during Path B.*
 
-*Last regenerated: 2026-05-15*
+*Last regenerated: 2026-05-16*
 
 ---
 
@@ -59,6 +59,13 @@
 
 **Holds:** The rolled-up domain projection — the entities, relationships, lifecycles, authorization predicates, history patterns, design patterns, blocker registry, and vocabulary that map `framework.md` / `logic.md` / `history-patterns.md` onto the SCA-tracker domain. Standalone reference for a framework-aware reader.
 **Update when:** A domain-shape ADR lands in `decisions.md` (entity added/removed/renamed; relationship shape changes; lifecycle/state-machine change; predicate row added/changed; design pattern added/retired; vocabulary term added/revised). The handoff's cumulative tables are the in-flight working surface during a session; this file is the post-session source of truth between sessions.
+
+---
+
+## architecture.md
+
+**Holds:** One-page architecture sketch of `sca-tracker` — component boxes, data flow, and the boundaries between them. Covers the runtime stack (ADR-0051) and the data layer (ADR-0052) at the level of "what runs where, and what talks to what." Does **not** hold the conceptual data model (Step 9 → `data-model.md`), the roadmap (Step 9 → `roadmap.md`), or the implementation-phase concrete designs (`Command` dispatcher, PaaS vendor specifics, per-invariant isolation choices — all carry-forwards).
+**Update when:** ADR-0051 or ADR-0052 are amended in a way that changes component boundaries or data flow; a new architectural-shape ADR lands; the PaaS vendor is pinned at implementation kickoff (vendor name + DB managed-offering name).
 
 ---
 
