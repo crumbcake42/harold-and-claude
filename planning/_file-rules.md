@@ -2,7 +2,7 @@
 
 *Generated index — do not edit manually. Regenerate by following the procedure in `planning/_workflow.md` (`_file-rules.md` regeneration procedure). Trigger: any `## File contract` block changes, or stale detection during Path B.*
 
-*Last regenerated: 2026-05-16*
+*Last regenerated: 2026-05-17*
 
 ---
 
@@ -59,6 +59,13 @@
 
 **Holds:** The rolled-up domain projection — the entities, relationships, lifecycles, authorization predicates, history patterns, design patterns, blocker registry, and vocabulary that map `framework.md` / `logic.md` / `history-patterns.md` onto the SCA-tracker domain. Standalone reference for a framework-aware reader.
 **Update when:** A domain-shape ADR lands in `decisions.md` (entity added/removed/renamed; relationship shape changes; lifecycle/state-machine change; predicate row added/changed; design pattern added/retired; vocabulary term added/revised). The handoff's cumulative tables are the in-flight working surface during a session; this file is the post-session source of truth between sessions.
+
+---
+
+## data-model.md
+
+**Holds:** The conceptual data model for `sca-tracker` — per-entity attribute rosters for all 21 entities, history-surface assignments per ADR-0052, and the shape of the 9 per-entity history tables + 1 shared `command_audit_log`. Documentation rollup, not a decision artifact: every choice here is already pinned by an upstream ADR or by `domain-model.md`. **Conceptual only — not DDL.** Engine-specific column types are flagged "to be implemented with X" (JSONB, PostGIS, etc.), never specified.
+**Update when:** A domain-shape ADR lands that adds / removes / renames an entity attribute, changes an entity's history surface, or changes the shape of a history table. The cross-entity relationship table lives in `domain-model.md` § Relationships — update there, not here. DDL belongs in the implementation phase, not this file.
 
 ---
 

@@ -623,7 +623,7 @@ Options considered: Option B (three-way split — `data-model.md` | `roadmap.md`
 
 ---
 
-### Step 9a — `data-model.md`
+### Step 9a — `data-model.md` ✓ COMPLETE (2026-05-17, no ADRs)
 
 **Goal:** Conceptual data model — 21-entity roster + attributes + relationships + typed-reference shape + history-table references per ADR-0052. **Conceptual only — not DDL.**
 
