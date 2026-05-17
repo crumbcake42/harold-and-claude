@@ -36,9 +36,21 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Current phase
 
-**Conceptualization** — steps are planning-only, no code is written. **Step 8b (data layer: persistence + history-impl + `architecture.md`) complete 2026-05-16 (session 22) — ADR-0052 + `planning/architecture.md` landed.** Data layer pinned at PostgreSQL 15+ via SQLAlchemy 2.0 + Alembic; per-entity append-only history tables (9 — 3 comprehensive + 6 lifecycle) + shared `command_audit_log` (polymorphic ref) for the 7 audit-log entities + no history infrastructure for the 5 no-history entities; capture enforced in the `Command` base class + dispatcher (carry-forward from ADR-0051); `SERIALIZABLE` default + `pg_try_advisory_xact_lock` opt-in for ADR-0010 cross-entity invariant isolation. `planning/architecture.md` drafted (component diagram + boundary semantics + 10-step successful-command data flow). Conceptualization-phase work remaining: **Step 9 (data-model sketch + roadmap + phase-transition ADR + pre-transition ADR consolidation pass)**. See `planning/phases.md` for the full phase roster and `planning/steps.md` for the current step list.
+**Conceptualization** — steps are planning-only, no code is written. **Step 8b (data layer: persistence + history-impl + `architecture.md`) complete 2026-05-16 (session 22) — ADR-0052 + `planning/architecture.md` landed.** Data layer pinned at PostgreSQL 15+ via SQLAlchemy 2.0 + Alembic; per-entity append-only history tables (9 — 3 comprehensive + 6 lifecycle) + shared `command_audit_log` (polymorphic ref) for the 7 audit-log entities + no history infrastructure for the 5 no-history entities; capture enforced in the `Command` base class + dispatcher (carry-forward from ADR-0051); `SERIALIZABLE` default + `pg_try_advisory_xact_lock` opt-in for ADR-0010 cross-entity invariant isolation. `planning/architecture.md` drafted (component diagram + boundary semantics + 10-step successful-command data flow). Conceptualization-phase work remaining: **Step 9 partitioned 2026-05-16 — 9a (`data-model.md`), 9b (consolidation pass + `roadmap.md` + phase-transition ADR)**; next is **Step 9a**. See `planning/phases.md` for the full phase roster and `planning/steps.md` for the current step list.
 
 ## Last session summary
+
+**Session 23 — Step 9 partitioning + Step 9a session plan. ✓ COMPLETE (2026-05-16, no ADRs).** Case-2 sizing session. Ran the `_workflow.md` Case 2 fit checklist on Step 9 — **five signals fired** (1: >1 deliberable decisions — data-model + roadmap + consolidation + phase-transition; 2: >1 new artifact — `data-model.md` + `roadmap.md` + phase-transition ADR; 3: >60 min; 4: input reading exceeds ~3 substantial files — framework + logic + history-patterns + domain-model + mvp + architecture + decisions.md/52 ADRs; 5: cross-concern reach — data modeling vs. roadmap planning vs. archival/governance). Three partition options canvassed; **Option A (single-concern seam — 9a `data-model.md` / 9b consolidation + `roadmap.md` + phase-transition ADR) accepted with mitigation** (re-run the fit checklist at 9b's session head if the consolidation candidate scan turns up more than ~2 qualifying ADRs; partition further to a 9c if needed). Option B (three-way split) rejected — `roadmap.md` and consolidation don't compete for the same context budget. Option C (data-model + consolidation paired) rejected — separates the consolidation pass from the phase-transition ADR it directly enables, against the original "consolidation before phase-transition" sequencing.
+
+**Consolidation-candidate preview (informs 9b sizing).** Quick scan of `decisions.md` Status lines: **ADR-0032** (extended by 0042, 0046, 0049 + registry amended by 0044 — 4 amendments; firm consolidation target). Borderline (verify at 9b's session head): **ADR-0027** (likely 2–3 amendments — `acknowledged` aspect superseded by 0032, further touched by 0045 / retired by 0049), **ADR-0037** (likely 1–2 — amended by 0043; verify 0044's reach). Single-amendment cases (no trigger): ADR-0017, ADR-0030, ADR-0035, ADR-0040. Net: probably 1 firm + 1–2 borderline → 9b stays under the partition-further threshold.
+
+**Step 9a session plan canvassed; six structural choices (Q1–Q6) settled with recommendations accepted:** (Q1) per-entity outgoing-references line inline — cross-entity table stays in `domain-model.md`; (Q2) `state` enum noted per entity, transitions referenced; (Q3) flat per-entity table with `Attribute | Kind | Type / notes` columns; (Q4) Document is one entity row with `document_type` as an attribute; (Q5) ordering — `## File contract` → `## Reading this file` → `## Conventions` → `## Per-entity attributes` (21 sub-sections) → `## History tables` → `## Pointers`; (Q6) no new ADRs expected — if a substantive design gap surfaces during attribute drafting, surface at the gate and defer (likely to implementation phase). 9a executes next session.
+
+**Files touched:** `planning/steps.md` — Step 9 section gains partition block + Step 9a sub-section + Step 9b sub-section (Option A; mitigation recorded). `planning/handoff.md` — Current phase line updated to flag the partition; Last session summary (this entry); Open questions refreshed; Next session pointer + prompt rewritten for 9a; Pointers line updated. No `decisions.md` changes (sizing is governance, not an ADR-grade decision). No `_file-rules.md` regeneration needed (no `## File contract` blocks touched this session).
+
+---
+
+*(Prior session retained for context — Session 22 / Step 8b data-layer ADR + `architecture.md`.)*
 
 **Session 22 — Step 8b Data-layer ADR + `architecture.md`. ✓ COMPLETE (2026-05-16, ADR-0052 + `planning/architecture.md`).** Case-3 scoped — the persistence + history-impl pair plus the one-page architecture sketch. Both sub-decisions canvassed at the STOP-AND-CONFIRM gate; ten sub-commitments amend-or-accepted before any ADR text drafted.
 
@@ -62,72 +74,57 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ---
 
-*(Prior session retained for context — Session 21 / Step 8a Stack ADR.)*
-
-**Session 21 — Step 8a Stack ADR. ✓ COMPLETE (2026-05-15, ADR-0051).** Case-3 scoped — the runtime-stack triple (language/runtime + framework + deployment). Bundled into ADR-0051 (three sub-decisions coupled — lang rules in/out framework and deployment). **D1 → Python 3.12+ on CPython** (backend) + TS on Node (frontend tooling) — canvassed against TS-on-Node (agent's initial recommendation) and TS-on-Bun/Deno; settled Python after honest comparison (openapi-ts cancels FE-BE-type-sharing argument; Pydantic more honest than zod; SQLAlchemy + Alembic maturity exceeds Drizzle/Prisma). **D2 → FastAPI backend + React/Vite/TanStack frontend** with SQLAlchemy 2.0 + Alembic + Pydantic + Ruff + Pytest (backend) and Vite + TanStack Router + TanStack Query + openapi-ts + Storybook + ESLint + Prettier (frontend); routes-as-transport / commands-as-unit pin with thin `Command` base class + dispatcher carried to implementation. **D3 → monolith container on managed PaaS** (vendor TBD); static SPA on platform CDN; Neon free-tier Postgres dev default + SQLite offline fallback; CI tests against Postgres; engine-specific code behind adapter boundary. Rejected: service split, serverless (cold-start UX tax), major-cloud-direct, self-hosted VPS, SQLite-as-dev-default. Passed one constraint forward to Step 8b (persistence engine must be SQLAlchemy-supported, RDBMS-class, managed offering on chosen PaaS, ADR-0010 isolation primitives, Neon-dev/SQLite-offline env-config model) — answered in this session (Session 22) by ADR-0052's Postgres pick.
-
----
-
 ## Open questions
 
-**Carried into Step 9 from ADR-0052:** Data-layer shape is now concrete enough that Step 9's conceptual data-model sketch can hang off it directly — 21 entity tables, 9 per-entity history tables (3 comprehensive + 6 lifecycle), 1 shared `command_audit_log` table, all on PostgreSQL 15+ via SQLAlchemy 2.0 + Alembic. The conceptual model is attribute-level / relationship-level / typed-reference-level only — **DDL stays in the implementation phase**. Engine-specific column types (JSONB, PostGIS, etc.) are noted as "to be implemented with X" in the conceptual model, not specified in DDL.
+**Step 9a structural choices (Q1–Q6) settled in Session 23.** No 9a-execution open questions remain; the session plan is canvassed, recommendations accepted, ready to execute next session.
 
-**For the next session — Step 9 (data model sketch + roadmap + phase-transition ADR + pre-transition ADR consolidation pass):**
+**Substantive design gaps to watch for during 9a attribute drafting** (if any surfaces, flag at the STOP-AND-CONFIRM gate and defer rather than decide in 9a — per Q6 scope discipline). Most likely candidates:
+- Time Entry `off_site_sub_intervals` representation shape (list-of-pairs as JSONB? separate table?). ADR-0034 declared the semantic shape; storage representation may be open.
+- Contract `code_flat_fee_schedule` storage representation (inline JSONB? separate associative table?). ADR-0043/0045 declared as "inline non-temporal `{code_type, fee}` collection" — representation may be implicit but not pinned.
+- Note polymorphic `target` + `references` shape (target is `(entity_type, entity_id)` or polymorphic-with-history-record per ADR-0040 extension; `references` is Note→Note per ADR-0032). Representation may need a Note-internal discriminator beyond the existing `subtype`.
 
-Step 9 is the closing step of the Conceptualization phase. It produces three artifacts and triggers the phase transition.
+If pinned by ADR text on closer reading, cite the ADR; if open, surface and defer (likely to implementation phase per the Q6 discipline).
 
-**Items in scope (per `steps.md` → Step 9):**
+**Carried into 9b (verify at 9b's session head):**
+- Consolidation candidate count — preview puts it at 1 firm (ADR-0032, 4 amendments) + 1–2 borderline (ADR-0027 likely 2–3; ADR-0037 likely 1–2). If >2 qualify (per the partition mitigation), re-run the fit checklist on 9b and partition further.
+- Roadmap milestone shape — implementation-phase step list drawn from `mvp.md`'s 6 must-have features + the 7 command-shape carry-forwards + the implementation-phase carry-forwards from ADR-0051 + ADR-0052 (PaaS vendor pick, `Command` dispatcher concrete design, per-invariant isolation-primitive assignment, audit-log write timing, stale-scaffolding cleanup).
 
-1. **`planning/data-model.md`** — conceptual data model. Entities (the 21-entity roster from `domain-model.md`), their attributes (intrinsic + lifecycle + derived-if-cheap), relationships (typed references per `framework.md`), and references to history-table + audit-log topology per ADR-0052. **Not DDL** — conceptual only.
-2. **`planning/roadmap.md`** — ordered implementation milestones with rough sizing. The implementation phase's step list, sized at coarse granularity.
-3. **Pre-transition ADR consolidation pass (one-time).** Scan `decisions.md` for ADRs with 2+ amendments; consolidate each into a fresh, definitive ADR (mark old ones `superseded by #N`). Skip if no ADR has accumulated 2+ amendments. Per session-9 deliberation: phase boundary is the right moment for this — deliberation is settled, the resulting record becomes the foundation for implementation-phase work.
-4. **Phase-transition ADR.** "Conceptualization phase complete; implementation begins." Triggers the four `phases.md` writes per `_workflow.md`'s phase-roster protocol: mark Conceptualization complete; mark Implementation current; archive `steps.md` to `steps.archive/conceptualization.md`; create new `steps.md` for the implementation phase (drawing from `roadmap.md`). Lightweight gate per `_workflow.md`.
-
-**Inputs (per the step brief):** all prior planning files. The dominant ones: `framework.md`, `logic.md`, `history-patterns.md`, `domain-model.md`, `mvp.md`, `architecture.md`, `decisions.md` (ADRs 0001–0052), `handoff.md` (this file).
-
-**Local decision at session head:**
-- (a) **Sizing.** Step 9 bundles three deliverables (data-model.md + roadmap.md + phase-transition ADR) + one one-time pass (ADR consolidation). Run the `_workflow.md` Case 2 fit checklist at session head. Cross-concern reach (data modeling vs. roadmap planning vs. archival/governance) is real; signal 5 likely fires. Likely partition: **9a (data-model.md) → 9b (roadmap.md + consolidation pass + phase-transition ADR)**, but call it at the session head, not now.
-- (b) **Consolidation candidates.** A quick scan of `decisions.md` for ADRs with 2+ amendments before partitioning — if zero, item 3 dissolves. ADRs known to have multiple amendments: ADR-0010 (now amended-by-deferral-answer in ADR-0052 — but that's the answer, not an amendment; count carefully), ADR-0017 (amended by ADR-0044), ADR-0027 (dropped from amendment set by ADR-0045 + retired by ADR-0049), ADR-0032 (extended by ADR-0042 + ADR-0046 + ADR-0049), ADR-0035 (amended by ADR-0045), ADR-0037 (amended by ADR-0043). ADR-0032 is the obvious 2+-amendments candidate; check ADR-0044 / ADR-0043's reach for any others. Treat as a sizing input, not a step output.
-
-**Process notes:**
-- STOP-AND-CONFIRM gate applies. Each substantive decision (entity attribute choices, relationship modeling, roadmap milestones, consolidation pass conclusions) surfaces in chat before any file write.
-- Sizing first: run the Case 2 fit checklist at session head. Step 9 is the most likely-to-overflow step in the phase; partitioning is the default expectation, not the exception.
+**Process notes (apply to 9a):**
+- STOP-AND-CONFIRM gate applies — each entity-section structural decision (e.g., kind of an ambiguous attribute, how to represent a polymorphic ref, whether to split or merge a derived-from-stored attribute pair) surfaces in chat with options + tradeoffs before writing.
+- No new ADRs expected. If a substantive design gap surfaces, surface + defer.
+- `data-model.md` needs a `## File contract` block. Trigger `_file-rules.md` regeneration in the completion protocol since a new planning file is being added.
 - Recommendation strength: state confidence; when asked for contras, separate the exercise from any conclusion; don't flip out of agreeableness (`sessions.md` rule 5).
 
 ## Next session
 
-**Step 9 — Data model sketch + roadmap + phase-transition ADR + pre-transition ADR consolidation pass.** Case-2 sizing expected first — Step 9 is the most likely-to-overflow step in the phase (three deliverables + one one-time pass + cross-concern reach data-modeling vs. roadmap-planning vs. archival/governance). Likely partition at session head: **9a (data-model.md) → 9b (roadmap.md + consolidation pass + phase-transition ADR)**. Brief in `steps.md` → Step 9. Execution order: Step 7 ✓ → Step 8 partitioned ✓ → Step 8a ✓ → Step 8b ✓ → **Step 9** → (phase transition → Implementation phase). ADR numbers at write time: starting at **ADR-0053**.
+**Step 9a — `data-model.md`.** Single-concern artifact: 21-entity attribute roster + relationship table + typed-ref shape + history-table reference column per ADR-0052. **Conceptual only — not DDL.** Brief in `steps.md` → § Step 9a. Execution order: Step 7 ✓ → Step 8 partitioned ✓ → Step 8a ✓ → Step 8b ✓ → Step 9 partitioned ✓ → **Step 9a** → Step 9b → (phase transition → Implementation). No new ADRs expected for 9a — `data-model.md` is a documentation artifact, not a decision artifact; the data layer is already pinned by ADR-0052. (ADR-0053 reserved for 9b's consolidation pass / phase-transition ADR.)
 
 ### Prompt for the next session
 
-> Resume work. Next is **Step 9 — Data model sketch + roadmap + phase-transition ADR + pre-transition ADR consolidation pass**. Brief in `steps.md` → § Step 9. Sizing first — likely Case-2 partition at session head.
+> Resume work. Next is **Step 9a — `planning/data-model.md`**. Brief in `steps.md` → § Step 9a. Step 9 was partitioned 2026-05-16 (Option A, single-concern seam) — 9a is `data-model.md` alone; 9b is consolidation pass + `roadmap.md` + phase-transition ADR. Sizing already done; this session is Case-3 scoped.
 >
-> **Read first:** this prompt + the Open questions block above + `framework.md` + `logic.md` + `history-patterns.md` + `domain-model.md` (the 21-entity roster + per-entity histories + relationships + lifecycles) + `mvp.md` (the cut — defines what the implementation roadmap must deliver first) + `architecture.md` (stack + data-layer sketch) + `decisions.md` (esp. ADR-0050 MVP scope, ADR-0051 stack, ADR-0052 data layer, plus ADR-0032 / 0042 / 0046 / 0049 cluster for blocker model, ADR-0044 / 0048 cluster for WA/WABundle model, ADR-0043 / 0045 cluster for Contract model).
+> **Read first:** this prompt + the Open questions block above + `domain-model.md` (the 21-entity roster + per-entity histories + relationships + lifecycles — the primary input) + `framework.md` (typed-ref shape + derived-fields rule) + `architecture.md` (ADR-0052 data-layer topology) + `decisions.md` clusters: ADR-0044 / 0045 / 0048 (WABundle / Contract re-homing / WACodeAssignment), ADR-0032 / 0042 / 0046 / 0049 (blocker model), ADR-0035 / 0041 (EmployeeRole + Time Entry temporal model), ADR-0015 / 0041 (Document derivation set), ADR-0018 + Note amendments across the cluster, ADR-0052 (data-layer topology). `logic.md` + `history-patterns.md` skim only — command-side context already pinned.
 >
-> **Items in scope (per `steps.md` → Step 9):**
-> 1. **`planning/data-model.md`** — conceptual data model. 21-entity roster + attributes + relationships + typed-reference shape + history-table references per ADR-0052. **Conceptual only — not DDL.** Engine-specific column types noted as "to be implemented with X" not specified.
-> 2. **`planning/roadmap.md`** — ordered implementation milestones with rough sizing. The implementation phase's step list at coarse granularity, drawn from `mvp.md`'s 6 must-have features + carry-forward mechanics.
-> 3. **Pre-transition ADR consolidation pass (one-time).** Scan `decisions.md` for ADRs with 2+ amendments; consolidate each into a fresh definitive ADR (mark old ones `superseded by #N`). Skip if no ADR has accumulated 2+ amendments. Likely candidates: **ADR-0032** (extended by 0042 / 0046 / 0049 — almost certainly 2+ amendments); check ADR-0017 (amended by 0044), ADR-0035 (amended by 0045), ADR-0037 (amended by 0043), ADR-0044 (cluster amendments). Quick scan at session head before sizing.
-> 4. **Phase-transition ADR.** "Conceptualization phase complete; implementation begins." Triggers the four `phases.md` writes per `_workflow.md`'s phase-roster protocol (mark Conceptualization complete; mark Implementation current; archive `steps.md` to `steps.archive/conceptualization.md`; create new `steps.md` for implementation).
+> **Items in scope (per `steps.md` → Step 9a):**
+> 1. **Entity attributes.** For each of the 21 entities: intrinsic + lifecycle (state field where applicable) + derived-if-cheap attributes per `framework.md`. Engine-specific column types noted as "to be implemented with X" (e.g., JSONB, PostGIS) — not specified as DDL.
+> 2. **Relationship table.** Typed references per `framework.md`. Cover the WABundle / Contract / WA / WACodeAssignment / Site cluster (ADR-0044/0045/0048); the polymorphic Note target (ADR-0018 + amendments); the EmployeeRole temporal model (ADR-0035 + ADR-0041); the Document derivation-set (ADR-0015 + ADR-0041); etc.
+> 3. **History-table reference column.** Per entity, name the history surface per ADR-0052: per-entity history table name (for the 9 entities in 3-comprehensive + 6-lifecycle), or "`command_audit_log` (polymorphic)" (for the 7 audit-log entities), or "no history" (for the 5 no-history entities). Conceptual entry only — not the column schema.
 >
-> **Local decision at session head:** sizing. Run the `_workflow.md` Case 2 fit checklist. Likely partition: **9a (data-model.md) → 9b (roadmap.md + consolidation pass + phase-transition ADR)**, but call it explicitly. The consolidation pass is sequenced before the phase-transition ADR per `steps.md` § Step 9 — keep that order.
->
-> **Out of scope — later phase:**
+> **Out of scope — 9b or implementation phase:**
 > - DDL (implementation phase first step).
-> - `Command` base class + dispatcher concrete design (implementation phase, per ADR-0051 + ADR-0052 carry-forwards).
+> - `roadmap.md`, consolidation pass, phase-transition ADR (9b).
+> - `Command` base class + dispatcher concrete design (implementation per ADR-0051 + ADR-0052).
 > - PaaS vendor pick + managed-Postgres offering name (implementation kickoff per ADR-0051 + ADR-0052).
-> - Per-invariant isolation-primitive assignment (implementation phase per ADR-0052).
-> - Audit-log write timing (implementation phase per ADR-0052).
+> - Per-invariant isolation-primitive assignment + audit-log write timing (implementation per ADR-0052).
 > - Stale-scaffolding cleanup of `backend/` and `frontend/` (implementation-phase opening session per ADR-0001 + ADR-0051).
-> - Command-shape carry-forwards (implementation phase per `mvp.md`).
 >
-> **Sequencing:** Step 7 ✓ → Step 8 partitioned ✓ → Step 8a ✓ → Step 8b ✓ → **Step 9 (this session — likely partitioned to 9a / 9b)** → (phase transition → Implementation).
+> **No ADRs expected.** `data-model.md` is a documentation artifact — it rolls up already-pinned decisions into one conceptual view of the data layer. Any new design decision surfacing here should be canvassed at the STOP-AND-CONFIRM gate and flagged as out-of-scope for 9a unless trivial.
 >
-> **Reference:** 21 entities (post-ADR-0048), 14 design patterns, roles `superadmin`/`admin`/`coordinator`/`auditor`, 10-entry blocker registry, Conceptualization phase carries ADR-0001 through ADR-0052. Stack pinned: Python 3.12+ / FastAPI / SQLAlchemy 2.0 / Alembic / Pydantic backend + TS / React / Vite / TanStack frontend on managed-PaaS monolith deployment with Neon-dev / SQLite-offline DB config. Data layer pinned: PostgreSQL 15+; 9 per-entity history tables + 1 shared `command_audit_log` table; capture in the `Command` dispatcher. Full detail in `domain-model.md` + `mvp.md` + `architecture.md` + ADR-0051 + ADR-0052.
+> **Reference:** 21 entities (post-ADR-0048), 14 design patterns, roles `superadmin`/`admin`/`coordinator`/`auditor`, 10-entry blocker registry, Conceptualization phase carries ADR-0001 through ADR-0052. Data layer pinned: PostgreSQL 15+ via SQLAlchemy 2.0 + Alembic; 9 per-entity history tables (3 comprehensive — Document/WA/RFA; 6 lifecycle — Project/Sample Batch/Deliverable/EmployeeRole/WA Code/ContractorEngagement) + 1 shared `command_audit_log` (polymorphic) for the 7 audit-log entities (Employee/User/Time Entry/Contractor/DepFiling/Contract/WABundle) + no history infrastructure for the 5 no-history entities (School/Note/UserRole/WACodeAssignment/WABundleSite); capture enforced in the `Command` base class + dispatcher.
 >
 > **Process notes:**
-> - STOP-AND-CONFIRM gate applies — each substantive decision (entity attribute choices, relationship modeling, roadmap milestones, consolidation conclusions) surfaces in chat with options + tradeoffs before any file write.
-> - Sizing first: run the Case 2 fit checklist at session head; partitioning is the default expectation for Step 9, not the exception.
+> - STOP-AND-CONFIRM gate applies — surface structure decisions in chat (e.g., per-entity attribute scope; how granular to make the relationship table; whether to inline lifecycles or point to `domain-model.md`) with options + tradeoffs before writing.
+> - `data-model.md` needs a `## File contract` block. Trigger `_file-rules.md` regeneration in the completion protocol since a new planning file is being added.
 > - Recommendation strength: state confidence; when asked for contras, separate the exercise from any conclusion; don't flip out of agreeableness (`sessions.md` rule 5).
 
 ## Pointers
@@ -135,7 +132,7 @@ Step 9 is the closing step of the Conceptualization phase. It produces three art
 - Workflow protocol: `planning/_workflow.md`
 - File rules registry (generated): `planning/_file-rules.md` (last regenerated 2026-05-16)
 - Phase roster: `planning/phases.md`
-- Step list (current phase): `planning/steps.md` (Step 6 ✓ COMPLETE — 6a / 6b core / 6b-residual / 6b-residual-2 / 6c-i / 6c-ii / 6c-iii-a / 6c-iii-b-i / 6c-iii-b-ii / 6c-iv-a / 6c-iv-b / 6d all complete; **Step 7 ✓ COMPLETE**; **Step 8 partitioned 2026-05-15 — 8a ✓ COMPLETE (ADR-0051), 8b ✓ COMPLETE (ADR-0052 + `architecture.md`)**; next: **Step 9** — likely partitioned to 9a / 9b at session head)
+- Step list (current phase): `planning/steps.md` (Step 6 ✓ COMPLETE — 6a / 6b core / 6b-residual / 6b-residual-2 / 6c-i / 6c-ii / 6c-iii-a / 6c-iii-b-i / 6c-iii-b-ii / 6c-iv-a / 6c-iv-b / 6d all complete; **Step 7 ✓ COMPLETE**; **Step 8 partitioned 2026-05-15 — 8a ✓ COMPLETE (ADR-0051), 8b ✓ COMPLETE (ADR-0052 + `architecture.md`)**; **Step 9 partitioned 2026-05-16 — 9a (`data-model.md`), 9b (consolidation pass + `roadmap.md` + phase-transition ADR)**; next: **Step 9a**)
 - Session conventions: `planning/sessions.md`
 - Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0052; next ADR at write time: ADR-0053)
 - **MVP scope (Step 7 output):** `planning/mvp.md` — 6 must-have features + categorized "not now" list + 1 carve-out + 7 command-shape carry-forwards + pointers. Canonical MVP-scope reference.

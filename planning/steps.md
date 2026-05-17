@@ -612,3 +612,57 @@ Options considered: Option A (handoff's original suggested seam — stack vs. da
 **Pre-transition ADR consolidation (one-time):** Before writing the final phase-transition ADR, scan `decisions.md` for ADRs with 2+ amendments and consolidate each into a fresh, definitive ADR (mark old ones `superseded by #N`). Per session-9 deliberation: mid-phase compaction loses load-bearing deliberation context, but phase boundary is the right moment — deliberation is settled, and the resulting record becomes the foundation for implementation-phase work. Skip if no ADR has accumulated 2+ amendments by the time Step 9 runs.
 
 **Done when:** Roadmap has dated milestones, and `handoff.md` is updated to point at the first implementation step.
+
+**Session partition (agreed 2026-05-16 — Option A, single-concern seam):** Step 9 tripped the Case 2 fit checklist — **Signal 1** (>1 deliberable decisions: data-model attribute choices + roadmap milestone ordering + consolidation conclusions + phase-transition ADR), **Signal 2** (>1 new artifact: `data-model.md` + `roadmap.md` + phase-transition ADR), **Signal 3** (>60 min), **Signal 4** (input reading >3 substantial files: `framework.md` + `logic.md` + `history-patterns.md` + `domain-model.md` + `mvp.md` + `architecture.md` + `decisions.md` (52 ADRs)), **Signal 5** (cross-concern reach: data modeling vs. roadmap planning vs. archival/governance — different topical clusters). Split along the single-concern seam — `data-model.md` alone, then everything-else:
+- **Step 9a — `data-model.md`.** Single heavy artifact: 21-entity attribute roster + relationship table + typed-ref shape + history-table references per ADR-0052.
+- **Step 9b — Consolidation pass + `roadmap.md` + phase-transition ADR.** Consolidation sequenced first per the original Step 9 framing (before the phase-transition ADR). **Mitigation (carried from partition deliberation):** if the consolidation candidate scan at 9b's session head turns up more than ~2 qualifying ADRs (>2 amendments each), re-run the Case 2 fit checklist on 9b and partition further — cheap; defer `roadmap.md` or the phase-transition ADR to a 9c.
+
+Options considered: Option B (three-way split — `data-model.md` | `roadmap.md` | consolidation + phase-transition) — rejected; `roadmap.md` and the consolidation pass don't compete for the same context budget. Option C (data-model + consolidation paired by depth-of-ADR-reading | roadmap + phase-transition) — rejected; separates the consolidation pass from the phase-transition ADR it directly enables, against the original "consolidation before phase-transition" sequencing.
+
+**Execution order:** 9a → 9b → (phase transition → Implementation phase).
+
+---
+
+### Step 9a — `data-model.md`
+
+**Goal:** Conceptual data model — 21-entity roster + attributes + relationships + typed-reference shape + history-table references per ADR-0052. **Conceptual only — not DDL.**
+
+**In scope:**
+1. **Entity attributes.** For each of the 21 entities (per `domain-model.md`): intrinsic attributes, lifecycle attributes (state field where applicable), derived-if-cheap attributes (per `framework.md` derived-fields rule). Engine-specific column types noted as "to be implemented with X" (e.g., JSONB, PostGIS) — not specified as DDL.
+2. **Relationship table.** Typed references per `framework.md`. Covers: the Project ↔ WABundle ↔ Contract / WA / WACodeAssignment / Site cluster per ADR-0044 + ADR-0045 + ADR-0048; the polymorphic Note target per ADR-0018 + ADR-0032 + ADR-0045 extensions; the EmployeeRole temporal model per ADR-0035 + ADR-0041; the Document derivation-set per ADR-0015 + ADR-0041; etc.
+3. **History-table reference column.** Per ADR-0052 topology: 9 per-entity history tables (3 comprehensive — Document/WA/RFA; 6 lifecycle — Project/Sample Batch/Deliverable/EmployeeRole/WA Code/ContractorEngagement) + 1 shared `command_audit_log` (polymorphic) for the 7 audit-log entities + nothing for the 5 no-history entities. Conceptual entry per entity pointing at the history surface — not the column schema.
+
+**Out of scope — 9b or later:**
+- DDL (implementation phase first step).
+- `roadmap.md`, consolidation pass, phase-transition ADR (9b).
+
+**Inputs:** `domain-model.md` (21-entity roster + relationships + lifecycles + history-pattern assignments), `framework.md` (typed-ref shape + derived-fields rule), `logic.md` (command-side context), `history-patterns.md` (pattern menu), `architecture.md` (ADR-0052 data-layer topology), `decisions.md` (esp. ADR-0044 / 0045 / 0048 WABundle cluster, ADR-0032 / 0042 / 0046 / 0049 blocker cluster, ADR-0035 / 0041 EmployeeRole/Time Entry cluster, ADR-0018 + Note amendments, ADR-0052 data layer), `handoff.md`.
+
+**Outputs:** `planning/data-model.md` — new file with `## File contract` block. No new ADRs expected (the data layer is already pinned by ADR-0052; this is a documentation artifact, not a decision artifact).
+
+**Estimate:** 45–60 min.
+
+**Done when:** `data-model.md` exists with `## File contract` block + per-entity attribute lists + relationship table + history-table reference column; reads as a conceptual model (not DDL).
+
+---
+
+### Step 9b — Consolidation pass + `roadmap.md` + phase-transition ADR
+
+**Goal:** (a) Run the pre-transition ADR consolidation pass. (b) Write `roadmap.md`. (c) Write the phase-transition ADR and trigger the four `phases.md` writes per `_workflow.md`'s phase-roster protocol.
+
+**In scope:**
+1. **Pre-transition ADR consolidation pass (one-time).** Scan `decisions.md`. Confirmed candidate: **ADR-0032** (extended by 0042, 0046, 0049 + registry amended by 0044 — 4 amendments). Borderline (verify at session head): **ADR-0027** (likely 2–3 amendments), **ADR-0037** (likely 1–2 amendments). For each qualifying ADR (2+ amendments): draft a fresh, definitive ADR; mark predecessors `superseded by #N`. Sequenced before the phase-transition ADR per the original Step 9 framing.
+2. **`roadmap.md`.** Ordered implementation milestones with rough sizing — the implementation phase's step list at coarse granularity, drawn from `mvp.md`'s 6 must-have features + the 7 command-shape carry-forwards + the implementation-phase carry-forwards from ADR-0051 + ADR-0052. New file with `## File contract` block.
+3. **Phase-transition ADR.** "Conceptualization phase complete; implementation begins." Triggers the four `phases.md` writes per `_workflow.md`'s phase-roster protocol: mark Conceptualization complete; mark Implementation current; archive `steps.md` to `steps.archive/conceptualization.md`; create new `steps.md` for the implementation phase (drawing from `roadmap.md`). Lightweight gate.
+
+**Mitigation:** If the consolidation candidate scan at session head turns up more than ~2 qualifying ADRs, re-run the Case 2 fit checklist on 9b and partition further (defer `roadmap.md` or the phase-transition ADR to a 9c).
+
+**Out of scope — implementation phase:** DDL; concrete `Command` base class + dispatcher design; PaaS vendor pick + managed-Postgres offering name; per-invariant isolation-primitive assignment; audit-log write timing; stale-scaffolding cleanup of `backend/` and `frontend/`.
+
+**Inputs:** Consolidation candidates' source ADRs + their amending ADRs (esp. ADR-0032 + 0042 + 0046 + 0049 cluster); `mvp.md` (drives roadmap); `data-model.md` (9a output); `architecture.md` + ADR-0051 + ADR-0052 (stack + data layer pin); `_workflow.md` § phase-roster protocol; `handoff.md`.
+
+**Outputs:** Consolidated ADRs (new ADR numbers starting at **ADR-0053**); predecessor ADRs marked superseded. `planning/roadmap.md` — new file with `## File contract` block. Phase-transition ADR. `planning/phases.md` updated (Conceptualization complete; Implementation current). `planning/steps.archive/conceptualization.md` created. New `planning/steps.md` for Implementation phase.
+
+**Estimate:** 45–60 min (sensitive to consolidation candidate count).
+
+**Done when:** Consolidation pass complete (or confirmed skipped); `roadmap.md` exists with rough-sized milestones; phase-transition ADR written; the four `phases.md` writes are done; new `handoff.md` next-session pointer points at the first implementation step.
