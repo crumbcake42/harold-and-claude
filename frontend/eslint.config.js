@@ -10,7 +10,7 @@ import prettierRecommended from "eslint-plugin-prettier/recommended";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
-  globalIgnores(["dist", "src/routeTree.gen.ts", "storybook-static"]),
+  globalIgnores(["dist", "src/routeTree.gen.ts", "src/api/**", "storybook-static"]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [

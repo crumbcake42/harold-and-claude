@@ -11,6 +11,7 @@
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
+    "gen-api": "openapi-ts",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
