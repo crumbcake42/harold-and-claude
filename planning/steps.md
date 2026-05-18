@@ -21,7 +21,7 @@ Ordered plan for the Implementation phase of `sca-tracker`. Each step maps 1:1 t
 |---|---|---|---|---|
 | **1.1** | M0.1 Scaffolding (cleanup + repo skeletons + CI) | M | `m0/01-scaffolding` | none — mechanical |
 | **1.2** | M0.2 Data-layer primitives (isolation + audit-log timing) | S–M | `m0/02-data-layer-primitives` | ADR-0056 (possibly two) |
-| **1.3** | M0.3 `Command` base class + dispatcher + history infrastructure | L | `m0/03-dispatcher-and-history` | ADR-0057 if dispatcher design surfaces ADR-worthy decisions |
+| **1.3** | M0.3 `Command` base class + dispatcher + history infrastructure | L (partitioned 2026-05-18 → 1.3a M / 1.3b M; single branch) | `m0/03-dispatcher-and-history` | ADR-0058 + likely more if dispatcher design surfaces ADR-worthy decisions |
 | **1.4** | M0.4 Adapter boundary for Postgres-specific features + integration check | S | `m0/04-adapter-boundary` | none expected |
 
 Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admin-paas-deferral` (landed ADR-0055 + this restructure; not a canonical M0 sub-step).
@@ -87,11 +87,87 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ### Step 1.3 — M0.3 `Command` base class + dispatcher + history infrastructure (L)
 
-**Brief:** The load-bearing substrate. Implement the `Command` base class + dispatcher per ADR-0051 + ADR-0052, with the `logic.md` pipeline: auth (ADR-0012 predicate eval per ADR-0047) → lifecycle (ADR-0009) → apply → invariants (ADR-0010) → history (ADR-0008 / ADR-0052) → commit. No handler-level skip of history capture; framework surface does not expose a skip path. History infrastructure per ADR-0052: per-entity append-only tables generator (3 comprehensive — Document / WA / RFA; 6 lifecycle — Project / Sample Batch / Deliverable / EmployeeRole / WA Code / ContractorEngagement) + shared `command_audit_log` (polymorphic `(entity_type, entity_id)`) with timing per M0.2. Common-metadata columns; comprehensive-pattern `snapshot` JSONB; lifecycle-pattern `from_state` / `to_state` / `transition_name` / `state_context`; reference-snapshotting rule (typed-UUID refs only) per ADR-0013 + ADR-0052 § S5. ADR-0057 if dispatcher design surfaces ADR-worthy decisions. Likely needs Case 2 partitioning itself when opened.
+**Brief:** The load-bearing substrate. Implement the `Command` base class + dispatcher per ADR-0051 + ADR-0052, with the `logic.md` pipeline: auth (ADR-0012 predicate eval per ADR-0047) → lifecycle (ADR-0009) → apply → invariants (ADR-0010 + per-invariant primitive acquisition per ADR-0056) → history (ADR-0008 / ADR-0052 / in-txn audit emit per ADR-0057) → commit. No handler-level skip of history capture; framework surface does not expose a skip path. History infrastructure per ADR-0052: per-entity append-only tables generator (3 comprehensive — Document / WA / RFA; 6 lifecycle — Project / Sample Batch / Deliverable / EmployeeRole / WA Code / ContractorEngagement) + shared `command_audit_log` (polymorphic `(entity_type, entity_id)`) with in-txn timing per ADR-0057. Common-metadata columns; comprehensive-pattern `snapshot` JSONB; lifecycle-pattern `from_state` / `to_state` / `transition_name` / `state_context`; reference-snapshotting rule (typed-UUID refs only) per ADR-0013 + ADR-0052 § S5.
+
+**Partitioned 2026-05-18 (Session 30, Case 2)** into two sub-sub-steps on a single branch (`m0/03-dispatcher-and-history`). Five of seven fit-checklist signals fired (≥1 independently-deliberable decision, ≥1 new artifact, >60 min, >3 input files, cross-concern). Seam chosen: concern-split — dispatcher pipeline vs. history infrastructure. The capture-sink interface is the seam: 1.3a pins it, 1.3b implements it. Commits land sequentially on the single branch; FF-merge to `m0/foundations` happens after 1.3b lands.
 
 **Roadmap pointer:** `planning/roadmap.md` § M0 items for dispatcher + history infrastructure.
 
-**Branch:** `m0/03-dispatcher-and-history` off `m0/foundations`.
+**Branch:** `m0/03-dispatcher-and-history` off `m0/foundations`. Single branch holds both sub-sub-step commits.
+
+---
+
+#### Step 1.3a — Dispatcher pipeline (M)
+
+**Goal:** Land the `Command` base class + dispatcher with the `logic.md` pipeline wired end-to-end against a stub history sink. Pin the capture-sink interface that 1.3b will implement against.
+
+**In scope:**
+
+1. **`Command` base class.** Registration / discovery shape. Introspection surface (name, target entity type, declared invariants, declared cascade children). Cascade semantics per `domain-model.md` § Design patterns #5 (auth-inheritance for compound cascading commands — pre-flag for ADR if non-obvious tradeoffs surface).
+2. **Dispatcher pipeline.** Implement `logic.md` order: authorization (ADR-0012 predicate eval per ADR-0047) → lifecycle gate (ADR-0009 state-machine check) → apply (handler mutation) → invariants (ADR-0010 + per-invariant lock acquisition per ADR-0056) → history (emits to capture-sink interface) → commit. Rejection at any step rolls back per ADR-0011 (no mutation, no history).
+3. **Per-invariant primitive acquisition wiring.** Wire the `pg_try_advisory_xact_lock` opt-in path per ADR-0056. SERIALIZABLE is the default — set transaction isolation accordingly.
+4. **Lock-key namespace.** Pin the hash function + key-prefix discipline (e.g., `hashtext('closure-readiness:' || project_id)::bigint` is illustrative per ADR-0056 — confirm or revise). Namespace must not collide with future advisory-lock uses. Utility module for callers.
+5. **`serialization_failure` retry boundary.** Decide: built-in N-attempt retry loop in dispatcher, or pushed up to the route layer. ADR-0058 likely lands here.
+6. **Capture-sink interface.** Define the narrow typed interface the history step calls. Stub implementation (in-memory / no-op) for 1.3a smoke tests; 1.3b replaces with real INSERT path.
+7. **Sample command for smoke test.** Minimal command exercising the full pipeline end-to-end against the stub sink. Not a domain command — purely substrate verification.
+
+**Out of scope:**
+
+- Per-entity history tables + `command_audit_log` table + Alembic migrations → 1.3b.
+- Adapter boundary for Postgres-specific features → Step 1.4.
+- Any domain entity / handler beyond the smoke-test sample → M1+.
+
+**Inputs:** ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0012, ADR-0013, ADR-0047, ADR-0051, ADR-0052, ADR-0056, ADR-0057; `planning/logic.md` (pipeline order); `planning/domain-model.md` § Design patterns #5 (cascade auth-inheritance).
+
+**Outputs:**
+
+- `Command` base class module.
+- Dispatcher module with pipeline impl.
+- Lock-key utility module.
+- Capture-sink interface (stub impl).
+- Sample command + smoke test exercising the pipeline.
+- ADR-0058 (retry boundary) + possibly more if surfaced.
+
+**Estimate:** M.
+
+**Done when:** Sample command runs end-to-end through the pipeline; tests verify rejection at each step rolls back; capture-sink interface is stable enough for 1.3b to implement against.
+
+---
+
+#### Step 1.3b — History infrastructure (M)
+
+**Goal:** Land the per-entity history tables + `command_audit_log` + Alembic migrations. Replace 1.3a's stub capture sink with a real in-txn INSERT path per ADR-0057.
+
+**In scope:**
+
+1. **Per-entity history-table generator.** 9 tables per ADR-0052: 3 comprehensive (Document / WA / RFA) + 6 lifecycle (Project / Sample Batch / Deliverable / EmployeeRole / WA Code / ContractorEngagement). Decide: declarative-base-per-entity vs. dynamic class factory — ADR-worthy if non-obvious.
+2. **Common-metadata columns.** `id`, `entity_id` FK, `command_id`, `command_name`, `caller_id`, `at`; default index `(entity_id, at DESC)`. Comprehensive `snapshot` JSONB; lifecycle `from_state` / `to_state` / `transition_name` / `state_context` JSONB.
+3. **Typed-UUID reference rule.** References in snapshots are typed UUIDs only per ADR-0013 § Reference snapshotting + ADR-0052 § S5. Enforcement at write time.
+4. **`command_audit_log` table.** Polymorphic `(entity_type, entity_id)` shape per ADR-0052 § Audit-log table. Wired for the 7 audit-log entities (Employee, User, Time Entry, Contractor, DepFiling, Contract, WABundle).
+5. **Alembic migrations.** All 10 tables.
+6. **Replace stub capture sink with real impl.** In-txn write per ADR-0057. Same SQLAlchemy session as the entity mutation. Smoke-test sample command from 1.3a now exercises real INSERTs.
+7. **Capture enforcement.** Verify no handler-level skip path. The framework surface does not expose a "skip history" or "skip audit" hook (per ADR-0008 + ADR-0052).
+
+**Out of scope:**
+
+- Anything in 1.3a's scope (already landed).
+- Adapter boundary code → Step 1.4 (1.3b may stub adapter call sites for JSONB / advisory locks; full adapter lands in 1.4).
+- Any domain entity / handler → M1+.
+
+**Inputs:** ADR-0013, ADR-0052, ADR-0057; `planning/data-model.md` § per-entity attribute rosters + history-table shapes; `planning/history-patterns.md`; 1.3a outputs (capture-sink interface).
+
+**Outputs:**
+
+- 9 per-entity history-table models (or generator).
+- `command_audit_log` model.
+- Alembic migrations.
+- Real capture-sink implementation replacing 1.3a's stub.
+- Smoke-test sample command end-to-end against real tables.
+- Possible ADR if generator shape surfaces ADR-worthy tradeoffs.
+
+**Estimate:** M.
+
+**Done when:** All 10 tables exist in Postgres; sample command write produces correct history + audit-log rows in the same transaction as the entity mutation; FF-merge `m0/03-dispatcher-and-history` → `m0/foundations` (closing Step 1.3 entirely); M0.4 / Step 1.4 ready to open.
 
 ---
 
