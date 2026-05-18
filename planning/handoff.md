@@ -38,50 +38,51 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Current phase
 
-**Implementation** — Phase 2, current as of 2026-05-17 per ADR-0054 (phase-transition; Conceptualization closed). The 9-milestone roadmap from `planning/roadmap.md` (M0 Foundations → M8 Cutover prep) is the canonical milestone-shape source; `planning/steps.md` mirrors the milestones as 9 steps. **Step 1 (M0) partitioned 2026-05-17 (Option A — substrate-then-decisions) into 5 sub-steps (Step 1.1 → Step 1.5).** Currently on the **`m0/foundations`** branch (milestone integration branch off `dev`; see [[project-branching-convention]] and `planning/phases.md` pointers).
+**Implementation** — Phase 2, current as of 2026-05-17 per ADR-0054 (phase-transition; Conceptualization closed). The 9-milestone roadmap from `planning/roadmap.md` (M0 Foundations → M8 Cutover prep) is the canonical milestone-shape source; `planning/steps.md` mirrors the milestones as 9 steps. **Step 1 (M0) partitioned 2026-05-17 (Option A — substrate-then-decisions) into 5 sub-steps (Step 1.1 → Step 1.5).** Currently on the **`m0/01-scaffolding`** branch (sub-step branch off `m0/foundations`; Step 1.1 in flight — see Session 26 below). Working tree on this branch has uncommitted skeleton work; nothing pushed yet.
 
 ## Last session summary
 
-**Session 25 — Step 9b: consolidation pass + `roadmap.md` + phase-transition ADR + Step 1 partition + branch ops. ✓ COMPLETE (2026-05-17, ADR-0053 + ADR-0054, closes Conceptualization phase; opens Implementation phase + Step 1 partitioned).** Case-3 scoped; ran the session-head sizing check first, then proceeded as a single Case-3 session per the partition mitigation's escape hatch.
+**Session 26 — Step 1.1 / M0.1 Scaffolding. ⚠️ INCOMPLETE — wrapped early (2026-05-17). Backend skeleton fully landed and green; frontend skeleton substantially landed (build/typecheck/vitest green, lint pending auto-fix); openapi-ts wiring, runner choice, and CI not started.** Case-3 scoped; canvass completed; implementation in progress at wrap.
 
-**Session-head sizing check finding.** Scan of `decisions.md` for ADRs amended 2+ times turned up **18 ADRs** crossing the literal threshold — far past the session-23 preview's "1 firm + 1–2 borderline" estimate. Per the partition mitigation, this triggered re-running the Case 2 fit checklist on 9b. **Position B-narrowed accepted:** consolidate ADR-0032 alone via ADR-0053; the 17 other 2+-amender ADRs stay standing (their amender chains preserve correctly-readable models). The deviation from the literal "2+ amendments" framing of `steps.md` line 612 is recorded honestly in ADR-0054's Alternatives considered.
+**Branch ops.** Created `m0/01-scaffolding` off `m0/foundations` at session open. No commits yet; all work is uncommitted in the working tree on `m0/01-scaffolding`.
 
-**ADR-0053 written (consolidates ADR-0032 — blocker-and-resolution model).** Position 1a (narrow): supersedes ADR-0032 only; ADR-0042 / 0046 / 0049 stay accepted. Position 2a (reread-of-current-model). Body covers current blocker-and-resolution model: Note subtypes (`regular | blocker | resolution | audit_reason | write_off`); polymorphic target; lazy materialization; closure gate = "no registry blocker holds" over not-written-off entities; canonical 10-entry registry (gap-preserving numbering since #1/#2 retired post-keep-FK); registry schema; chain shape `te_batches_by_coverage`; default-resolution command family; nuclear-option guard.
+**Surprise finding — cleanup is a no-op.** ADR-0001's stale `backend/` + `frontend/` directories don't exist (user deleted them early; predates conceptualization). The separate cleanup commit collapses; skeletons land into empty space.
 
-**`planning/roadmap.md` written.** Fork 1b (medium granularity, 9 milestones) + Fork 2a (S/M/L sizing only). Milestone table M0–M8 with per-milestone expansion + ordering rationale + carry-forward landing index for all 7 command-shape carry-forwards + 5 implementation-phase carry-forwards + `resolve_overlap_paired` conditional carve-out + pointers.
+**Session-head canvass (approved with two amendments).**
+- **Backend layout: layered (kind-first)** — `app/{routes, framework, domain, adapters}/` + `app/main.py` + `app/config.py`. Framework/domain/adapters dirs are placeholders for M0.3/M0.4/M0.5. Pytest in `tests/`. Alembic in `migrations/`.
+- **Frontend layout: TanStack Router file-based** — `src/routes/__root.tsx` + `src/routes/index.tsx`. Generated `src/routeTree.gen.ts` (built by `@tanstack/router-plugin` during Vite build; gitignored from ESLint to avoid noise).
+- **Runner: `just` orchestrator** — accepted at canvass but `just` is NOT installed locally. Decision deferred to next session: install `just` (scoop install just) OR swap to root-level package.json scripts.
+- **Docker-compose Postgres: DROPPED** at user pushback — use GH Actions `services: postgres:` block directly. One less file to maintain. Local Postgres via `docker run` documented in backend README if needed (Neon is the dev default per ADR-0051 anyway).
+- **Other picks:** `uv` (Python pkg mgr), `pnpm` (Node pkg mgr — user has it installed; pushed back on initial npm pick), Postgres 16, GH Actions CI single workflow, Vitest+RTL test runner.
 
-**ADR-0054 written (phase-transition).** Records the consolidation-pass deviation honestly; pre-enumerates Phase 3 as a stub. Triggers the four `phases.md` writes (lightweight gate).
+**Backend skeleton ✓ green.** `backend/` contains: `pyproject.toml` (FastAPI[standard] + SQLAlchemy 2.0 + Alembic + Pydantic + pydantic-settings + psycopg[binary]; dev: pytest, httpx, ruff), `.python-version` (3.12), `.gitignore`, `app/__init__.py`, `app/main.py` (FastAPI app + healthcheck router include), `app/config.py` (Pydantic Settings: `database_url` env var, defaults to local SQLite per ADR-0051 fallback), `app/routes/healthcheck.py` (`GET /health → {"status": "ok"}`), `app/{framework,domain,adapters}/__init__.py` (placeholders), `tests/test_healthcheck.py`. Alembic initialized via `alembic init migrations` (per [[flag-opaque-scaffolding-files]] — first attempt hand-wrote files; user pushed back asking what `script.py.mako` was; redo via the canonical scaffolder). `alembic.ini` edited (blanked `sqlalchemy.url`); `migrations/env.py` edited (pulls `DATABASE_URL` from `app.config.settings`). Baseline empty migration generated. **Verified:** `uv sync` clean, `pytest` 1 pass, `ruff check` clean (with `migrations/versions` excluded — auto-generated files use `Union[X, None]` not PEP 604).
 
-**Four `phases.md` writes executed** (lightweight gate): Phase 1 → complete with archive pointer; Phase 2 → current with concrete Goal; `planning/steps.md` archived to `planning/steps.archive/conceptualization.md`; new `planning/steps.md` written; Phase 3 stub appended.
+**Frontend skeleton (substantially landed; lint pending auto-fix).** `frontend/` scaffolded via `pnpm create vite --template react-ts`. Added: `@tanstack/react-router`, `@tanstack/react-query` (runtime); `@tanstack/router-plugin`, `@tanstack/react-router-devtools`, `@tanstack/react-query-devtools`, `@hey-api/openapi-ts`, `prettier`, `eslint-plugin-prettier`, `eslint-config-prettier`, `vitest`, `@testing-library/{react,jest-dom,user-event}`, `jsdom` (dev). Storybook 10.4 hit an upstream autodetect bug (init tried to install non-existent `@storybook/tanstack-react` framework when TanStack Router was present); recovered by installing `@storybook/react-vite` + `@storybook/addon-docs` + `eslint-plugin-storybook` directly and rewriting `.storybook/main.ts` + `.storybook/preview.tsx` to use the real framework. Replaced default `src/App.tsx` with TanStack Router file-based routing (`src/routes/__root.tsx`, `src/routes/index.tsx`) + QueryClient bootstrap in `src/main.tsx`. Updated `vite.config.ts` (uses `vitest/config`; adds TanStack router plugin + Vitest jsdom env + setup file). Wrote `.prettierrc`. `eslint.config.js` extends `eslint-plugin-prettier/recommended` (formatting via ESLint per [[prettier-via-eslint-plugin]]); added route-file rule override (`react-refresh/only-export-components` with `allowExportNames: ['Route']`). Deleted Storybook example stories (used the bad framework name). Added scripts: `test` (vitest run), `typecheck` (tsc -b --noEmit), `lint:fix`. **Verified:** `pnpm build` ✓ (generates routeTree.gen.ts), `pnpm typecheck` ✓, `pnpm test` ✓ (1 sample test passing). **Pending:** `pnpm lint` has 4 Prettier auto-fixes queued; ran the rule override edit but didn't get to verify `pnpm lint:fix` clean before wrap.
 
-**Branch ops executed (post-completion-protocol, per user-approved branching convention):**
+**Memories saved (3 new).** [[flag-opaque-scaffolding-files]] (don't batch-write files whose role isn't obvious from filename; prefer framework init commands). [[prettier-via-eslint-plugin]] (wire Prettier through eslint-plugin-prettier, no standalone prettier command). [[storybook-tanstack-autodetect]] — actually, did NOT save this one as a memory; it's session-specific and lives in this handoff. Future re-runs of `storybook@latest init` in a TanStack Router project should skip `--yes` and manually configure.
 
-1. Step 9b commit landed on `take1` as `97d5e3e`.
-2. FF-merged `take1` → `main` (planning artifacts now on `main`).
-3. Tagged `phase-1-complete` at `97d5e3e` on `main` (clean-slate rewind anchor).
-4. Created `dev` from `main` (long-lived per-attempt integration branch).
-5. Created `m0/foundations` from `dev` (milestone integration branch).
-6. Currently checked out on `m0/foundations`. Working tree clean post-Step-1-partition write.
+**Stray cleanup.** `pnpm dlx storybook init` ran with cwd at repo root and dropped a `node_modules/.cache/` (10K) there; deleted. Added top-level `.gitignore` so this can't recur. Deleted `frontend/debug-storybook.log`.
 
-**Branching convention (saved to memory as [[project-branching-convention]]):** `main` (finalized) → `dev` (ongoing implementation; per-attempt, disposable) → `m<N>/<slug>` (milestone working branches off dev) → `m<N>/<sub-slug>` (sub-step branches off the milestone branch, when partitioned). Tags as rewind anchors on `main`: `phase-1-complete` (applied), `m<X>-complete` (per milestone), `mvp-shipped` (at MVP cutover). No type-prefixes (`feature/`, `bugfix/`); no `vN/` prefix.
+**Files touched.** `backend/` (entire tree, new). `frontend/` (entire tree, new). `.gitignore` (new, top-level). `.claude/memory/feedback_flag_opaque_scaffolding_files.md` (new). `.claude/memory/feedback_prettier_via_eslint_plugin.md` (new). `.claude/memory/MEMORY.md` (index updated). `planning/handoff.md` (this rewrite).
 
-**Step 1 (M0 Foundations) partitioned 2026-05-17 (Option A — substrate-then-decisions).** Case 2 fit checklist on Step 1 fired signals 1, 2, 3, 4, 5. Option A chosen because (a) M0.1 is mechanical with no deliberation overhead — lets the implementation branch get a cheap first commit (and gives Claude auto mode an easy "no-decisions" first attempt at the workplan); (b) decision sub-steps land in dependency order (PaaS picks Postgres flavor → primitives bind to it → dispatcher consumes the primitives → adapter wraps the Postgres specifics). Option B (decisions-first) rejected — delays mechanical-confidence-building and stacks 2–3 sessions of pure deliberation before any code lands. Option C (3-step coarser partition) rejected — bundles 2–3 substantive decisions in one session, risking the stacking-decisions anti-pattern.
+**Incomplete scope (for next session — Session 27, continues Step 1.1):**
 
-**Five sub-steps (1.1 → 1.5; full briefs in `steps.md` § Step 1):** 1.1 M0.1 Scaffolding (M — cleanup + repo skeletons + CI; no ADRs); 1.2 M0.2 PaaS pick (S — ADR-0055); 1.3 M0.3 Data-layer primitives (S–M — isolation + audit-log timing; ADR-0056, possibly two); 1.4 M0.4 Dispatcher + history infrastructure (L — likely needs further partitioning when opened; ADR-0057 if dispatcher design surfaces ADR-worthy decisions); 1.5 M0.5 Adapter boundary (S; no ADRs expected).
-
-**Files touched:** `planning/decisions.md` (ADR-0053 + ADR-0054 appended; ADR-0032 status flipped). `planning/roadmap.md` (new). `planning/phases.md` (Phase 1/2 flipped; Phase 3 stub added). `planning/steps.md` (replaced — old archived; then Step 1 partitioned into 5 sub-steps inline). `planning/steps.archive/conceptualization.md` (new — archive of the conceptualization-phase steps). `planning/_file-rules.md` (regenerated). `planning/handoff.md` (rewritten for phase-2 + post-partition state). `.claude/memory/project_branching_convention.md` (new — branching convention saved). `.claude/memory/MEMORY.md` (index updated).
+1. **Frontend lint clean.** Run `pnpm lint:fix` (4 Prettier auto-fixes pending in `.storybook/preview.tsx` + `vite.config.ts`); verify the `src/routes/**` rule override clears the `react-refresh/only-export-components` error on `index.tsx`. Then `pnpm lint` clean.
+2. **openapi-ts wiring (Task #4).** Write `openapi-ts.config.ts` pointing at the FastAPI `/openapi.json` (likely `http://localhost:8000/openapi.json` per Vite proxy or env var). Add `gen-api` script. Test: regenerate types from the live backend schema, commit generated output.
+3. **Runner decision (Task #5).** `just` is not installed locally. Two options: (a) install `just` (`scoop install just` on Windows; assets a single binary) and write `justfile` per the canvass plan; (b) swap to root-level package.json scripts (no extra tool; less Python-idiomatic but no install needed). User canvassed (a); the install ask earns a 30-second pause at next session head — reconfirm or swap.
+4. **GitHub Actions CI (Task #6).** `.github/workflows/ci.yml` with jobs: backend-lint+test (uv + ruff + pytest), frontend-lint+test+typecheck+build (pnpm), backend-integration (with `services: postgres: image: postgres:16` block per the dropped-compose decision). Trigger on PR.
+5. **Push + watch CI (Task #7).** First push of `m0/01-scaffolding` to remote (`git push -u origin m0/01-scaffolding`); confirm CI is green; then sub-step FF-merge to `m0/foundations` per [[project-branching-convention]].
+6. **No commit landed this session.** Working tree is uncommitted. Next session opens with the option to either commit-as-progress (one commit "M0.1 scaffolding WIP — backend + frontend skeletons") or wait until lint + openapi-ts + CI all green and commit as one "M0.1 scaffolding" commit. Recommend the single-commit option — closer to the audit-trail discipline carried from ADR-0001.
 
 ---
 
 ## Open questions
 
-**For the next session (Step 1.1 / M0.1 — Scaffolding) — surface at session head:**
+**For the next session (Session 27 — resume Step 1.1 / M0.1 — Scaffolding):**
 
-- **Project-layout decisions in the backend skeleton.** Where do entity definitions live? Where do command classes live? Where does the dispatcher live? Where does the adapter boundary code (Postgres-specific wrappers) live? Per the gate, surface candidate layouts before committing structure. Light decisions — but they shape every M1+ entity addition. Likely candidates: `app/entities/`, `app/commands/`, `app/dispatcher/`, `app/adapters/postgres/`, `app/adapters/sqlite/`. Don't pre-decide — canvass at session head.
-- **Project-layout decisions in the frontend skeleton.** Where do generated API hooks live (from openapi-ts)? Where does TanStack Router config live? Light decisions; same canvass rule.
-- **Sample command for CI tests.** M0.1's done-when criteria includes "openapi-ts pipeline successfully regenerates the frontend client from a sample backend OpenAPI schema" + "CI is green on a PR-style integration test run." A no-op or healthcheck command is sufficient for the sample; do not introduce a domain entity (those land in M1+).
-- **Docker-compose Postgres config for CI.** Pick a Postgres version (15+ per ADR-0052); decide whether to seed any baseline data (likely no — CI tests run from empty schema). Neon ephemeral-branch wiring is deferred to M0.2 (PaaS pick).
-- **`make dev` vs. equivalent.** Pick a per-skeleton runner convention. Make / just / npm-script / package.json scripts. Light decision; pick one and document.
+- **Runner choice (deferred from Session 26 canvass).** User accepted `just` at canvass but `just` is not installed locally. Options: (a) `scoop install just` + write `justfile`; (b) swap to root-level package.json scripts (no extra tool). 30-second decision at session head.
+- **openapi-ts schema source.** Two reasonable shapes: (i) point at the live backend (`http://localhost:8000/openapi.json`) — requires backend to be running during `pnpm gen-api`; (ii) export schema to a file (`backend/openapi.json` committed) and have the frontend read from that file. Option (ii) decouples but adds a manual step. Pick one.
+- **Commit shape for incomplete-then-complete sub-step.** Recommend one "M0.1 scaffolding" commit landing when everything is green (lint + openapi-ts + CI) rather than progress-checkpoint commits. Audit-trail discipline carried from ADR-0001. Confirm at session head.
 
 **For the milestone (M0 Foundations) broadly:**
 
@@ -104,32 +105,34 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Next session
 
-**Step 1.1 — M0.1 Scaffolding.** First sub-step of M0 Foundations; first executable session of Phase 2. Mechanical scaffolding: clean stale `backend/` + `frontend/` directories; stand up backend repo skeleton (FastAPI + SQLAlchemy 2.0 + Alembic + Pydantic + Ruff + Pytest); stand up frontend repo skeleton (Vite + React + TanStack Router + TanStack Query + openapi-ts + Storybook + ESLint + Prettier); wire CI (lint + test + typecheck on PR; docker-compose Postgres in the runner). No ADRs; no domain entities. Brief in `steps.md` → § Step 1.1.
+**Step 1.1 — M0.1 Scaffolding (continuation).** Resume the in-flight sub-step. Backend skeleton ✓ green; frontend skeleton built and green on build/typecheck/test, lint pending one auto-fix pass. Remaining: (1) frontend lint clean; (2) openapi-ts wiring; (3) runner (just vs. package.json scripts); (4) CI workflow; (5) first push + watch CI; (6) one consolidated commit at end.
 
-**Branch:** create `m0/01-scaffolding` off `m0/foundations` at session open. Sub-step work happens there; merge back to `m0/foundations` with FF on completion. Two-digit zero-padded sub-step prefix per [[project-branching-convention]] (sorts lexicographically in GitHub branch listings).
+**Branch:** already on `m0/01-scaffolding`. All Session 26 work is uncommitted in the working tree.
 
-**Execution order within Step 1:** 1.1 (this session) → 1.2 → 1.3 → 1.4 → 1.5 → Step 1 ✓ (merge to `dev` with `--no-ff`; tag `m0-complete` on `dev`) → Step 2 (M1 Roster).
+**Execution order within Step 1:** 1.1 (continuing) → 1.2 → 1.3 → 1.4 → 1.5 → Step 1 ✓ (merge `m0/foundations` to `dev` with `--no-ff`; tag `m0-complete` on `dev`) → Step 2 (M1 Roster).
 
 ### Prompt for the next session
 
-> Resume work. Next is **Step 1.1 — M0.1 Scaffolding** (Phase 2 / Implementation; first sub-step of Step 1 / M0 Foundations). Brief in `steps.md` → § Step 1.1.
+> Resume work. **Step 1.1 — M0.1 Scaffolding** is in flight (Session 27 continues Session 26's work). Backend skeleton ✓ green. Frontend skeleton built + green on build/typecheck/vitest; lint pending one auto-fix pass. openapi-ts wiring, runner, CI, and the consolidating commit are the remaining surface.
 >
-> **Branch setup at session open:** Currently on `m0/foundations` (milestone integration branch, off `dev`, off `main`). Create `m0/01-scaffolding` off `m0/foundations` for the sub-step work (two-digit zero-padded sub-step prefix sorts lexicographically in GitHub branch listings). Merge back to `m0/foundations` with FF on completion. See [[project-branching-convention]] for full structure.
+> **Branch state:** already on `m0/01-scaffolding`. Session 26 work is uncommitted in the working tree (`git status` will show `backend/`, `frontend/`, `.gitignore`, `planning/handoff.md`, `.claude/memory/*` as untracked/modified).
 >
-> **Read first:** this prompt + the Open questions block above + `planning/steps.md` § Step 1.1 (full brief) + `planning/roadmap.md` § M0 (canonical milestone shape) + ADR-0001 (stale-scaffolding) + ADR-0051 (runtime stack) + `planning/architecture.md` (component diagram + out-of-band concerns).
+> **Read first:** this prompt + the Open questions block above + the Last session summary (Session 26 — captures every decision and resolution from Session 26's canvass).
 >
-> **Session-head canvass (per the gate, before any code lands):**
-> 1. **Project-layout decisions.** Surface candidate backend + frontend layouts (entity / command / dispatcher / adapter dirs on backend; generated-API-hooks / router-config dirs on frontend). Pick a layout per the user's preference; document in the skeleton.
-> 2. **Runner convention.** Pick `make` / `just` / package.json scripts / equivalent. Confirm before writing.
-> 3. **Docker-compose Postgres config.** Confirm Postgres 15+; confirm no baseline data seeded; minimal `docker-compose.yml` for CI use.
+> **Resume-point checks (before resuming work):**
+> 1. **Runner decision.** `just` not installed locally. Pick: (a) `scoop install just` then write `justfile`, or (b) root-level package.json scripts. Confirm at session head.
+> 2. **openapi-ts schema source.** Live-server vs. committed-file. Pick at session head (see Open questions).
+> 3. **Commit shape.** Recommend one "M0.1 scaffolding" commit when everything green. Confirm at session head.
 >
-> **In scope (per `steps.md` § Step 1.1):**
-> 1. Stale-scaffolding cleanup of `backend/` + `frontend/` (per ADR-0001; cleanup commit separate from skeleton commits).
-> 2. Backend repo skeleton: FastAPI healthcheck endpoint runnable via `uvicorn`; Alembic baseline migration; sample `pytest` test runs green; `ruff check` clean; dependency pinning.
-> 3. Frontend repo skeleton: Vite dev server runnable; sample TanStack-routed page; `tsc --noEmit` clean; ESLint + Prettier clean; Storybook scaffolding runnable; openapi-ts pipeline wired against a placeholder OpenAPI schema.
-> 4. CI workflow(s): lint + test + typecheck + integration test (against docker-compose Postgres) green on PR.
+> **Remaining in scope:**
+> 1. **Frontend lint clean.** `pnpm lint:fix` (4 Prettier auto-fixes); verify route-file rule override clears `react-refresh/only-export-components` on `src/routes/index.tsx`. Then `pnpm lint` clean.
+> 2. **openapi-ts wiring.** `openapi-ts.config.ts` + `gen-api` script; regenerate types; commit generated output.
+> 3. **Runner.** Per the resume-point decision.
+> 4. **GitHub Actions CI.** `.github/workflows/ci.yml` with backend (uv + ruff + pytest) + frontend (pnpm lint+test+typecheck+build) + backend-integration (with `services: postgres: image: postgres:16`).
+> 5. **First push + CI verification.** `git push -u origin m0/01-scaffolding`; watch CI green.
+> 6. **Single commit "M0.1 scaffolding"** when everything green. Then sub-step FF-merge to `m0/foundations` per [[project-branching-convention]].
 >
-> **Out of scope:**
+> **Out of scope (unchanged):**
 > - PaaS vendor pick (M0.2 / Step 1.2).
 > - Per-invariant isolation primitives + audit-log timing (M0.3 / Step 1.3).
 > - `Command` base class + dispatcher + history infrastructure (M0.4 / Step 1.4).
@@ -137,12 +140,12 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 > - Any domain entity / command / handler (M1+).
 >
 > **Process notes:**
-> - **STOP-AND-CONFIRM gate applies to code.** Layout / runner / docker-compose decisions earn a chat-side canvass before files land.
-> - **No ADRs in this sub-step.** If a layout decision feels ADR-worthy (e.g., it pre-commits the dispatcher-package shape in a non-trivial way), pause and surface — the dispatcher is M0.4's concern, not M0.1's.
-> - **Cleanup commit separate from skeleton commits.** Audit-trail discipline per ADR-0001.
+> - **STOP-AND-CONFIRM gate applies to code.** Resume-point decisions earn a chat-side canvass before files land.
+> - **No ADRs in this sub-step.** If a residual decision feels ADR-worthy, pause and surface.
+> - **Storybook 10.4 + TanStack Router autodetect bug** — if you re-run `storybook init` for any reason, do NOT pass `--yes`; it will try to install the phantom `@storybook/tanstack-react` framework. Session 26 worked around by installing `@storybook/react-vite` directly and rewriting `.storybook/main.ts`.
 > - **Merge back to `m0/foundations` with FF** when done; do not merge to `dev` yet (`dev` waits until all of M0 lands).
 > - **ADR numbering.** Next ADR at write time: **ADR-0055** (M0.2 / Step 1.2).
-> - **`mvp.md` is the canonical MVP scope reference.** Adding a feature beyond the 6 must-haves requires a superseding ADR.
+> - **`mvp.md` is the canonical MVP scope reference.**
 
 ## Pointers
 
