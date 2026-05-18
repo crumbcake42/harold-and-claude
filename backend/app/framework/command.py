@@ -22,13 +22,16 @@ import ast
 import inspect
 import textwrap
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Protocol
+from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 from uuid import UUID
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.framework.exceptions import DestructiveCascadeViolation
+
+if TYPE_CHECKING:
+    from app.framework.dispatcher import Dispatcher
 
 
 class Caller(Protocol):
@@ -108,6 +111,26 @@ class Command(ABC):
 
     # Nested payload schema -- subclasses MUST override with a Pydantic model.
     Payload: ClassVar[type[BaseModel]]
+
+    # Dispatcher-set instance attrs (populated before handler runs by the
+    # dispatcher). Not part of the public Command surface; consumers should
+    # access these only via cascade_invoke() in the dispatcher module. None
+    # defaults make Pyright aware of the attrs; the dispatcher's assignments
+    # shadow these with instance values prior to any handler call.
+    _session: Session | None = None
+    _command_id: UUID | None = None
+    _caller: "Caller | None" = None
+    _dispatcher: "Dispatcher | None" = None
+
+    def resolve_target(self, session: Session, payload: BaseModel) -> Any:
+        """Return the existing entity instance the command operates on, or
+        None for creation commands. Lifecycle-affecting commands (where
+        `transition_name is not None`) MUST override this -- the dispatcher
+        uses it to read `from_state` for the lifecycle gate and the history
+        record. Default returns None (suitable for non-lifecycle commands
+        and creation commands).
+        """
+        return None
 
     @abstractmethod
     def handler(self, session: Session, payload: BaseModel) -> Any:
