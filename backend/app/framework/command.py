@@ -18,12 +18,17 @@ attributes so commands can be authored against the final surface from
 the start.
 """
 
+import ast
+import inspect
+import textwrap
 from abc import ABC, abstractmethod
 from typing import Any, ClassVar, Protocol
 from uuid import UUID
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
+
+from app.framework.exceptions import DestructiveCascadeViolation
 
 
 class Caller(Protocol):
@@ -153,3 +158,78 @@ def _clear_registry_for_tests() -> None:
     sets. NOT for production use.
     """
     _REGISTRY.clear()
+
+
+# ---- Cascade safeguards (ADR-0060) ----
+
+
+def validate_registry() -> None:
+    """Registry-load-time guard per ADR-0060: no command marked
+    `destructive = True` may appear in any other command's `cascade = [...]`
+    list unless the parent declares `cascade_allowed_destructive = True`.
+
+    Call at app startup (after all command modules have imported) and from
+    tests that build isolated command sets. Raises DestructiveCascadeViolation
+    on the first offending pair; fix and re-run.
+    """
+    for parent_cls in _REGISTRY.values():
+        if parent_cls.cascade_allowed_destructive:
+            continue
+        for child_cls in parent_cls.cascade:
+            if child_cls.destructive:
+                raise DestructiveCascadeViolation(parent_cls.name(), child_cls.name())
+
+
+def extract_handler_cascade_invocations(command_cls: type[Command]) -> set[str]:
+    """Static-analysis drift check per ADR-0060: extract the Command class
+    names a command's handler invokes via `cascade_invoke(...)`.
+
+    Walks the handler source via AST; matches Call nodes whose func is
+    `cascade_invoke` (bare or attribute). For each match, extracts the second
+    positional argument's symbol name if it is a Name node (e.g.,
+    `cascade_invoke(self, ChildCommand, payload, session)` -> {"ChildCommand"}).
+    Dynamic dispatch (`cascade_invoke(self, some_var, ...)` where some_var is
+    chosen at runtime) is invisible to this check -- a known limitation.
+
+    Pair with the declared `cascade = [...]` list in a unit test to detect
+    drift (declared but not invoked, or invoked but not declared).
+    """
+    try:
+        source = inspect.getsource(command_cls.handler)
+    except (OSError, TypeError):
+        return set()
+    tree = ast.parse(textwrap.dedent(source))
+    invoked: set[str] = set()
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        func = node.func
+        is_cascade_call = (isinstance(func, ast.Name) and func.id == "cascade_invoke") or (
+            isinstance(func, ast.Attribute) and func.attr == "cascade_invoke"
+        )
+        if not is_cascade_call:
+            continue
+        # Second positional arg is the child command class (first is `self`).
+        if len(node.args) >= 2 and isinstance(node.args[1], ast.Name):
+            invoked.add(node.args[1].id)
+    return invoked
+
+
+def cascade_drift_report() -> dict[str, dict[str, set[str]]]:
+    """Walk every registered command; for each, compare declared cascade
+    against statically-extracted handler invocations. Returns a per-command
+    dict with `declared`, `invoked`, `declared_not_invoked`, `invoked_not_declared`
+    sets (by class name). Empty `invoked_not_declared` is the safety-critical
+    invariant; `declared_not_invoked` is a cleanliness signal.
+    """
+    report: dict[str, dict[str, set[str]]] = {}
+    for parent_cls in _REGISTRY.values():
+        declared = {child.name() for child in parent_cls.cascade}
+        invoked = extract_handler_cascade_invocations(parent_cls)
+        report[parent_cls.name()] = {
+            "declared": declared,
+            "invoked": invoked,
+            "declared_not_invoked": declared - invoked,
+            "invoked_not_declared": invoked - declared,
+        }
+    return report

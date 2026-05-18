@@ -58,6 +58,39 @@ class AdvisoryLockUnavailable(Exception):
         self.lock_key = lock_key
 
 
+class CascadeViolation(Exception):
+    """A handler attempted to cascade-invoke a sub-command that was not
+    declared in its `cascade = [...]` list (ADR-0060). Indicates a
+    declaration drift or a runtime dispatch bug; fails closed to prevent
+    accidental auth-bypassed invocation of arbitrary commands.
+    """
+
+    def __init__(self, parent_name: str, child_name: str) -> None:
+        super().__init__(
+            f"command {parent_name!r} attempted to cascade-invoke "
+            f"{child_name!r}, which is not in its declared cascade list"
+        )
+        self.parent_name = parent_name
+        self.child_name = child_name
+
+
+class DestructiveCascadeViolation(Exception):
+    """Registry-load-time check (ADR-0060): a command marked `destructive = True`
+    appears in another command's `cascade = [...]` list, but the parent did not
+    declare `cascade_allowed_destructive = True`. Raised at registry validation
+    (typically app startup), not at command dispatch -- the goal is to fail
+    loudly before any request runs.
+    """
+
+    def __init__(self, parent_name: str, child_name: str) -> None:
+        super().__init__(
+            f"command {parent_name!r} cascades destructive command {child_name!r} "
+            f"without declaring cascade_allowed_destructive = True"
+        )
+        self.parent_name = parent_name
+        self.child_name = child_name
+
+
 class TransientContention(Exception):
     """Retry loop exhausted on advisory-lock / serialization_failure (ADR-0058).
 
