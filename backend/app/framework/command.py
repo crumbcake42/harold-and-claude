@@ -39,9 +39,13 @@ class Caller(Protocol):
 
     1.3a defines the minimum surface (an id) for smoke testing; M1+ adds
     role / relationship attrs as the auth predicates land per ADR-0047.
+    Declared as a read-only @property so the Protocol accepts both
+    frozen dataclasses (write-blocked) and SQLAlchemy models (writable
+    Mapped[UUID]) -- the dispatcher only reads .id.
     """
 
-    id: UUID
+    @property
+    def id(self) -> UUID: ...
 
 
 class Invariant(ABC):
