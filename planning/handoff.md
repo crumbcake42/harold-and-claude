@@ -53,7 +53,7 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 **Commits landed (on `m0/admin-paas-deferral` → FF-merged into `m0/foundations`):**
 1. `8ba95fc` M0.2: ADR-0055 defer PaaS vendor pick + portability discipline notes — `planning/decisions.md` append (ADR-0055, ~30 lines) + `planning/architecture.md` slot note updates (File contract `Update when` line, diagram caption, out-of-band file-storage pointer).
 2. `850c743` M0.2: M0 restructure -- collapse to 4 sub-steps (PaaS pick deferred) — `planning/steps.md` Step 1 sub-step roster collapse + downstream renumber + brief updates; `planning/roadmap.md` M0 row update + M8 row gains PaaS work + per-milestone expansion updates + carry-forward landing index updates (PaaS row moves to M8, +2 new rows for CI ephemeral-DB wiring + connection-pooling decision).
-3. `<commit-3-hash>` M0.2: handoff close-out (Session 28) — this rewrite + `planning/_file-rules.md` regen (architecture.md `Update when` block + date) + memory updates summary.
+3. `5d74f3c` Step 1.2 / M0.2 closed-by-deferral: handoff close-out (Session 28) — this rewrite + `planning/_file-rules.md` regen (architecture.md `Update when` block + date) + memory updates summary.
 
 **Branch ops.**
 - `m0/02-defer-paas-pick` created off `m0/foundations` (`20d2129`), then locally renamed to `m0/admin-paas-deferral`.
