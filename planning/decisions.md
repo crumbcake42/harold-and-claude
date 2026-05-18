@@ -2006,3 +2006,31 @@ Entries are numbered sequentially. Once `accepted`, do not edit in place — sup
 - **Carry-forwards:** None from this ADR. All carry-forwards (command-shape + implementation-phase + carve-outs) are tracked in `roadmap.md` § Carry-forward landing index against the milestones they land in.
 
 ---
+
+## ADR-0055 — Defer production PaaS vendor pick until prod is called for; preserve portability via discipline notes
+
+- **Date:** 2026-05-18
+- **Status:** accepted
+- **Decision:** Defer the production PaaS vendor pick + managed-Postgres offering indefinitely. Originally framed as Step 1.2 / M0.2 work landing at implementation kickoff (per ADR-0051 + ADR-0052 carry-forwards). Reinterpret the trigger from *"implementation kickoff (M0 opens)"* to *"user explicitly prompts to circle back."* Until that trigger fires, the development posture per ADR-0051 (Neon free-tier dev branches per machine + local) is the working environment, with no production deploy target named. Five discipline notes (Consequences below) keep the eventual vendor swap cheap.
+- **Context:** Step 1.2 of the Implementation phase opened as a vendor canvass and was reframed on user push-back. The honest framing: no production audience exists yet; the project may live as a portfolio / learning artifact and never need production hosting. Of the downstream work in M0 + M1–M7, none actually depends on the vendor pick — ADR-0052 already pinned PostgreSQL 15+ independently of vendor; the M0.5 adapter wraps *Postgres-specific* features (JSONB, advisory locks, `SERIALIZABLE`), not *vendor-specific* features; the dispatcher / history infrastructure / domain code are vendor-agnostic. The "dependency ordering" rationale that placed Step 1.2 inside M0 in the 2026-05-17 partition (`PaaS picks Postgres flavor → primitives bind to that flavor`) is not actually load-bearing — Postgres is Postgres across all realistic managed offerings. M8 (cutover prep) is the latest moment the pick becomes necessary; any earlier production-driven trigger (e.g., a real user emerges) brings it forward. The cost of deferral is ~1 hour of vendor canvass deferred from now to the trigger moment, against the benefit of not spending decision budget on a decision that may never matter.
+- **Alternatives considered:**
+  - *Pick vendor now per original Step 1.2 framing.* Rejected — no production audience; if the project never reaches production, the decision is wasted; the canvass is short enough (~1 hour) to do at the actual trigger moment with no portability penalty as long as the discipline notes hold.
+  - *Pick vendor lazily at each milestone (M3 / M5 / M8 as triggers).* Rejected — no milestone before M8 actually needs the pick; "pick lazily" creates a constant low-grade re-evaluation tax at every milestone opening. Single deferral with a named trigger is cleaner.
+  - *Pick a no-cost "default" now (e.g., Neon-prod-tier paired with Render or Fly.io for app hosting) without commitment.* Rejected — still spends decision budget canvassing the app-side bundle; the discipline notes give the same portability protection without spending the budget.
+  - *Skip the ADR; just remove Step 1.2 from `steps.md` silently.* Rejected — the deferral reinterprets two prior carry-forward triggers (ADR-0051's "implementation kickoff," ADR-0052's "PaaS vendor pick"). That's an amendment by supersession of substantive ADR scope and earns its own audit anchor.
+- **Consequences:**
+  - **Postgres-version floor pinned to 15+.** Dev (`docker-compose.yml` for CI, Neon branch for local) runs Postgres 15 or higher. Universal floor across the realistic vendor shortlist (Render Postgres, Fly.io Postgres, Railway Postgres, Neon prod tier, AWS RDS, GCP Cloud SQL, Azure Database for PostgreSQL). Documented in the M0.1 CI config and reaffirmed when M0 closes.
+  - **No vendor-specific Postgres extensions without availability check.** Adopting `pgvector`, `citus`, `pg_partman`, or any non-core extension requires checking availability on the realistic vendor shortlist before adoption. MVP scope (`mvp.md`) requires no such extensions; this is forward-looking discipline.
+  - **Default Postgres driver only.** Stay on vanilla `psycopg` (SQLAlchemy 2.0 default). Neon's serverless driver, RDS Proxy, and other vendor-coupled connection layers are opt-ins at vendor-pick time, not adopted in dev. Connection pooling stays at the SQLAlchemy pool level.
+  - **CI stays on docker-compose Postgres in the runner.** M0.1 deferred vendor-coupled ephemeral-PR DB wiring (e.g., Neon branch-per-PR) and that posture stays through MVP build-out. Vendor-coupled CI wiring lands when the vendor is picked.
+  - **Architecture.md vendor slot stays "deferred per ADR-0055"** rather than "TBD." Step 8b's File contract clause *"the PaaS vendor is pinned at implementation kickoff (vendor name + DB managed-offering name)"* is amended-by-supersession: the trigger reinterprets to "user prompts circle-back" (no later than M8 if the project ships to production).
+- **Amendments to other ADRs:**
+  - **ADR-0051's "Specific PaaS vendor pick" carry-forward.** Trigger reinterpreted from *"Implementation-phase kickoff"* to *"user prompts circle-back; no later than M8 cutover if project ships to production."* Other ADR-0051 commitments (the runtime stack, the dev DB workflow pinning Neon free-tier, the deployment shape committing to managed-PaaS-monolith) are unchanged.
+  - **ADR-0052's "PaaS vendor pick + managed-Postgres offering" carry-forward.** Same trigger reinterpretation. The constraint "managed offering on the chosen PaaS" still binds the eventual pick; this ADR doesn't relax that.
+- **Carry-forwards:**
+  - **PaaS vendor pick + managed-Postgres offering + provisioning + deploy wiring.** Lands when user explicitly prompts circle-back, or at latest M8 cutover prep if project ships to production. Canvass shape and candidate slate per the deferred Step 1.2 framing in `steps.md` (filter-first: managed Postgres 15+, monolith container target, single region, monthly cost ceiling, ops-familiarity floor).
+  - **CI ephemeral-PR DB wiring** against the chosen vendor. Same trigger.
+  - **Connection-pooling decision** (vendor-pooler vs. SQLAlchemy pool only). Same trigger.
+  - **Architecture.md vendor pin** (vendor name + DB managed-offering name in the component diagram). Same trigger.
+
+---

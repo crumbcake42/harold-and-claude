@@ -3,7 +3,7 @@
 ## File contract
 
 **Holds:** One-page architecture sketch of `sca-tracker` — component boxes, data flow, and the boundaries between them. Covers the runtime stack (ADR-0051) and the data layer (ADR-0052) at the level of "what runs where, and what talks to what." Does **not** hold the conceptual data model (Step 9 → `data-model.md`), the roadmap (Step 9 → `roadmap.md`), or the implementation-phase concrete designs (`Command` dispatcher, PaaS vendor specifics, per-invariant isolation choices — all carry-forwards).
-**Update when:** ADR-0051 or ADR-0052 are amended in a way that changes component boundaries or data flow; a new architectural-shape ADR lands; the PaaS vendor is pinned at implementation kickoff (vendor name + DB managed-offering name).
+**Update when:** ADR-0051 or ADR-0052 are amended in a way that changes component boundaries or data flow; a new architectural-shape ADR lands; the PaaS vendor is pinned (vendor name + DB managed-offering name). Vendor pin is currently deferred per ADR-0055 — no Step-1.2-shaped trigger; lands when the user prompts circle-back, no later than M8 cutover if the project ships to production.
 
 ---
 
@@ -16,7 +16,8 @@
                                         │ HTTPS
                                         ▼
                         ┌───────────────────────────────┐
-                        │  Managed PaaS (vendor TBD)    │
+                        │  Managed PaaS                 │
+                        │  (vendor deferred / ADR-0055) │
                         │  ───────────────────────────  │
                         │                               │
                         │  ┌─────────────────────────┐  │
@@ -101,7 +102,7 @@ A rejected command produces no state change and no history (per ADR-0011); the c
 
 ## Out-of-band concerns
 
-- **File storage** (uploaded Documents per `domain-model.md`'s Document entity). Not pinned at architecture sketch level; the obvious choice is object storage on the chosen PaaS (S3-compatible bucket) referenced by URL from the Document entity row. Deferred to implementation kickoff.
+- **File storage** (uploaded Documents per `domain-model.md`'s Document entity). Not pinned at architecture sketch level; the obvious choice is object storage on the chosen PaaS (S3-compatible bucket) referenced by URL from the Document entity row. Deferred — bundled with the PaaS vendor pick per ADR-0055.
 - **Background jobs / scheduled work.** Not in MVP scope per `mvp.md`. If added later, the PaaS-bundled worker primitive (Fly Machines / Render background workers / Railway cron) is the path; no separate queue infrastructure planned.
 - **Email / notification side effects.** Not in MVP scope per `mvp.md`. When added, they live downstream of the command commit, not inside the dispatcher transaction (side effects must not block transaction commit).
 - **Authentication mechanism.** Pinned at implementation kickoff; the architecture commits to "caller identity reaches the dispatcher" but not to the auth scheme (session cookies / JWT / OIDC against a managed identity provider all fit).
