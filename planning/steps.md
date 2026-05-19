@@ -196,7 +196,7 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 | Sub-step | Title | Size | Branch | ADRs expected |
 |---|---|---|---|---|
-| **1.1** | M1.1 Auth substrate + frontend shell | M+ (possibly L) | `m1/01-auth-shell` | 2–3 (auth substrate + Caller shape + possibly route-guard pattern) |
+| **1.1** ✓ | M1.1 Auth substrate + frontend shell (Session 35, 2026-05-19) | M+ | `m1/01-auth-shell` | 3 (ADR-0061 auth substrate + ADR-0062 Caller shape + ADR-0063 route-guard pattern) |
 | **1.2** | M1.2 Admin substrate + flat roster (Employee / School / Contractor / User / Contract) | M | `m1/02-flat-roster` | 1–2 (admin-CRUD authoring shape; admin auth-predicate factory if non-obvious) |
 | **1.3** | M1.3 Role administration (UserRole grant/revoke + `audit_reason` Note) | S–M | `m1/03-role-admin` | 1 (`audit_reason` Note polymorphism mechanism) |
 | **1.4** | M1.4 Range-typed entities (EmployeeRole + ContractorEngagement + `change_employee_role_rate`) | M (possibly L) | `m1/04-range-typed` | 0–1 (compound decomposition if non-obvious) |
@@ -209,9 +209,11 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ---
 
-### Step 2.1 — M1.1 Auth substrate + frontend shell (M+, possibly L)
+### Step 2.1 — M1.1 Auth substrate + frontend shell (M+) ✓ COMPLETE
 
-**Goal:** Land the authentication substrate end-to-end — backend login flow producing a Caller, session persistence, frontend login page, auth-guarded route shell, and the Caller concrete shape (resolves ADR-0059's deferred carry-forward). Subsequent sub-steps dogfood the admin dashboard in a browser.
+**Completed Session 35 (2026-05-19).** Auth substrate landed end-to-end on branch `m1/01-auth-shell` (tip = `f0a651d`). Two commits: backend slice (`b7b75b6`) — Caller concrete, User/UserRole/Session models + Alembic migration (`25ea83fcec61_auth_substrate` applied to Neon), framework.auth (argon2id pinned + session CRUD + current_user dep), `/auth/login` `/auth/logout` `/auth/me` routes, CORS middleware; frontend + tests slice (`f0a651d`) — `bootstrap_admin` CLI, per-role pytest fixtures, 13 new auth tests, login/`_authenticated`/admin-shell routes, `useCurrentUser` hook, cookie wiring. **Three ADRs landed: ADR-0061 (auth substrate bundle), ADR-0062 (Caller concrete shape — resolves ADR-0059 carry-forward), ADR-0063 (frontend route-guard pattern + `setQueryData` over `invalidateQueries`).** **One non-obvious bug surfaced + fixed at browser-flow verification:** login's `invalidateQueries` with no active subscriber left the cache stale → `_authenticated.beforeLoad` read the cached null → redirect loop. Fix: `setQueryData(currentUserQueryKey, response.data)` — the login response already contains the Caller. Pattern pinned in ADR-0063. **Verification:** 40 backend tests green (27 prior + 13 new), 1 frontend test green, ruff + ESLint + tsc clean; browser round-trip verified (login → admin shell → sign out → back to login). Neon dev DB at head per [[project-neon-current-policy]].
+
+**Goal (original):** Land the authentication substrate end-to-end — backend login flow producing a Caller, session persistence, frontend login page, auth-guarded route shell, and the Caller concrete shape (resolves ADR-0059's deferred carry-forward). Subsequent sub-steps dogfood the admin dashboard in a browser.
 
 **Locked decisions** (Session 34 chat-side canvass; ADRs author them up):
 

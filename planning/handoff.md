@@ -38,94 +38,92 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Current phase
 
-**Implementation** — Phase 2. **Step 1 / M0 Foundations ✓ COMPLETE 2026-05-19 (Session 33).** **Step 2 / M1 Roster partitioned 2026-05-19 (Session 34, Case 2)** into 4 sub-steps with **Contract hoisted from M2 to M1.2** (ADR-0045 makes EmployeeRole's `contract_id` mandatory) and **auth substrate pulled into M1.1** (`architecture.md` line 108 out-of-band concern never milestoned in `roadmap.md`; lesson saved as [[check-out-of-band-concerns]]). Currently on the **`m1/roster`** branch (tip = 3684fad, pre-M1.1 cleanup commit consolidating `backend/scripts/` → `backend/app/cli/`). Sub-step status: M1.1 next (auth substrate + frontend shell); M1.2 / M1.3 / M1.4 stubs in `steps.md`. **Next branch op at Session 35 head:** `git checkout -b m1/01-auth-shell` off `m1/roster`.
+**Implementation** — Phase 2. **Step 1 / M0 Foundations ✓ COMPLETE 2026-05-19 (Session 33).** **Step 2 / M1 Roster partitioned 2026-05-19 (Session 34, Case 2)** into 4 sub-steps. **Step 2.1 / M1.1 Auth substrate + frontend shell ✓ COMPLETE 2026-05-19 (Session 35).** Currently on branch **`m1/01-auth-shell`** (tip = `f0a651d`, two commits: backend slice `b7b75b6` + frontend/tests slice `f0a651d`). Sub-step status: M1.2 next (admin substrate + flat roster, incl. Contract hoisted from M2); M1.3 / M1.4 stubs in `steps.md`. **Branch state pending:** `m1/01-auth-shell` not yet FF-merged to `m1/roster` (decision deferred to user signal). **Next branch op at Session 36 head:** FF-merge `m1/01-auth-shell` → `m1/roster` if not already done, then `git checkout -b m1/02-flat-roster` off `m1/roster`.
 
 ## Last session summary
 
-**Session 34 — Step 1 / M0 close-out + Step 2 / M1 Case-2 sizing (2026-05-19).** Three landings: M0 closed with prescribed branch ops + one deviation; pre-M1.1 cleanup commit on `m1/roster`; M1 partitioned into 4 sub-steps with 8 locked decisions for M1.1.
+**Session 35 — Step 2.1 / M1.1 Auth substrate + frontend shell (2026-05-19, Case 3 implementation).** Auth substrate landed end-to-end on `m1/01-auth-shell`. Three ADRs (ADR-0061 / 0062 / 0063), two implementation commits, one Neon migration applied, one non-obvious bug surfaced + fixed at browser verification, one new project memory.
 
-**M0 close-out (branch ops at session head).** Executed the 5-op sequence prescribed in the Session 33 handoff with one deviation:
+**The six *how*-level decisions canvassed at session head + pinned:**
 
-1. FF-merge `m0/04-adapter-boundary` → `m0/foundations` (clean; Step 1.4 landed into milestone branch).
-2. Create local `dev` tracking `origin/dev`.
-3. **Deviation: `.gitignore` seed commit on `dev`** (a47a0a8) before the merge. `origin/dev` was at the conceptualization-phase tip with no `.gitignore` files; merging `m0/foundations` would have left `backend/` / `frontend/` / `.vscode/` (containing `node_modules` / `__pycache__` / build artifacts) showing as untracked. Cherry-picked the 3 `.gitignore` files (root + backend + frontend) from `m0/foundations`, committed on `dev` first. Merge then clean.
-4. `--no-ff` merge `m0/foundations` → `dev` (2332f75 — milestone TOC commit per [[preserve-incremental-commits]]).
-5. `git tag m0-complete` (rewind anchor per [[project-branching-convention]]).
-6. `git checkout -b m1/roster` off updated `dev`.
+1. **Session token:** `secrets.token_urlsafe(32)` — 256 bits, URL-safe, opaque.
+2. **Argon2 parameters:** explicit OWASP 2024 pin (`time_cost=2`, `memory_cost=19456 KiB`, `parallelism=1`, `hash_len=32`, `salt_len=16`) — hashes stay verifiable across `argon2-cffi` version bumps.
+3. **`Caller` module:** new `app/framework/caller.py`; removed Protocol stub from `command.py`.
+4. **`app.framework.auth`:** single module (~150 LOC).
+5. **Frontend route guard:** TanStack Router file-based `_authenticated.tsx` layout + `beforeLoad` via `ensureQueryData`.
+6. **Pytest fixture shape:** dependency-override of `current_user` for `as_superadmin / as_admin / as_coordinator / as_auditor`.
 
-**Pre-M1.1 cleanup commit on `m1/roster` (3684fad).** Consolidated `backend/scripts/` → `backend/app/cli/`. User-driven: pointed out the old `scripts/export_openapi.py` carried a `sys.path.insert(BACKEND_ROOT)` hack only because it lived outside the `app` package. New `app/cli/export_openapi.py` imports natively; takes `--out` as a CLI arg (no more `REPO_ROOT = BACKEND_ROOT.parent` parenting chain); writes via `write_bytes` to bypass Windows CRLF translation. `justfile gen-openapi-schema` target updated to `python -m app.cli.export_openapi --out ../contracts/openapi.json`. `app/cli/` becomes home for app-internal commands; `bootstrap_admin.py` lands here in M1.1. Promote to Click/Typer at the 3rd command.
+Plus the `bootstrap_admin` CLI uses stdlib `input()` + `getpass`; Click adoption deferred to the 3rd CLI command per the `app/cli/` convention.
 
-**M1 Case-2 sizing.** All 7 fit-checklist signals fired. Two scope additions resolved at sizing:
+**Backend (commit `b7b75b6`).** `app/framework/caller.py` (concrete Caller + Role StrEnum + `has_role_at_least`); `app/framework/command.py` (dropped Caller Protocol, imports from caller); `app/domain/auth.py` (User / UserRole / Session models — User.employee_id nullable plain UUID until M1.2's Employee migration adds the FK); `app/framework/auth.py` (argon2id hash/verify with pinned params + session CRUD + `current_user` dep with `_ensure_utc` SQLite-tz shim); `app/routes/auth.py` (POST `/auth/login`, POST `/auth/logout`, GET `/auth/me`); CORS middleware in `app/main.py`; config additions (`frontend_origin`, `session_cookie_name`, `session_ttl_hours`, `cookie_secure`); migration `25ea83fcec61_auth_substrate` (autogen + applied to Neon per [[project-neon-current-policy]]); pyproject (argon2-cffi dep + ruff `extend-immutable-calls` for FastAPI deps to suppress B008 false positives).
 
-- **Contract hoisted from M2 to M1.2.** ADR-0045's mandatory `EmployeeRole.contract_id` left EmployeeRole without an upstream entity under the original M2 placement. Contract is admin-roster CRUD in character per ADR-0047 Cluster 1; M1's character.
-- **Auth substrate pulled into M1.1.** `architecture.md` line 108 flagged authentication as out-of-band *"pinned at implementation kickoff"* — never milestoned. M1's "admin dashboard skeleton" forces the question. Lesson saved: [[check-out-of-band-concerns]] (cross-check architecture.md out-of-band concerns at every Case 2 sizing — three of four had been routed, auth slipped).
+**Frontend + tests (commit `f0a651d`).** `app/cli/bootstrap_admin.py` (stdlib `input()` + `getpass`, idempotent on collision); per-role pytest fixtures + 13 new auth tests in `tests/test_auth.py` (40 total backend tests green); regenerated `contracts/openapi.json` + `frontend/src/api/`; frontend auth shell — `api/configure.ts` (client.setConfig with `credentials: 'include'`), `hooks/useCurrentUser.ts` (TanStack Query hook + `currentUserQueryOptions` for use in route loaders), `routes/login.tsx` (form + mutation), `routes/_authenticated.tsx` (`beforeLoad` redirect guard), `routes/_authenticated/index.tsx` (admin shell + logout button), `main.tsx` (`configureApiClient` + `queryClient` on router context), `__root.tsx` (typed router context).
 
-**Partition (4 sub-steps).** Brief in `planning/steps.md` § Step 2; M1.1 fully detailed, 1.2–1.4 stubbed:
+**Non-obvious bug surfaced + fixed at browser verification (pinned in ADR-0063).** Original login `onSuccess` used `queryClient.invalidateQueries({queryKey: ['auth', 'me']})` then `navigate({to: '/'})`. With no active subscriber to the user query on the `/login` page, `invalidateQueries` (default `refetchType: 'active'`) marked stale but did not refetch. Then `navigate` ran; `_authenticated.beforeLoad` called `ensureQueryData` which returned the *stale-but-cached* null (ensureQueryData returns cached data even when stale; only fetches on missing); beforeLoad bounced back to `/login`. Fix: `queryClient.setQueryData(currentUserQueryKey, response.data)` — the login response already contains the Caller, so seed the cache directly. Rule pinned: for auth-state mutations where the response carries the new value, prefer `setQueryData` over `invalidateQueries`.
 
-| Sub-step | Title | Size | Branch | ADRs expected |
-|---|---|---|---|---|
-| 1.1 | Auth substrate + frontend shell | M+ (possibly L) | `m1/01-auth-shell` | 2–3 |
-| 1.2 | Admin substrate + flat roster (incl. Contract) | M | `m1/02-flat-roster` | 1–2 |
-| 1.3 | Role administration + `audit_reason` Note | S–M | `m1/03-role-admin` | 1 |
-| 1.4 | Range-typed entities + `change_employee_role_rate` | M (possibly L) | `m1/04-range-typed` | 0–1 |
+**The 8 locked *what*-level decisions from Session 34 → ADR partition:**
 
-**8 locked decisions for M1.1** (chat-side canvass per STOP-AND-CONFIRM; no ADRs yet — authored up during M1.1 implementation):
+- ADR-0061 bundles decisions 1 (sessions) + 2 (argon2id) + 3 (bootstrap) + 4 (CORS) + 5 (CSRF deferral) + 8 (non-Command login).
+- ADR-0062 records decision 6 (Caller concrete shape) — closes ADR-0059's *"Caller concrete shape"* carry-forward.
+- ADR-0063 records decision 7 (frontend route guard) + the `setQueryData` rule from the bug above.
 
-1. **Session mechanism:** DB-backed server-side sessions; opaque random token in `httpOnly Secure SameSite=Lax` cookie; 12h sliding TTL.
-2. **Password hashing:** argon2id via `argon2-cffi`.
-3. **Bootstrap:** `app/cli/bootstrap_admin.py` CLI + pytest fixture.
-4. **CORS:** `CORSMiddleware(allow_origins=[settings.FRONTEND_ORIGIN])`.
-5. **CSRF tokens deferred** (`SameSite=Lax` cookies cover MVP threat surface).
-6. **Caller concrete shape:** Pydantic `Caller(id: UUID, username: str, roles: frozenset[Role])`. Closes ADR-0059's *"Caller concrete shape"* carry-forward.
-7. **Frontend route guard:** TanStack Router `_authenticated` route layout group with `beforeLoad`; API client interceptor redirects on 401.
-8. **Login as non-Command surface:** dispatcher requires a Caller; login produces one. FastAPI route directly. Documented as the exception.
+**Commits landed this session (2).**
 
-**Out of scope for M1.1** (MVP-deferred): password reset; login rate limiting / lockout; remember-me beyond 12h sliding TTL; 2FA / OAuth / SSO; immediate session invalidation on `revoke_user_role` (per `mvp.md` line 73 — next-request authorization check is MVP behavior); CSRF tokens.
+1. `b7b75b6` on `m1/01-auth-shell` — M1.1 step 1/2: backend auth substrate.
+2. `f0a651d` on `m1/01-auth-shell` — M1.1 step 2/2: bootstrap CLI + per-role fixtures + frontend auth shell.
 
-**Commits landed this session (4).**
+Planning close-out (this commit) lands ADRs 0061 / 0062 / 0063 + steps.md (Step 2.1 marked complete) + handoff.md (this rewrite).
 
-1. `a47a0a8` on `dev` — `.gitignore` seed before M0 merge.
-2. `2332f75` on `dev` — `--no-ff` merge of `m0/foundations` (M0 milestone TOC commit).
-3. `3684fad` on `m1/roster` — pre-M1.1 cleanup (`scripts/` → `app/cli/`).
-4. (this commit) on `m1/roster` — Session 34 close-out: `planning/steps.md` (Step 2 expanded into 4 sub-steps) + `planning/handoff.md` (this rewrite).
+**ADRs landed this session (3).** ADR-0061 (auth substrate bundle), ADR-0062 (Caller concrete shape — closes ADR-0059 carry-forward), ADR-0063 (frontend route guard + `setQueryData` rule).
 
-**ADRs landed this session (0).** All M1.1 decisions deferred to ADR-write at implementation (ADR-0061+).
+**Memories saved (1 new).** `project_neon_current_policy` — Neon dev DB stays current with alembic head; apply migrations to Neon immediately at landing; `.env`'s `DATABASE_URL` is authoritative; throwaway sqlite OK for pre-commit iteration only. Triggered by Session 33's `b555ac8d13da` migration never being applied to Neon, surfaced when M1.1's autogen failed with "Target database is not up to date."
 
-**Memories saved (1 new).** `feedback_check_out_of_band_concerns` — cross-check architecture.md's out-of-band concerns against milestone scope at every Case 2 sizing.
+**Files touched.** Backend: `app/cli/bootstrap_admin.py` (new), `app/config.py`, `app/domain/auth.py` (new), `app/framework/auth.py` (new), `app/framework/caller.py` (new), `app/framework/command.py`, `app/framework/db.py`, `app/framework/dispatcher.py`, `app/main.py`, `app/routes/auth.py` (new), `migrations/env.py`, `migrations/versions/25ea83fcec61_auth_substrate.py` (new), `pyproject.toml`, `uv.lock`, `tests/conftest.py`, `tests/test_auth.py` (new), `tests/test_capture_sink_integration.py`, `tests/test_dispatcher.py`, `tests/fixtures/smoketest/commands.py`. Frontend: `src/api/` (regenerated), `src/api/configure.ts` (new), `src/hooks/useCurrentUser.ts` (new), `src/main.tsx`, `src/routeTree.gen.ts`, `src/routes/__root.tsx`, `src/routes/index.tsx` (deleted → moved under `_authenticated/`), `src/routes/_authenticated.tsx` (new), `src/routes/_authenticated/index.tsx` (new), `src/routes/login.tsx` (new). Shared: `contracts/openapi.json` (regenerated). Planning: `decisions.md` (3 ADRs appended), `steps.md` (Step 2.1 marked complete), `handoff.md` (this rewrite). `_file-rules.md` **not regenerated** — no `## File contract` block changed.
 
-**Files touched.** `backend/.gitignore` + `frontend/.gitignore` + `.gitignore` (new on `dev` via seed commit). `backend/app/cli/__init__.py` (new), `backend/app/cli/export_openapi.py` (new), `backend/scripts/export_openapi.py` (deleted), `justfile` (gen-openapi-schema target updated) — all on `m1/roster` cleanup commit. `planning/steps.md` (Step 2 expanded). `planning/handoff.md` (this rewrite). `_file-rules.md` **not regenerated** — no `## File contract` block changed.
-
-**Verification at session close.** `just gen-openapi-schema` runs cleanly via new module path; `contracts/openapi.json` byte-identical to pre-cleanup (CRLF fix via `write_bytes` confirmed). No backend test changes; Session 33's 27-test suite remains green.
+**Verification at session close.** Backend: 40 pytest green (27 prior + 13 new), ruff clean. Frontend: 1 vitest green, ESLint clean, `tsc --noEmit` clean. Neon dev DB at head (`25ea83fcec61_auth_substrate` applied). Browser flow round-tripped by user — `/` → `/login` → login → admin shell at `/` → sign out → back at `/login`; invalid credentials → "invalid credentials" message.
 
 ---
 
 ## Open questions
 
-**For the next session (Session 35 — Step 2.1 / M1.1 Auth substrate + frontend shell, Case 3 implementation):**
+**For the next session (Session 36 — Step 2.2 / M1.2 Admin substrate + flat roster, Case 2 sizing then likely partitioned implementation):**
 
-- **Branch op at session head:** `git checkout -b m1/01-auth-shell` off `m1/roster` (tip = 3684fad).
-- **ADR numbering.** Next at write time **ADR-0061**. M1.1 likely lands 2–3 ADRs: auth substrate (bundle of D1+D2+D3+D4+D5+D8 — sessions + hashing + bootstrap + CORS + non-Command login); Caller concrete shape (D6, closes ADR-0059); optionally frontend route-guard pattern (D7) if non-obvious tradeoffs surface.
-- **Decision detail still to canvass at session head** (the 8 locked decisions pinned the *what*; the *how* of some sub-pieces has substance):
-  - Session token shape: `secrets.token_urlsafe(32)` is the obvious pick — flag if anything else is in play.
-  - Argon2 parameters: stick with `argon2-cffi` library defaults or pin explicit `time_cost` / `memory_cost` / `parallelism`? Library defaults change between releases — explicit pinning is the safer choice for reproducible hash compatibility across machines.
-  - `Caller` module location: `app.framework.caller` (new) vs. inline in `app.framework.command` (lives next to `Command`). Lean to new module for legibility; mild fork.
-  - `app.framework.auth` internal partitioning: one module or split (hashing / session / dependency)? Likely one until size argues otherwise.
-  - Frontend: TanStack Router file-based `_authenticated` group convention — confirm by trying it; rollback to programmatic routing if conventions clash.
-  - Pytest fixture shape for "logged in as <role>": fixture composes `(User row + Session row + Caller dependency override on FastAPI app)`. Confirm dependency-override is cleanest vs. constructing the Caller separately.
-- **Read first at session head:** Session 34 summary above + Open questions block + `planning/steps.md` § Step 2 high-level + § Step 2.1 (full M1.1 brief with 8 locked decisions) + ADR-0040 (role catalog) + ADR-0047 (per-command authorization predicates) + ADR-0059 (Command base class + Caller carry-forward). Skim `app/framework/command.py` (Caller Protocol shape — switching to concrete Caller is a M1.1 output), `app/framework/dispatcher.py` (Caller consumption call sites), `app/cli/export_openapi.py` (CLI module pattern that `bootstrap_admin.py` mirrors). Frontend skim: `frontend/src/routes/` (current TanStack Router setup), `frontend/src/api/` (openapi-ts client — the 401 interceptor wraps this).
-- **Coordination point:** the dispatcher's auth step currently consumes Caller via Protocol; M1.1 switches it to the concrete Caller. May surface Caller-attribute additions (e.g., `roles` access pattern). One backend-↔-dispatcher integration moment during M1.1.
+- **Branch op at session head:** if `m1/01-auth-shell` is not yet FF-merged to `m1/roster` (check `git log m1/roster..m1/01-auth-shell`), do that first. Then `git checkout -b m1/02-flat-roster` off `m1/roster`. Tag-anchor `m1.1-complete` on `m1/roster` is optional (the `m<X>-complete` convention is for milestone close per [[project-branching-convention]], not sub-step close).
+- **Case 2 sizing required at session head.** Step 2.2 has a stub brief in `steps.md` — not a scoped prompt. Expect sizing to surface several fit-checklist signals: independently-deliberable decisions (admin-CRUD authoring shape — generalized factory vs hand-authored per entity, ADR-worthy; admin auth-predicate factory shape, ADR-worthy); five new entity tables (Employee, School, Contractor, User-side admin CRUD, Contract); cross-concern reach (backend entity authoring + first ADR-0047 predicate landing + frontend per-entity admin pages); likely >60 min duration. **Likely partition needed** — natural seam is backend entities + commands → backend admin routes → frontend admin pages. Hold the partition canvass at session head per Case 2 protocol; don't pre-decide.
+- **ADR numbering.** Next at write time **ADR-0064**. M1.2 likely lands 1–2 ADRs: admin-CRUD authoring shape (generalized factory vs hand-authored), admin auth-predicate factory shape if non-obvious. First ADR-0047 predicate landing in M1+ code; the `role >= admin` Cluster 1 class rule is the first concrete use of `has_role_at_least` from ADR-0062.
+- **Five entities to land** (per ADR-0047 Cluster 1):
+  - **Employee** — HR-driven, no lifecycle, audit-log history per ADR-0052.
+  - **School** — flat, no lifecycle, audit-log history.
+  - **Contractor** — flat, no lifecycle, audit-log history.
+  - **User** (admin-CRUD beyond M1.1's auth-substrate insert) — `edit_user` for password resets and `employee_id` link; `delete_user` per delete policy.
+  - **Contract** — hoisted from M2 per Session 34 sizing. ADR-0044 carries the structural shape; admin-CRUD in character per ADR-0047 Cluster 1. The `code_flat_fee_schedule` (per ADR-0045) is the substantive attribute.
+  - Add Employee FK + UNIQUE constraint to `user.employee_id` in the M1.2 migration (M1.1 left it as a plain UUID per the carry-forward note in ADR-0061 § Consequences).
+- **Decision detail to canvass at session head:**
+  - **Admin-CRUD authoring shape.** Generalized factory (`make_create_command(Entity, Payload)`) vs hand-authored Command per entity. Factory wins on volume (5 entities × 3 commands = 15); hand-authored wins on flexibility for non-uniform predicates. Worth a structured canvass. Likely ADR-worthy regardless of pick.
+  - **Read routes** (`GET /<entity>`, `GET /<entity>/{id}`). Per-entity hand-authored, or generalized? Frontend admin pages need them in M1.2 — can't wait for M7's reporting work. Likely hand-authored (5 endpoints, low complexity).
+  - **Admin auth-predicate factory.** ADR-0047 Cluster 1 class rule is uniform `role >= admin`. Encode once as a reusable predicate factory; or inline per command? Lean factory.
+  - **Frontend admin page shape.** List + detail/form per entity. Component shape? Shadcn/ui adoption decision was deferred per ADR-0051; M1.2 forces it unless we hand-roll. Resurface the shadcn deferral or proceed with plain Tailwind/CSS.
+- **Read first at session head:** Session 35 summary above + Open questions for Session 36 + `planning/steps.md` § Step 2 high-level + § Step 2.2 stub + ADR-0040 (role catalog) + ADR-0047 (per-command authorization predicates — Cluster 1 is M1.2's surface) + ADR-0044 / ADR-0045 (Contract + WABundle structural shape, contract scoping) + ADR-0061 / 0062 (auth substrate + Caller from Session 35) + `data-model.md` § Roster entities (per-entity attribute rosters). Skim `app/framework/caller.py` + `app/framework/auth.py` (consumed by M1.2 routes); `app/domain/auth.py` (existing entity pattern that M1.2 entities mirror); `app/framework/history.py` (mixin pattern + audit-log shape for the 5 new entities); `tests/conftest.py` § per-role fixtures (M1.2 command tests build on these).
+- **Coordination points:**
+  - The User table got created in M1.1 with `employee_id` as a plain UUID + no FK. M1.2's Employee migration adds the FK + UNIQUE constraint via a follow-up alter. Verify the alter handles existing rows (the bootstrap superadmin will have null `employee_id`, which is the nullable-FK shape ADR-0041 Gap 5 anticipates).
+  - First write-path commands hit M0.4's adapter boundary — `json_column()` for any JSONB columns (e.g., `Contract.code_flat_fee_schedule`); `SERIALIZABLE` isolation per ADR-0056 D1.a default. First chance to verify the adapter behaves as designed on real domain code.
+- **Carry-forwards for M1.2 to land:**
+  - `User.employee_id` FK + UNIQUE constraint (per ADR-0061 § Consequences carry-forward).
+  - First ADR-0047 Cluster 1 predicate landing — formalize `role >= admin` class rule as a reusable predicate factory.
 
 **For Phase 2 broadly (M1+ outlook):**
 
 - **Step 1 / M0 ✓ COMPLETE 2026-05-19** (Session 33). Substrate for every M1+ command in place: Command base + dispatcher with retry loop, history infrastructure with real capture sink, advisory-lock + SERIALIZABLE primitives behind a documented adapter, Alembic + CI green on SQLite.
+- **Step 2.1 / M1.1 ✓ COMPLETE 2026-05-19** (Session 35). Auth substrate established for M1.2+ admin work. Per-role pytest fixtures available; concrete Caller flows through dispatcher.
 - **PaaS vendor pick stays deferred per ADR-0055.** Do not re-propose vendor canvass at any M1+ step head. See [[project-vendor-pick-deferred]] for the 5 portability discipline notes.
 - **Postgres CI service stays deferred** (Session 33 decision). Revisit if Docker access becomes reliable on the dev machine.
-- **MVP-attempt-1 rewind protocol** (per [[project-branching-convention]]): with `m0-complete` tag landed, rewind cost to restart M1 from M0 is one tag move.
+- **Neon dev DB stays current with alembic head per [[project-neon-current-policy]].** Apply migrations to Neon immediately at landing; throwaway sqlite OK for pre-commit iteration only.
+- **MVP-attempt-1 rewind protocol** (per [[project-branching-convention]]): with `m0-complete` tag landed, rewind cost to restart M1 from M0 is one tag move. `m1-complete` lands at M1 close (after sub-steps 1.2, 1.3, 1.4).
 
 **Carried into Phase 2 broadly:**
 
-- **Auth substrate establishes the user-identity surface for all M1+ work.** M1.2+ admin pages assume a logged-in admin via the M1.1 dependency. The pytest "logged in as <role>" fixture is the test-side anchor for every M1+ command unit test.
-- **Adapter boundary established (M0.4).** Postgres-specific features live behind `app.framework.adapter`. M1+ entity tables consume `json_column()`; advisory-lock invariants land key-builders in `app.framework.locks` and call the adapter.
+- **Auth substrate (M1.1).** Concrete Caller + per-role pytest fixtures + `current_user` dep + login/logout/me routes are now the M1.2+ baseline. M1.2 commands consume `Caller` for ADR-0047 predicates; tests use `as_admin` etc. from `conftest.py`.
+- **Adapter boundary (M0.4).** Postgres-specific features live behind `app.framework.adapter`. M1+ entity tables consume `json_column()`; advisory-lock invariants land key-builders in `app.framework.locks` and call the adapter.
 - **PaaS / vendor portability discipline** (ADR-0055 + [[project-vendor-pick-deferred]]). Postgres 15+ floor; no vendor-specific extensions; vanilla `psycopg`; CI on docker-compose Postgres when adopted.
 - **Carry-forward landings.** Per `roadmap.md` § Carry-forward landing index. M1's carry-forward: ContractorEngagement signatures + date defaults (lands in M1.4).
 
@@ -134,52 +132,67 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 - **STOP-AND-CONFIRM gate stays in force, including for source code.** Each sub-step opens with chat-side deliberation before any code or ADR write.
 - **Commit pattern: preserve incremental checkpoints; FF sub-step branches to `m1/roster`; merge `m1/roster` → `dev` with `--no-ff` + tag `m1-complete` at M1 close** (per [[preserve-incremental-commits]] + [[project-branching-convention]]).
 - **Contract-drift CI job enforces schema + client are in sync.** Any backend OpenAPI-surface change requires `just gen-openapi` + commit of `contracts/openapi.json` + `frontend/src/api/` (see [[committed-generated-artifacts]]).
-- **Cross-check architecture.md out-of-band concerns at every Case 2 sizing** per [[check-out-of-band-concerns]] — applied at M1 (caught auth slip); apply at M2+.
+- **Cross-check architecture.md out-of-band concerns at every Case 2 sizing** per [[check-out-of-band-concerns]] — applied at M1 (caught auth slip); apply at M2+. For M1.2 Case 2 sizing: the relevant out-of-band concerns are file storage (not surfaced until M5), background jobs (not surfaced until M3 RFA auto-draft regeneration), notifications (post-MVP). None of those apply to M1.2.
 - **`mvp.md` is the canonical MVP scope reference.**
+- **Migration discipline per [[project-neon-current-policy]].** Author migration → `uv run alembic upgrade head` against Neon → commit. Throwaway sqlite for shape iteration before commit.
 
 ## Next session
 
-**Session 35 — Step 2.1 / M1.1 Auth substrate + frontend shell (Case 3 implementation).** Branch op at session head: `git checkout -b m1/01-auth-shell` off `m1/roster` (tip = 3684fad). Then Case 3 implementation per the M1.1 brief in `planning/steps.md` § Step 2.1 — 8 locked decisions pinned; *how* canvass at session head before writing. Likely 2–3 ADRs landing (ADR-0061+).
+**Session 36 — Step 2.2 / M1.2 Admin substrate + flat roster (Case 2 sizing, then implementation).** Branch op at session head: confirm `m1/01-auth-shell` FF-merge state to `m1/roster`; then `git checkout -b m1/02-flat-roster` off `m1/roster`. Case 2 sizing first (likely partition needed), then implementation per the partitioned plan. ADRs 0064+.
 
 ### Prompt for the next session
 
-> Resume work. **Step 1 / M0 Foundations ✓ COMPLETE** (Session 33). **Step 2 / M1 Roster partitioned into 4 sub-steps** (Session 34, Case 2). Session 35 implements **M1.1 Auth substrate + frontend shell** — Case 3 scoped.
+> Resume work. **Step 2.1 / M1.1 ✓ COMPLETE** (Session 35 — auth substrate + frontend shell, ADRs 0061 / 0062 / 0063). Session 36 opens **Step 2.2 / M1.2 Admin substrate + flat roster** — Case 2 sizing then implementation.
 >
 > **Branch op at session head:**
 > ```
+> git log m1/roster..m1/01-auth-shell    # confirm M1.1 commits not yet on m1/roster
 > git checkout m1/roster
-> git checkout -b m1/01-auth-shell
+> git merge --ff-only m1/01-auth-shell   # if not already merged
+> git checkout -b m1/02-flat-roster
 > ```
-> Pre-M1.1 cleanup commit (3684fad — `scripts/` → `app/cli/` consolidation) is at `m1/roster`'s tip; M1.1 builds on top.
 >
-> **The 8 locked decisions for M1.1 are pinned in `planning/steps.md` § Step 2.1 ("Locked decisions" block).** Don't re-canvass them — they were settled at the Session 34 chat-side canvass per the STOP-AND-CONFIRM gate. **Do canvass the open detail items** (session token shape, argon2 parameter pinning, Caller module location, `app.framework.auth` internal partitioning, TanStack Router `_authenticated` group convention, pytest fixture shape) at session head before writing — these are the *how* of the locked *what*.
+> **Case 2 sizing first.** Step 2.2 has a stub brief in `planning/steps.md` § Step 2.2 — not a scoped prompt. Run the 7-signal fit checklist per `_workflow.md` Case 2. Expect multiple signals to fire: 5 entity tables (Employee, School, Contractor, User-admin-CRUD, Contract); admin-CRUD authoring shape decision (ADR-worthy); admin auth-predicate factory shape (ADR-worthy); first ADR-0047 predicate landing in M1+ code; cross-concern reach (backend entities + commands + routes + frontend pages). **Likely partition needed.** Natural seam: backend entities + commands → backend admin routes → frontend admin pages. Don't pre-decide; surface partition options + tradeoffs in chat per the STOP-AND-CONFIRM gate.
 >
-> **ADRs expected:** 2–3 at write time **ADR-0061+**. Likely shape: ADR-0061 auth substrate (sessions + hashing + bootstrap + CORS + non-Command login surface); ADR-0062 Caller concrete shape (resolves ADR-0059 carry-forward); optionally ADR-0063 frontend route-guard pattern. Final ADR partition decided during implementation; `steps.md` § Step 2.1 "Locked decisions" block is the source-of-truth for *what* each ADR pins.
+> **Five entities to land:**
+> - Employee, School, Contractor (flat, audit-log history per ADR-0052)
+> - User admin-CRUD beyond M1.1's auth substrate (`edit_user` for password reset + employee link; `delete_user` per delete policy)
+> - Contract (hoisted from M2 per Session 34 sizing — admin-roster CRUD per ADR-0047 Cluster 1; `code_flat_fee_schedule` per ADR-0045 is substantive)
+> - Add Employee FK + UNIQUE constraint to `user.employee_id` (M1.1 left it as plain UUID; this is an M1.1→M1.2 carry-forward)
 >
-> **Read first:** Session 34 Last session summary above + Open questions for Session 35 + `planning/steps.md` § Step 2 high-level + § Step 2.1 (full M1.1 brief) + ADR-0040 (role catalog) + ADR-0047 (per-command authorization predicates) + ADR-0059 (Command base class + Caller carry-forward). Skim `app/framework/command.py` (Caller Protocol shape — switching to concrete Caller is a M1.1 output), `app/framework/dispatcher.py` (Caller consumption call sites), `app/cli/export_openapi.py` (CLI module pattern that `bootstrap_admin.py` mirrors). Frontend skim: `frontend/src/routes/` (current TanStack Router setup), `frontend/src/api/` (openapi-ts generated client — the 401 interceptor wraps this).
+> **Decision detail to canvass at session head:**
+> - Admin-CRUD authoring shape: generalized factory (`make_create_command(Entity, Payload)`) vs hand-authored per entity. ADR-worthy. Factory wins on volume (5 × 3 = 15 commands); hand-authored wins on flexibility for non-uniform predicates.
+> - Read routes: hand-authored or generalized? Likely hand-authored.
+> - Admin auth-predicate factory: encode ADR-0047 Cluster 1's `role >= admin` class rule as a reusable predicate factory.
+> - Frontend admin page shape: list + detail/form per entity. **Shadcn/ui adoption decision was deferred per ADR-0051** — M1.2 forces it. Resurface or proceed with plain Tailwind/CSS.
+>
+> **ADRs expected:** 1–2 at write time **ADR-0064+**. Likely: admin-CRUD authoring shape; admin auth-predicate factory if non-obvious.
+>
+> **Read first:** Session 35 Last session summary above + Open questions for Session 36 + `planning/steps.md` § Step 2 high-level + § Step 2.2 stub + ADR-0040 (role catalog) + ADR-0047 (Cluster 1 admin predicates — M1.2's surface) + ADR-0044 (Contract structural shape) + ADR-0045 (Contract `code_flat_fee_schedule`) + ADR-0061 / 0062 (auth substrate + Caller from M1.1) + `data-model.md` § Roster entities (per-entity attribute rosters for the 5 entities). Skim `app/framework/caller.py` + `app/framework/auth.py` (consumed by M1.2 routes), `app/domain/auth.py` (entity pattern M1.2 entities mirror), `app/framework/history.py` (mixin pattern for the 5 entity history tables), `tests/conftest.py` § per-role fixtures (M1.2 command tests build on these).
 >
 > **Out of scope:**
-> - Anything in M0's scope (closed Session 33).
-> - M1.2 entities + admin CRUD shape (next sub-step after M1.1; flat roster + Contract).
-> - Password reset, rate limiting, remember-me, 2FA / OAuth / SSO — all deferred per `mvp.md` and Session 34 canvass.
+> - Anything in M1.1's scope (closed Session 35 — auth substrate fully in place).
+> - M1.3 entities + role administration commands (UserRole grant/revoke + `audit_reason` Note) — next sub-step.
+> - M1.4 range-typed entities + `change_employee_role_rate` — sub-step after M1.3.
+> - WABundle (M2's surface — though Contract is hoisted, WABundle is not; see ADR-0044/0048).
 > - PaaS vendor pick (stays deferred per ADR-0055); Postgres CI service (stays deferred).
 >
 > **Process notes:**
-> - **STOP-AND-CONFIRM gate applies, including for source code.** M1.1's *how* canvass at session head before writing.
-> - **Commit pattern: preserve incremental checkpoints.** Each checkpoint = coherent atomic change at a green-state boundary, proper subject (no "wip:").
-> - **Branch:** `m1/01-auth-shell` off `m1/roster`. FF-merge back to `m1/roster` at M1.1 close. Next sub-step branches off updated `m1/roster`.
-> - **ADR numbering.** Next at write time **ADR-0061**.
-> - **User-knowledge note.** Per [[user-postgres-concurrency-gap]]: argon2id parameters / session-token entropy are crypto-adjacent — ground vocabulary briefly when introducing primitives; offer worked examples for non-obvious choices (e.g., why `secrets.token_urlsafe(32)` over `uuid4()` for session tokens).
+> - **STOP-AND-CONFIRM gate applies, including for source code.** Each new domain-shape decision canvasses in chat before any code or ADR write.
+> - **Migration discipline per [[project-neon-current-policy]]:** author → `uv run alembic upgrade head` on Neon → commit. Throwaway sqlite OK for shape iteration before commit.
+> - **Commit pattern: preserve incremental checkpoints.** Coherent atomic changes at green-state boundaries, proper subjects.
+> - **Branch:** `m1/02-flat-roster` off `m1/roster`. FF-merge back to `m1/roster` at M1.2 close.
+> - **ADR numbering.** Next at write time **ADR-0064**.
 
 ## Pointers
 
 - Workflow protocol: `planning/_workflow.md`
 - File rules registry (generated): `planning/_file-rules.md` (last regenerated 2026-05-18)
 - Phase roster: `planning/phases.md` (Phase 1 ✓ complete 2026-05-17; Phase 2 current; Phase 3 stub)
-- Step list (current phase): `planning/steps.md` (Phase 2 / Implementation — 9 steps mirroring roadmap M0–M8; **Step 1 ✓ COMPLETE 2026-05-19 (Session 33)**; **Step 2 partitioned into 4 sub-steps 2026-05-19 (Session 34)** — M1.1 detailed, M1.2 / M1.3 / M1.4 stubs; Steps 3–9 stubs)
+- Step list (current phase): `planning/steps.md` (Phase 2 / Implementation — 9 steps mirroring roadmap M0–M8; **Step 1 ✓ COMPLETE 2026-05-19 (Session 33)**; **Step 2 partitioned into 4 sub-steps 2026-05-19 (Session 34)**; **Step 2.1 ✓ COMPLETE 2026-05-19 (Session 35)**; M1.2 / M1.3 / M1.4 stubs; Steps 3–9 stubs)
 - Archived step list (Phase 1): `planning/steps.archive/conceptualization.md`
 - Session conventions: `planning/sessions.md`
-- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0060; next ADR at write time: **ADR-0061**)
+- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0063; next ADR at write time: **ADR-0064**)
 - **Roadmap (Step 9b output):** `planning/roadmap.md` — 9 milestones (M0 → M8). Canonical milestone-shape source for Phase 2.
 - **MVP scope (Step 7 output):** `planning/mvp.md` — 6 must-have features + categorized "not now" list + 1 carve-out + 7 command-shape carry-forwards.
 - **Domain model (Step 6d output):** `planning/domain-model.md` — 21 entities, relationship table, per-entity lifecycles, authorization predicates (via ADR-0047), history patterns, delete policy, 14 design patterns, blocker registry, vocabulary.
