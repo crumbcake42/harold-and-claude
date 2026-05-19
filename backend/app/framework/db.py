@@ -69,5 +69,20 @@ def get_session() -> Iterator[Session]:
         session.close()
 
 
+def get_db() -> Iterator[Session]:
+    """FastAPI dependency yielding a per-request Session at default isolation.
+
+    Plain generator (not @contextmanager-decorated) per FastAPI's Depends
+    convention. Use for non-Command route handlers (auth, healthcheck, future
+    read routes); the Command dispatcher manages its own session lifecycle
+    with SERIALIZABLE isolation per ADR-0056.
+    """
+    session = SessionFactory()
+    try:
+        yield session
+    finally:
+        session.close()
+
+
 def is_postgres() -> bool:
     return engine.dialect.name == "postgresql"

@@ -22,30 +22,17 @@ import ast
 import inspect
 import textwrap
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol
+from typing import TYPE_CHECKING, Any, ClassVar
 from uuid import UUID
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.framework.caller import Caller
 from app.framework.exceptions import DestructiveCascadeViolation
 
 if TYPE_CHECKING:
     from app.framework.dispatcher import Dispatcher
-
-
-class Caller(Protocol):
-    """The actor on whose behalf a command runs.
-
-    1.3a defines the minimum surface (an id) for smoke testing; M1+ adds
-    role / relationship attrs as the auth predicates land per ADR-0047.
-    Declared as a read-only @property so the Protocol accepts both
-    frozen dataclasses (write-blocked) and SQLAlchemy models (writable
-    Mapped[UUID]) -- the dispatcher only reads .id.
-    """
-
-    @property
-    def id(self) -> UUID: ...
 
 
 class Invariant(ABC):

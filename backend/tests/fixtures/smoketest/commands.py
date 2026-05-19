@@ -10,7 +10,8 @@ from uuid import UUID
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.framework.command import Caller, Command
+from app.framework.caller import Caller
+from app.framework.command import Command
 from tests.fixtures.smoketest.entities import (
     SmokeAuditEntity,
     SmokeEntity,

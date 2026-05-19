@@ -12,15 +12,15 @@ domain command lands in M1+.
 """
 
 from collections.abc import Iterator
-from dataclasses import dataclass, field
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.framework.caller import Caller
 from app.framework.capture import SqlAlchemyCaptureSink
-from app.framework.command import Caller, _clear_registry_for_tests, register
+from app.framework.command import _clear_registry_for_tests, register
 from app.framework.dispatcher import Dispatcher
 from app.framework.exceptions import InvariantViolation
 from tests.fixtures.smoketest.commands import (
@@ -37,12 +37,8 @@ from tests.fixtures.smoketest.entities import (
 )
 
 
-@dataclass(frozen=True)
-class FakeCaller:
-    id: UUID = field(default_factory=uuid4)
-
-
-_: Caller = FakeCaller()
+def _make_caller() -> Caller:
+    return Caller(id=uuid4(), username="smoke", roles=frozenset())
 
 
 @pytest.fixture(autouse=True)
@@ -77,8 +73,8 @@ def dispatcher(
 
 
 @pytest.fixture
-def caller() -> FakeCaller:
-    return FakeCaller()
+def caller() -> Caller:
+    return _make_caller()
 
 
 # ---- Comprehensive: row lands with full snapshot ----
@@ -86,7 +82,7 @@ def caller() -> FakeCaller:
 
 def test_comprehensive_record_inserts_row_with_snapshot(
     dispatcher: Dispatcher,
-    caller: FakeCaller,
+    caller: Caller,
     smoke_session_factory: sessionmaker[Session],
 ) -> None:
     register(CreateSmoke)
@@ -109,7 +105,7 @@ def test_comprehensive_record_inserts_row_with_snapshot(
 
 def test_lifecycle_records_capture_create_and_close_transitions(
     dispatcher: Dispatcher,
-    caller: FakeCaller,
+    caller: Caller,
     smoke_session_factory: sessionmaker[Session],
 ) -> None:
     register(CreateSmokeLifecycle)
@@ -142,7 +138,7 @@ def test_lifecycle_records_capture_create_and_close_transitions(
 
 def test_audit_log_record_inserts_row_with_payload_summary(
     dispatcher: Dispatcher,
-    caller: FakeCaller,
+    caller: Caller,
     smoke_session_factory: sessionmaker[Session],
 ) -> None:
     register(CreateSmokeAudit)
@@ -166,7 +162,7 @@ def test_audit_log_record_inserts_row_with_payload_summary(
 
 def test_invariant_violation_rolls_back_history_row(
     dispatcher: Dispatcher,
-    caller: FakeCaller,
+    caller: Caller,
     smoke_session_factory: sessionmaker[Session],
 ) -> None:
     """ADR-0008 + ADR-0011: if any pipeline step rejects, the transaction

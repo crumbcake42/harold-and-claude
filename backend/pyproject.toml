@@ -11,6 +11,7 @@ dependencies = [
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
     "psycopg[binary]>=3.2",
+    "argon2-cffi>=25.1.0",
 ]
 
 [dependency-groups]
@@ -31,6 +32,23 @@ extend-exclude = ["migrations/versions"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "W", "UP", "B", "SIM", "C4"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency-injection markers (Depends, Cookie, Header, Query, Path,
+# Body, File, Form, Security) are canonical in default-argument position;
+# B008 is a false positive for these. Listing them here suppresses B008 only
+# for these call expressions, not globally.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Cookie",
+    "fastapi.Header",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.File",
+    "fastapi.Form",
+    "fastapi.Security",
+]
 
 [tool.pyright]
 include = ["app", "tests"]

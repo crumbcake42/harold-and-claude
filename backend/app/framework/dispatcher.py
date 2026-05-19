@@ -29,6 +29,7 @@ from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.framework.adapter import set_serializable_isolation, try_advisory_xact_lock
+from app.framework.caller import Caller
 from app.framework.capture import (
     AuditLogRecord,
     CaptureSink,
@@ -36,7 +37,7 @@ from app.framework.capture import (
     HistoryRecord,
     LifecycleRecord,
 )
-from app.framework.command import Caller, Command
+from app.framework.command import Command
 from app.framework.exceptions import (
     AdvisoryLockUnavailable,
     AuthorizationDenied,

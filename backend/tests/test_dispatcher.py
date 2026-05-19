@@ -13,20 +13,19 @@ against Postgres land in CI per the broader stack ADRs.
 """
 
 from collections.abc import Iterator
-from dataclasses import dataclass, field
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 import pytest
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.framework.caller import Caller
 from app.framework.capture import (
     ComprehensiveRecord,
     InMemorySink,
     LifecycleRecord,
 )
 from app.framework.command import (
-    Caller,
     _clear_registry_for_tests,
     cascade_drift_report,
     register,
@@ -49,15 +48,9 @@ from tests.fixtures.smoketest.commands import (
 from tests.fixtures.smoketest.entities import SmokeBase, SmokeEntity, SmokeLifecycleEntity
 
 
-@dataclass(frozen=True)
-class FakeCaller:
-    """Minimal Caller for smoke tests; satisfies the Caller Protocol (id)."""
-
-    id: UUID = field(default_factory=uuid4)
-
-
-# Verify the Caller Protocol is structurally satisfied at import time.
-_: Caller = FakeCaller()
+def _make_caller() -> Caller:
+    """Smoke-test caller -- empty roles; smoke commands use always_allow auth."""
+    return Caller(id=uuid4(), username="smoke", roles=frozenset())
 
 
 @pytest.fixture(autouse=True)
@@ -97,8 +90,8 @@ def dispatcher(
 
 
 @pytest.fixture
-def caller() -> FakeCaller:
-    return FakeCaller()
+def caller() -> Caller:
+    return _make_caller()
 
 
 # ---- Comprehensive-pattern paths ----
@@ -107,7 +100,7 @@ def caller() -> FakeCaller:
 def test_create_smoke_writes_comprehensive_record_and_persists_entity(
     dispatcher: Dispatcher,
     sink: InMemorySink,
-    caller: FakeCaller,
+    caller: Caller,
     smoke_session_factory: sessionmaker[Session],
 ) -> None:
     register(CreateSmoke)
@@ -136,7 +129,7 @@ def test_create_smoke_writes_comprehensive_record_and_persists_entity(
 def test_edit_smoke_mutates_value_and_writes_second_record(
     dispatcher: Dispatcher,
     sink: InMemorySink,
-    caller: FakeCaller,
+    caller: Caller,
     smoke_session_factory: sessionmaker[Session],
 ) -> None:
     register(CreateSmoke)
@@ -161,7 +154,7 @@ def test_edit_smoke_mutates_value_and_writes_second_record(
 def test_authorization_denied_emits_no_record_and_persists_no_mutation(
     dispatcher: Dispatcher,
     sink: InMemorySink,
-    caller: FakeCaller,
+    caller: Caller,
     smoke_session_factory: sessionmaker[Session],
 ) -> None:
     register(CreateSmoke)
@@ -187,7 +180,7 @@ def test_authorization_denied_emits_no_record_and_persists_no_mutation(
 def test_invariant_violation_rolls_back_and_emits_no_record(
     dispatcher: Dispatcher,
     sink: InMemorySink,
-    caller: FakeCaller,
+    caller: Caller,
     smoke_session_factory: sessionmaker[Session],
 ) -> None:
     register(CreateSmoke)
@@ -208,7 +201,7 @@ def test_invariant_violation_rolls_back_and_emits_no_record(
 def test_create_smoke_lifecycle_writes_lifecycle_record_with_none_from_state(
     dispatcher: Dispatcher,
     sink: InMemorySink,
-    caller: FakeCaller,
+    caller: Caller,
 ) -> None:
     register(CreateSmokeLifecycle)
 
@@ -228,7 +221,7 @@ def test_create_smoke_lifecycle_writes_lifecycle_record_with_none_from_state(
 def test_close_smoke_lifecycle_writes_lifecycle_record_with_from_state(
     dispatcher: Dispatcher,
     sink: InMemorySink,
-    caller: FakeCaller,
+    caller: Caller,
 ) -> None:
     register(CreateSmokeLifecycle)
     register(CloseSmokeLifecycle)
@@ -254,7 +247,7 @@ def test_close_smoke_lifecycle_writes_lifecycle_record_with_from_state(
 def test_non_lifecycle_command_on_lifecycle_entity_writes_no_record(
     dispatcher: Dispatcher,
     sink: InMemorySink,
-    caller: FakeCaller,
+    caller: Caller,
 ) -> None:
     """ADR-0013 pattern-4: lifecycle-capture entities produce records only
     for lifecycle-affecting commands."""
@@ -278,7 +271,7 @@ def test_non_lifecycle_command_on_lifecycle_entity_writes_no_record(
 def test_invalid_lifecycle_transition_rejected(
     dispatcher: Dispatcher,
     sink: InMemorySink,
-    caller: FakeCaller,
+    caller: Caller,
     smoke_session_factory: sessionmaker[Session],
 ) -> None:
     register(CreateSmokeLifecycle)
