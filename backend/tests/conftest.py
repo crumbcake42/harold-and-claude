@@ -6,6 +6,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from app.framework.db import json_serializer
+
 
 @pytest.fixture
 def sqlite_engine() -> Iterator[Engine]:
@@ -13,13 +15,16 @@ def sqlite_engine() -> Iterator[Engine]:
 
     StaticPool keeps every connection on the same in-memory database so
     transactions across the test share state. Tests that need a fresh DB
-    request this fixture; the engine is disposed at teardown.
+    request this fixture; the engine is disposed at teardown. Uses the
+    production JSON serializer so JSON column writes coerce UUIDs /
+    datetimes the same way the production engine does.
     """
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
         future=True,
+        json_serializer=json_serializer,
     )
     try:
         yield engine

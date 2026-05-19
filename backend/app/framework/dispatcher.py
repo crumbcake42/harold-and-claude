@@ -281,7 +281,7 @@ class Dispatcher:
             from_state=from_state,
         )
         if record is not None:
-            self.sink.emit(record)
+            self.sink.emit(record, session)
 
         # Step 6 — Commit happens at top-level only; cascade children
         # participate in the parent's transaction.

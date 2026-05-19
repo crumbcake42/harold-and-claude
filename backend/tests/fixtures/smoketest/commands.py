@@ -11,7 +11,11 @@ from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.framework.command import Caller, Command
-from tests.fixtures.smoketest.entities import SmokeEntity, SmokeLifecycleEntity
+from tests.fixtures.smoketest.entities import (
+    SmokeAuditEntity,
+    SmokeEntity,
+    SmokeLifecycleEntity,
+)
 from tests.fixtures.smoketest.invariants import ValueIsPositive
 
 
@@ -142,4 +146,21 @@ class EditSmokeLifecycleNote(Command):
         entity = session.get(SmokeLifecycleEntity, payload.entity_id)
         assert entity is not None
         entity.note = payload.note
+        return entity
+
+
+# ---- Audit-log-pattern commands (target SmokeAuditEntity) ----
+
+
+class CreateSmokeAudit(Command):
+    target_entity = SmokeAuditEntity
+    authorization = always_allow
+
+    class Payload(BaseModel):
+        label: str = ""
+
+    def handler(self, session: Session, payload: BaseModel) -> SmokeAuditEntity:
+        assert isinstance(payload, CreateSmokeAudit.Payload)
+        entity = SmokeAuditEntity(label=payload.label)
+        session.add(entity)
         return entity
