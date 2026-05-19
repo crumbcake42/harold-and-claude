@@ -63,7 +63,7 @@ test-frontend:
 gen-openapi: gen-openapi-schema gen-openapi-client
 
 gen-openapi-schema:
-    cd backend && uv run python scripts/export_openapi.py
+    cd backend && uv run python -m app.cli.export_openapi --out ../contracts/openapi.json
 
 gen-openapi-client:
     cd frontend && pnpm gen-api
