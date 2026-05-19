@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import Index, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.framework.db import json_column
+from app.framework.adapter import json_column
 from app.framework.history import (
     CommonHistoryMixin,
     ComprehensiveHistoryMixin,

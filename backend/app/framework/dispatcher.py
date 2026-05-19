@@ -28,6 +28,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.framework.adapter import set_serializable_isolation, try_advisory_xact_lock
 from app.framework.capture import (
     AuditLogRecord,
     CaptureSink,
@@ -44,7 +45,6 @@ from app.framework.exceptions import (
     LifecycleViolation,
     TransientContention,
 )
-from app.framework.locks import try_advisory_xact_lock
 
 logger = logging.getLogger(__name__)
 
@@ -175,8 +175,7 @@ class Dispatcher:
         # Top-level: open session, set isolation, run, commit/rollback.
         session = self.session_factory()
         try:
-            if session.bind is not None and session.bind.dialect.name == "postgresql":
-                session.connection().execution_options(isolation_level="SERIALIZABLE")
+            set_serializable_isolation(session)
             command_id = uuid.uuid4()
             try:
                 result = self._run_steps(

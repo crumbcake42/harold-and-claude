@@ -3,8 +3,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from typing import Any
 
-from sqlalchemy import JSON, create_engine
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -28,15 +27,6 @@ class Base(DeclarativeBase):
     tables join in M1+. Smoke-test fixtures use a separate SmokeBase to keep
     test tables out of production metadata.
     """
-
-
-def json_column() -> JSON:
-    """Cross-dialect JSON column type: JSONB on PostgreSQL, portable JSON
-    (text-backed) on SQLite. Centralized here so M0.4's adapter boundary can
-    wrap it without touching every history table. TODO(Step 1.4): replace
-    with the documented adapter-boundary surface.
-    """
-    return JSON().with_variant(JSONB(), "postgresql")
 
 
 def _build_engine(url: str) -> Engine:

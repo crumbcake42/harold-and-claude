@@ -22,11 +22,11 @@ Ordered plan for the Implementation phase of `sca-tracker`. Each step maps 1:1 t
 | **1.1** | M0.1 Scaffolding (cleanup + repo skeletons + CI) | M | `m0/01-scaffolding` | none — mechanical |
 | **1.2** | M0.2 Data-layer primitives (isolation + audit-log timing) | S–M | `m0/02-data-layer-primitives` | ADR-0056 (possibly two) |
 | **1.3** | M0.3 `Command` base class + dispatcher + history infrastructure | L (partitioned 2026-05-18 → 1.3a M / 1.3b M; single branch) | `m0/03-dispatcher-and-history` | ADR-0058 + likely more if dispatcher design surfaces ADR-worthy decisions |
-| **1.4** | M0.4 Adapter boundary for Postgres-specific features + integration check | S | `m0/04-adapter-boundary` | none expected |
+| **1.4** ✓ | M0.4 Adapter boundary for Postgres-specific features + integration check (Session 33, 2026-05-19) | S | `m0/04-adapter-boundary` | none |
 
 Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admin-paas-deferral` (landed ADR-0055 + this restructure; not a canonical M0 sub-step).
 
-**Execution order:** 1.1 ✓ → 1.2 → 1.3 → 1.4 → (Step 1 ✓; merge `m0/foundations` → `dev` with `--no-ff`; tag `m0-complete` on dev). Each sub-step branch off `m0/foundations`; sub-step merges back into `m0/foundations` with FF. Step 2 (M1 Roster) follows.
+**Execution order:** 1.1 ✓ → 1.2 ✓ → 1.3 ✓ (1.3a + 1.3b) → 1.4 ✓ → **Step 1 ✓ COMPLETE 2026-05-19 (Session 33)**; next branch ops: FF-merge `m0/04-adapter-boundary` → `m0/foundations`; merge `m0/foundations` → `dev` with `--no-ff`; tag `m0-complete` on `dev`. Step 2 (M1 Roster) follows on a new milestone branch off `dev`.
 
 **Inputs:** `planning/mvp.md`, `planning/roadmap.md` § M0, `planning/architecture.md`, `planning/data-model.md`, `planning/framework.md`, `planning/logic.md`, `planning/history-patterns.md`, `planning/decisions.md` (esp. ADR-0001, ADR-0051, ADR-0052, ADR-0055), `planning/handoff.md`.
 
@@ -171,13 +171,15 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ---
 
-### Step 1.4 — M0.4 Adapter boundary for Postgres-specific features (S)
+### Step 1.4 — M0.4 Adapter boundary for Postgres-specific features (S) ✓ COMPLETE
 
-**Brief:** Wrap the Postgres-specific features (JSONB ops; advisory locks per M0.2 choice; `SERIALIZABLE` isolation) behind a documented adapter per ADR-0051. SQLite offline-fallback path uses degraded equivalents; buildable but **not production-equivalent** (acknowledged in ADR-0051 + ADR-0052; restate in code-level docs). Integration check: a sample command flows through the full pipeline (dispatcher → invariants under chosen isolation → history write at chosen timing → commit) via the adapter; both Postgres and SQLite paths build (Postgres production-equivalent; SQLite degraded).
+**Completed Session 33 (2026-05-19).** Three Postgres-specific call sites consolidated into `app/framework/adapter.py`: `json_column()` (relocated from `db.py`), `try_advisory_xact_lock(session, key)` (mechanism moved from `locks.py`; `locks.py` retained as policy — `LockNamespace` + key-builders + `validate_key_namespace`), `set_serializable_isolation(session)` (extracted from `dispatcher._run_pipeline`'s inline call). Call sites updated in `history.py`, `dispatcher.py`, and the smoke-test entities fixture. 11 unit tests added (`tests/test_adapter.py`) verifying dialect-dispatch via mocked `session.bind.dialect.name` for the PG branch and live SQLite for the degraded branch + key-namespace validation + unbound-session edge cases. **Fork resolution: no docker-compose Postgres CI service.** Per user constraint (unreliable Docker access on dev machines), live-engine PG verification is a manual exercise when a developer points `DATABASE_URL` at a real Postgres; CI gate stays SQLite-only. The "CI ephemeral-PR DB wiring" carry-forward stays deferred per ADR-0055. No ADRs landed — mechanical refactor as anticipated.
+
+**Brief (original):** Wrap the Postgres-specific features (JSONB ops; advisory locks per M0.2 choice; `SERIALIZABLE` isolation) behind a documented adapter per ADR-0051. SQLite offline-fallback path uses degraded equivalents; buildable but **not production-equivalent** (acknowledged in ADR-0051 + ADR-0052; restate in code-level docs). Integration check: a sample command flows through the full pipeline (dispatcher → invariants under chosen isolation → history write at chosen timing → commit) via the adapter; both Postgres and SQLite paths build (Postgres production-equivalent; SQLite degraded).
 
 **Roadmap pointer:** `planning/roadmap.md` § M0 item for adapter boundary.
 
-**Branch:** `m0/04-adapter-boundary` off `m0/foundations`.
+**Branch:** `m0/04-adapter-boundary` off `m0/foundations`. After Step 1.4 lands: FF-merge → `m0/foundations`; then merge `m0/foundations` → `dev` with `--no-ff`; tag `m0-complete` on `dev`. Closes M0 entirely.
 
 ---
 
