@@ -2,7 +2,19 @@
 
 import type { Client, Options as Options2, TDataShape } from "./client";
 import { client } from "./client.gen";
-import type { HealthcheckHealthGetData, HealthcheckHealthGetResponses } from "./types.gen";
+import type {
+  HealthcheckHealthGetData,
+  HealthcheckHealthGetResponses,
+  LoginAuthLoginPostData,
+  LoginAuthLoginPostErrors,
+  LoginAuthLoginPostResponses,
+  LogoutAuthLogoutPostData,
+  LogoutAuthLogoutPostErrors,
+  LogoutAuthLogoutPostResponses,
+  MeAuthMeGetData,
+  MeAuthMeGetErrors,
+  MeAuthMeGetResponses,
+} from "./types.gen";
 
 export type Options<
   TData extends TDataShape = TDataShape,
@@ -30,5 +42,50 @@ export const healthcheckHealthGet = <ThrowOnError extends boolean = false>(
 ) =>
   (options?.client ?? client).get<HealthcheckHealthGetResponses, unknown, ThrowOnError>({
     url: "/health",
+    ...options,
+  });
+
+/**
+ * Login
+ */
+export const loginAuthLoginPost = <ThrowOnError extends boolean = false>(
+  options: Options<LoginAuthLoginPostData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    LoginAuthLoginPostResponses,
+    LoginAuthLoginPostErrors,
+    ThrowOnError
+  >({
+    url: "/auth/login",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Logout
+ *
+ * Revoke the session row and clear the cookie. Works even when the
+ * session has already expired (cookie just gets cleared).
+ */
+export const logoutAuthLogoutPost = <ThrowOnError extends boolean = false>(
+  options?: Options<LogoutAuthLogoutPostData, ThrowOnError>,
+) =>
+  (options?.client ?? client).post<
+    LogoutAuthLogoutPostResponses,
+    LogoutAuthLogoutPostErrors,
+    ThrowOnError
+  >({ url: "/auth/logout", ...options });
+
+/**
+ * Me
+ */
+export const meAuthMeGet = <ThrowOnError extends boolean = false>(
+  options?: Options<MeAuthMeGetData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<MeAuthMeGetResponses, MeAuthMeGetErrors, ThrowOnError>({
+    url: "/auth/me",
     ...options,
   });

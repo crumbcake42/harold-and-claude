@@ -93,12 +93,19 @@ def create_session(db: DbSession, user_id, ttl_hours: int | None = None) -> Sess
     return row
 
 
+def _ensure_utc(dt: datetime) -> datetime:
+    """SQLite-portability shim: SQLite TIMESTAMP doesn't preserve timezone;
+    rows come back naive. Postgres preserves the tz. Treat naive as UTC
+    (which matches the convention all session writes use)."""
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
+
+
 def lookup_session(db: DbSession, token: str) -> SessionRow | None:
     """Return the live session row for `token`, or None if missing/expired."""
     row = db.get(SessionRow, token)
     if row is None:
         return None
-    if row.expires_at <= datetime.now(UTC):
+    if _ensure_utc(row.expires_at) <= datetime.now(UTC):
         return None
     return row
 

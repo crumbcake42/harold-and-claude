@@ -5,6 +5,40 @@ export type ClientOptions = {
 };
 
 /**
+ * Caller
+ *
+ * The actor on whose behalf a command runs.
+ *
+ * Constructed by app.framework.auth.current_user from the session lookup.
+ * Passed to Dispatcher.dispatch and consumed by ADR-0047 authorization
+ * predicates. Frozen so callers cannot be mutated mid-pipeline.
+ */
+export type Caller = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Username
+   */
+  username: string;
+  /**
+   * Roles
+   */
+  roles: Array<Role>;
+};
+
+/**
+ * HTTPValidationError
+ */
+export type HttpValidationError = {
+  /**
+   * Detail
+   */
+  detail?: Array<ValidationError>;
+};
+
+/**
  * HealthResponse
  */
 export type HealthResponse = {
@@ -12,6 +46,53 @@ export type HealthResponse = {
    * Status
    */
   status: string;
+};
+
+/**
+ * LoginRequest
+ */
+export type LoginRequest = {
+  /**
+   * Username
+   */
+  username: string;
+  /**
+   * Password
+   */
+  password: string;
+};
+
+/**
+ * Role
+ */
+export type Role = "superadmin" | "admin" | "coordinator" | "auditor";
+
+/**
+ * ValidationError
+ */
+export type ValidationError = {
+  /**
+   * Location
+   */
+  loc: Array<string | number>;
+  /**
+   * Message
+   */
+  msg: string;
+  /**
+   * Error Type
+   */
+  type: string;
+  /**
+   * Input
+   */
+  input?: unknown;
+  /**
+   * Context
+   */
+  ctx?: {
+    [key: string]: unknown;
+  };
 };
 
 export type HealthcheckHealthGetData = {
@@ -30,3 +111,81 @@ export type HealthcheckHealthGetResponses = {
 
 export type HealthcheckHealthGetResponse =
   HealthcheckHealthGetResponses[keyof HealthcheckHealthGetResponses];
+
+export type LoginAuthLoginPostData = {
+  body: LoginRequest;
+  path?: never;
+  query?: never;
+  url: "/auth/login";
+};
+
+export type LoginAuthLoginPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LoginAuthLoginPostError = LoginAuthLoginPostErrors[keyof LoginAuthLoginPostErrors];
+
+export type LoginAuthLoginPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: Caller;
+};
+
+export type LoginAuthLoginPostResponse =
+  LoginAuthLoginPostResponses[keyof LoginAuthLoginPostResponses];
+
+export type LogoutAuthLogoutPostData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/auth/logout";
+};
+
+export type LogoutAuthLogoutPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type LogoutAuthLogoutPostError =
+  LogoutAuthLogoutPostErrors[keyof LogoutAuthLogoutPostErrors];
+
+export type LogoutAuthLogoutPostResponses = {
+  /**
+   * Successful Response
+   */
+  204: void;
+};
+
+export type LogoutAuthLogoutPostResponse =
+  LogoutAuthLogoutPostResponses[keyof LogoutAuthLogoutPostResponses];
+
+export type MeAuthMeGetData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/auth/me";
+};
+
+export type MeAuthMeGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type MeAuthMeGetError = MeAuthMeGetErrors[keyof MeAuthMeGetErrors];
+
+export type MeAuthMeGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: Caller;
+};
+
+export type MeAuthMeGetResponse = MeAuthMeGetResponses[keyof MeAuthMeGetResponses];
