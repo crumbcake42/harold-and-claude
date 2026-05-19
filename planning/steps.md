@@ -11,49 +11,175 @@ Ordered plan for the Implementation phase of `sca-tracker`. Each step maps 1:1 t
 
 ## Step 1 — M0 Foundations (L)
 
-**Goal:** Stand up the plumbing the rest of the Implementation phase consumes — repo skeletons, CI, the `Command` base class + dispatcher carrying the `logic.md` pipeline, history infrastructure with dispatcher-enforced capture, the adapter boundary for Postgres-specific features, and the deferred ADR-0051 / ADR-0052 carry-forwards (PaaS pick, per-invariant isolation primitives, audit-log write timing).
+**Partitioned 2026-05-17 (Option A — substrate-then-decisions, 5 sub-steps). Collapsed 2026-05-18 to 4 sub-steps when Step 1.2 (PaaS vendor pick) resolved as a deferral per ADR-0055** — user push-back established that no production audience exists yet, MVP scope has no vendor-specific feature dependencies, and the "dependency ordering" rationale that placed Step 1.2 inside M0 was not actually load-bearing. The vendor pick carries forward to M8 (or earlier if user prompts circle-back). Downstream sub-steps renumbered: original 1.3 → 1.2 (M0.2 Data-layer primitives), 1.4 → 1.3 (M0.3 Dispatcher + history), 1.5 → 1.4 (M0.4 Adapter boundary). Original partition rationale stands for the remaining four: M0.1 mechanical first; decision sub-steps land in dependency order (primitives → dispatcher consumes them → adapter wraps the Postgres specifics).
+
+**Goal:** Stand up the plumbing the rest of the Implementation phase consumes — repo skeletons, CI, the `Command` base class + dispatcher carrying the `logic.md` pipeline, history infrastructure with dispatcher-enforced capture, the adapter boundary for Postgres-specific features, and the deferred ADR-0052 carry-forwards (per-invariant isolation primitives, audit-log write timing). PaaS pick deferred per ADR-0055.
+
+**Sub-step roster:**
+
+| Sub-step | Title | Size | Branch | ADRs expected |
+|---|---|---|---|---|
+| **1.1** | M0.1 Scaffolding (cleanup + repo skeletons + CI) | M | `m0/01-scaffolding` | none — mechanical |
+| **1.2** | M0.2 Data-layer primitives (isolation + audit-log timing) | S–M | `m0/02-data-layer-primitives` | ADR-0056 (possibly two) |
+| **1.3** | M0.3 `Command` base class + dispatcher + history infrastructure | L (partitioned 2026-05-18 → 1.3a M / 1.3b M; single branch) | `m0/03-dispatcher-and-history` | ADR-0058 + likely more if dispatcher design surfaces ADR-worthy decisions |
+| **1.4** ✓ | M0.4 Adapter boundary for Postgres-specific features + integration check (Session 33, 2026-05-19) | S | `m0/04-adapter-boundary` | none |
+
+Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admin-paas-deferral` (landed ADR-0055 + this restructure; not a canonical M0 sub-step).
+
+**Execution order:** 1.1 ✓ → 1.2 ✓ → 1.3 ✓ (1.3a + 1.3b) → 1.4 ✓ → **Step 1 ✓ COMPLETE 2026-05-19 (Session 33)**; next branch ops: FF-merge `m0/04-adapter-boundary` → `m0/foundations`; merge `m0/foundations` → `dev` with `--no-ff`; tag `m0-complete` on `dev`. Step 2 (M1 Roster) follows on a new milestone branch off `dev`.
+
+**Inputs:** `planning/mvp.md`, `planning/roadmap.md` § M0, `planning/architecture.md`, `planning/data-model.md`, `planning/framework.md`, `planning/logic.md`, `planning/history-patterns.md`, `planning/decisions.md` (esp. ADR-0001, ADR-0051, ADR-0052, ADR-0055), `planning/handoff.md`.
+
+**Done when:** All 4 sub-steps complete; M1 can begin (M0 dispatcher + history infrastructure can host M1's first command, e.g., `create_employee`).
+
+---
+
+### Step 1.1 — M0.1 Scaffolding (M)
+
+**Goal:** Land the mechanical scaffolding — clean the stale `backend/` and `frontend/` directories, stand up the backend + frontend repo skeletons per ADR-0051, wire CI. No deliberation, no ADRs.
 
 **In scope:**
 
-1. **Stale-scaffolding cleanup.** Per ADR-0001 + ADR-0051: the existing `backend/` and `frontend/` directories were scaffolded in an earlier pre-conceptualization pass and are treated as starting-from-zero. Clear or repurpose them at the start of this step; commit the deletion separately so the cleanup is auditable.
-2. **PaaS vendor pick + managed-Postgres offering name.** ADR-0051 carry-forward. Neon was the dev default for both work machines; the production PaaS + managed-Postgres offering pick lands here as an ADR (likely ADR-0055).
-3. **Backend repo skeleton.** Python 3.12+ on CPython + FastAPI + SQLAlchemy 2.0 + Alembic + Pydantic + Ruff + Pytest per ADR-0051. Initial migration scaffold; project layout decisions; dependency pinning.
-4. **Frontend repo skeleton.** TypeScript on Node + Vite + React + TanStack Router + TanStack Query + openapi-ts + Storybook + ESLint + Prettier per ADR-0051. FastAPI's OpenAPI schema generates typed TanStack Query hooks via openapi-ts; wire that pipeline.
-5. **CI pipeline.** Integration test suite against Postgres (Neon ephemeral branch per PR or docker-compose Postgres in the runner per ADR-0051). Backend + frontend lint + test + typecheck on PR.
-6. **`Command` base class + dispatcher.** Carry-forward from ADR-0051 + ADR-0052. Pipeline order from `logic.md`: auth (ADR-0012 predicate evaluation per ADR-0047) → lifecycle (ADR-0009) → apply → invariants (ADR-0010) → history (ADR-0008 / ADR-0052) → commit. No handler-level skip of history capture; the framework surface does not expose a skip path per ADR-0052.
-7. **History infrastructure.** Per-entity append-only history tables (3 comprehensive — Document / WA / RFA; 6 lifecycle — Project / Sample Batch / Deliverable / EmployeeRole / WA Code / ContractorEngagement) + shared `command_audit_log` (polymorphic `(entity_type, entity_id)`) per ADR-0052. Common-metadata columns. Comprehensive-pattern `snapshot` JSONB; lifecycle-pattern `from_state` / `to_state` / `transition_name` / `state_context`. Reference snapshotting rule (typed-UUID refs only) per ADR-0013 + ADR-0052 § S5.
-8. **Per-invariant isolation-primitive assignment.** ADR-0052 carry-forward. `SERIALIZABLE` default + `pg_try_advisory_xact_lock` opt-in. First per-invariant choices land as part of this step (subsequent invariants choose primitives as they're implemented in later milestones). Lands as an ADR (likely ADR-0056).
-9. **Audit-log write timing.** ADR-0052 carry-forward. In-txn vs. post-commit pick. Lands as the same or a separate ADR.
-10. **Adapter boundary for Postgres-specific features.** JSONB ops, advisory locks, `SERIALIZABLE` isolation live behind a documented adapter per ADR-0051. SQLite offline fallback path is buildable but **not production-equivalent** (acknowledged in ADR-0051; restate in code-level docs).
+1. **Stale-scaffolding cleanup.** Per ADR-0001 + ADR-0051: clear the existing `backend/` and `frontend/` directories. Commit the deletion separately so the cleanup is auditable in the log.
+2. **Backend repo skeleton.** Python 3.12+ on CPython + FastAPI + SQLAlchemy 2.0 + Alembic + Pydantic + Ruff + Pytest per ADR-0051. Initial migration scaffold (no domain entities yet — just the Alembic baseline). Project layout decisions for where commands / entities / handlers / dispatcher will live (light decisions; surface at session head if any are non-obvious). Dependency pinning.
+3. **Frontend repo skeleton.** TypeScript on Node + Vite + React + TanStack Router + TanStack Query + openapi-ts + Storybook + ESLint + Prettier per ADR-0051. Wire the openapi-ts pipeline (FastAPI OpenAPI schema → typed TanStack Query hooks) so the contract is enforced from M1 onward.
+4. **CI pipeline.** Backend + frontend lint + test + typecheck on PR. Integration test suite against Postgres (docker-compose Postgres in the runner; vendor-coupled ephemeral-branch wiring stays deferred per ADR-0055 until the PaaS pick lands).
 
 **Out of scope:**
 
-- Domain-entity DDL (Employee, Project, etc.) — lands per-entity in M1+.
-- File storage backend (M5).
-- Per-invariant primitive choices for invariants that haven't been implemented yet (later milestones).
+- PaaS vendor pick — deferred per ADR-0055 (lands at user-triggered circle-back or at latest M8).
+- Per-invariant isolation primitives + audit-log write timing — M0.2 (Step 1.2).
+- `Command` base class + dispatcher + history infrastructure — M0.3 (Step 1.3).
+- Adapter boundary code — M0.4 (Step 1.4).
+- Any domain entity, command, or handler — M1+.
 
-**Inputs:** `planning/mvp.md`, `planning/roadmap.md`, `planning/architecture.md`, `planning/data-model.md`, `planning/framework.md`, `planning/logic.md`, `planning/history-patterns.md`, `planning/decisions.md` (esp. ADR-0001, ADR-0051, ADR-0052), `planning/handoff.md`.
+**Inputs:** ADR-0001 (stale-scaffolding); ADR-0051 (runtime stack); `architecture.md` § component diagram; `roadmap.md` § M0; `planning/handoff.md`.
 
 **Outputs:**
 
-- Cleaned-up `backend/` + `frontend/` (cleanup commit separate from skeleton commits).
-- Backend skeleton (FastAPI + SQLAlchemy 2.0 + Alembic + Pydantic + Ruff + Pytest), runnable + tested.
-- Frontend skeleton (Vite + React + TanStack Router + TanStack Query + openapi-ts + Storybook + ESLint + Prettier), runnable + tested.
-- CI workflow(s) green on a sample integration test.
-- `Command` base class + dispatcher implementation, with the full pipeline + dispatcher-enforced history write.
-- History infrastructure: base `command_audit_log` migration; per-entity history-table generator / pattern (per-entity tables land as their entities do).
-- Adapter boundary code (JSONB / advisory-lock / isolation wrappers).
-- ADR(s) for PaaS pick + Postgres offering; per-invariant isolation primitives; audit-log write timing. Estimated 1–3 new ADRs starting at ADR-0055.
+- Cleaned `backend/` and `frontend/` directories (cleanup commit separate from skeleton commits).
+- Backend skeleton: runnable `uvicorn` server with a healthcheck endpoint; Alembic baseline migration in place; `pytest` runs green on a sample test; `ruff check` clean.
+- Frontend skeleton: runnable `vite` dev server with a sample TanStack-routed page; `tsc --noEmit` clean; ESLint + Prettier clean; Storybook scaffolding runnable; openapi-ts pipeline wired against a placeholder OpenAPI schema.
+- CI workflow(s): green on the sample tests + lint + typecheck. docker-compose Postgres in the runner.
+- No ADRs.
 
-**Estimate:** L per `roadmap.md`. Multi-session — partition per Case 2 fit checklist when the step opens.
+**Estimate:** M.
 
 **Done when:**
 
-- `backend/` + `frontend/` skeletons exist, green on CI, runnable locally.
-- Dispatcher pipeline is implemented, with a sample command (could be a no-op for testing) flowing through auth → lifecycle → apply → invariants → history → commit.
-- A sample entity's history table is written by the dispatcher; `command_audit_log` is wired.
-- ADR(s) for the three deferred decisions (PaaS pick, isolation primitives, audit-log timing) are written.
-- M1's first command (e.g., `create_employee`) can be implemented atop the foundation in the next milestone.
+- Both skeletons start locally with a single command (e.g., `make dev` or equivalent).
+- CI is green on a PR-style integration test run.
+- The openapi-ts pipeline successfully regenerates the frontend client from a sample backend OpenAPI schema.
+- The `backend/` and `frontend/` directories contain only the new skeletons (no leftover stale-scaffolding files).
+- Repository is ready for M0.2's data-layer primitives work to land without scaffolding changes.
+
+---
+
+### Step 1.2 — M0.2 Data-layer primitives (S–M)
+
+**Brief:** Resolve ADR-0052's two deferred carry-forwards as a coupled pair (both are data-layer enforcement-mechanism decisions): per-invariant isolation-primitive assignment (`SERIALIZABLE` default + `pg_try_advisory_xact_lock` opt-in; first per-invariant choices land here — likely candidates per `domain-model.md` § Design patterns #3 closure-readiness cluster + EmployeeRole disjoint-ranges per ADR-0045); audit-log write timing (in-txn vs. post-commit). Lands as ADR-0056 (possibly two).
+
+**Roadmap pointer:** `planning/roadmap.md` § M0 items for isolation primitives + audit-log timing.
+
+**Branch:** `m0/02-data-layer-primitives` off `m0/foundations`.
+
+---
+
+### Step 1.3 — M0.3 `Command` base class + dispatcher + history infrastructure (L)
+
+**Brief:** The load-bearing substrate. Implement the `Command` base class + dispatcher per ADR-0051 + ADR-0052, with the `logic.md` pipeline: auth (ADR-0012 predicate eval per ADR-0047) → lifecycle (ADR-0009) → apply → invariants (ADR-0010 + per-invariant primitive acquisition per ADR-0056) → history (ADR-0008 / ADR-0052 / in-txn audit emit per ADR-0057) → commit. No handler-level skip of history capture; framework surface does not expose a skip path. History infrastructure per ADR-0052: per-entity append-only tables generator (3 comprehensive — Document / WA / RFA; 6 lifecycle — Project / Sample Batch / Deliverable / EmployeeRole / WA Code / ContractorEngagement) + shared `command_audit_log` (polymorphic `(entity_type, entity_id)`) with in-txn timing per ADR-0057. Common-metadata columns; comprehensive-pattern `snapshot` JSONB; lifecycle-pattern `from_state` / `to_state` / `transition_name` / `state_context`; reference-snapshotting rule (typed-UUID refs only) per ADR-0013 + ADR-0052 § S5.
+
+**Partitioned 2026-05-18 (Session 30, Case 2)** into two sub-sub-steps on a single branch (`m0/03-dispatcher-and-history`). Five of seven fit-checklist signals fired (≥1 independently-deliberable decision, ≥1 new artifact, >60 min, >3 input files, cross-concern). Seam chosen: concern-split — dispatcher pipeline vs. history infrastructure. The capture-sink interface is the seam: 1.3a pins it, 1.3b implements it. Commits land sequentially on the single branch; FF-merge to `m0/foundations` happens after 1.3b lands.
+
+**Roadmap pointer:** `planning/roadmap.md` § M0 items for dispatcher + history infrastructure.
+
+**Branch:** `m0/03-dispatcher-and-history` off `m0/foundations`. Single branch holds both sub-sub-step commits.
+
+---
+
+#### Step 1.3a — Dispatcher pipeline (M)
+
+**Goal:** Land the `Command` base class + dispatcher with the `logic.md` pipeline wired end-to-end against a stub history sink. Pin the capture-sink interface that 1.3b will implement against.
+
+**In scope:**
+
+1. **`Command` base class.** Registration / discovery shape. Introspection surface (name, target entity type, declared invariants, declared cascade children). Cascade semantics per `domain-model.md` § Design patterns #5 (auth-inheritance for compound cascading commands — pre-flag for ADR if non-obvious tradeoffs surface).
+2. **Dispatcher pipeline.** Implement `logic.md` order: authorization (ADR-0012 predicate eval per ADR-0047) → lifecycle gate (ADR-0009 state-machine check) → apply (handler mutation) → invariants (ADR-0010 + per-invariant lock acquisition per ADR-0056) → history (emits to capture-sink interface) → commit. Rejection at any step rolls back per ADR-0011 (no mutation, no history).
+3. **Per-invariant primitive acquisition wiring.** Wire the `pg_try_advisory_xact_lock` opt-in path per ADR-0056. SERIALIZABLE is the default — set transaction isolation accordingly.
+4. **Lock-key namespace.** Pin the hash function + key-prefix discipline (e.g., `hashtext('closure-readiness:' || project_id)::bigint` is illustrative per ADR-0056 — confirm or revise). Namespace must not collide with future advisory-lock uses. Utility module for callers.
+5. **`serialization_failure` retry boundary.** Decide: built-in N-attempt retry loop in dispatcher, or pushed up to the route layer. ADR-0058 likely lands here.
+6. **Capture-sink interface.** Define the narrow typed interface the history step calls. Stub implementation (in-memory / no-op) for 1.3a smoke tests; 1.3b replaces with real INSERT path.
+7. **Sample command for smoke test.** Minimal command exercising the full pipeline end-to-end against the stub sink. Not a domain command — purely substrate verification.
+
+**Out of scope:**
+
+- Per-entity history tables + `command_audit_log` table + Alembic migrations → 1.3b.
+- Adapter boundary for Postgres-specific features → Step 1.4.
+- Any domain entity / handler beyond the smoke-test sample → M1+.
+
+**Inputs:** ADR-0008, ADR-0009, ADR-0010, ADR-0011, ADR-0012, ADR-0013, ADR-0047, ADR-0051, ADR-0052, ADR-0056, ADR-0057; `planning/logic.md` (pipeline order); `planning/domain-model.md` § Design patterns #5 (cascade auth-inheritance).
+
+**Outputs:**
+
+- `Command` base class module.
+- Dispatcher module with pipeline impl.
+- Lock-key utility module.
+- Capture-sink interface (stub impl).
+- Sample command + smoke test exercising the pipeline.
+- ADR-0058 (retry boundary) + possibly more if surfaced.
+
+**Estimate:** M.
+
+**Done when:** Sample command runs end-to-end through the pipeline; tests verify rejection at each step rolls back; capture-sink interface is stable enough for 1.3b to implement against.
+
+---
+
+#### Step 1.3b — History infrastructure (M)
+
+**Goal:** Land the per-entity history tables + `command_audit_log` + Alembic migrations. Replace 1.3a's stub capture sink with a real in-txn INSERT path per ADR-0057.
+
+**In scope:**
+
+1. **Per-entity history-table generator.** 9 tables per ADR-0052: 3 comprehensive (Document / WA / RFA) + 6 lifecycle (Project / Sample Batch / Deliverable / EmployeeRole / WA Code / ContractorEngagement). Decide: declarative-base-per-entity vs. dynamic class factory — ADR-worthy if non-obvious.
+2. **Common-metadata columns.** `id`, `entity_id` FK, `command_id`, `command_name`, `caller_id`, `at`; default index `(entity_id, at DESC)`. Comprehensive `snapshot` JSONB; lifecycle `from_state` / `to_state` / `transition_name` / `state_context` JSONB.
+3. **Typed-UUID reference rule.** References in snapshots are typed UUIDs only per ADR-0013 § Reference snapshotting + ADR-0052 § S5. Enforcement at write time.
+4. **`command_audit_log` table.** Polymorphic `(entity_type, entity_id)` shape per ADR-0052 § Audit-log table. Wired for the 7 audit-log entities (Employee, User, Time Entry, Contractor, DepFiling, Contract, WABundle).
+5. **Alembic migrations.** All 10 tables.
+6. **Replace stub capture sink with real impl.** In-txn write per ADR-0057. Same SQLAlchemy session as the entity mutation. Smoke-test sample command from 1.3a now exercises real INSERTs.
+7. **Capture enforcement.** Verify no handler-level skip path. The framework surface does not expose a "skip history" or "skip audit" hook (per ADR-0008 + ADR-0052).
+
+**Out of scope:**
+
+- Anything in 1.3a's scope (already landed).
+- Adapter boundary code → Step 1.4 (1.3b may stub adapter call sites for JSONB / advisory locks; full adapter lands in 1.4).
+- Any domain entity / handler → M1+.
+
+**Inputs:** ADR-0013, ADR-0052, ADR-0057; `planning/data-model.md` § per-entity attribute rosters + history-table shapes; `planning/history-patterns.md`; 1.3a outputs (capture-sink interface).
+
+**Outputs:**
+
+- 9 per-entity history-table models (or generator).
+- `command_audit_log` model.
+- Alembic migrations.
+- Real capture-sink implementation replacing 1.3a's stub.
+- Smoke-test sample command end-to-end against real tables.
+- Possible ADR if generator shape surfaces ADR-worthy tradeoffs.
+
+**Estimate:** M.
+
+**Done when:** All 10 tables exist in Postgres; sample command write produces correct history + audit-log rows in the same transaction as the entity mutation; FF-merge `m0/03-dispatcher-and-history` → `m0/foundations` (closing Step 1.3 entirely); M0.4 / Step 1.4 ready to open.
+
+---
+
+### Step 1.4 — M0.4 Adapter boundary for Postgres-specific features (S) ✓ COMPLETE
+
+**Completed Session 33 (2026-05-19).** Three Postgres-specific call sites consolidated into `app/framework/adapter.py`: `json_column()` (relocated from `db.py`), `try_advisory_xact_lock(session, key)` (mechanism moved from `locks.py`; `locks.py` retained as policy — `LockNamespace` + key-builders + `validate_key_namespace`), `set_serializable_isolation(session)` (extracted from `dispatcher._run_pipeline`'s inline call). Call sites updated in `history.py`, `dispatcher.py`, and the smoke-test entities fixture. 11 unit tests added (`tests/test_adapter.py`) verifying dialect-dispatch via mocked `session.bind.dialect.name` for the PG branch and live SQLite for the degraded branch + key-namespace validation + unbound-session edge cases. **Fork resolution: no docker-compose Postgres CI service.** Per user constraint (unreliable Docker access on dev machines), live-engine PG verification is a manual exercise when a developer points `DATABASE_URL` at a real Postgres; CI gate stays SQLite-only. The "CI ephemeral-PR DB wiring" carry-forward stays deferred per ADR-0055. No ADRs landed — mechanical refactor as anticipated.
+
+**Brief (original):** Wrap the Postgres-specific features (JSONB ops; advisory locks per M0.2 choice; `SERIALIZABLE` isolation) behind a documented adapter per ADR-0051. SQLite offline-fallback path uses degraded equivalents; buildable but **not production-equivalent** (acknowledged in ADR-0051 + ADR-0052; restate in code-level docs). Integration check: a sample command flows through the full pipeline (dispatcher → invariants under chosen isolation → history write at chosen timing → commit) via the adapter; both Postgres and SQLite paths build (Postgres production-equivalent; SQLite degraded).
+
+**Roadmap pointer:** `planning/roadmap.md` § M0 item for adapter boundary.
+
+**Branch:** `m0/04-adapter-boundary` off `m0/foundations`. After Step 1.4 lands: FF-merge → `m0/foundations`; then merge `m0/foundations` → `dev` with `--no-ff`; tag `m0-complete` on `dev`. Closes M0 entirely.
 
 ---
 

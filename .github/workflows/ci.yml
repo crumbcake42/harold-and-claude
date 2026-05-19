@@ -1,0 +1,136 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, dev]
+  push:
+    branches:
+      - main
+      - dev
+      - "m[0-9]/**"
+
+jobs:
+  backend:
+    name: backend (lint + unit tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Lint (ruff)
+        run: uv run ruff check .
+      - name: Typecheck (pyright)
+        run: uv run pyright app/ tests/
+      - name: Test (pytest)
+        run: uv run pytest
+
+  frontend:
+    name: frontend (lint + typecheck + test + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: pnpm lint
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Test
+        run: pnpm test
+      - name: Build
+        run: pnpm build
+
+  contract-drift:
+    name: contract drift (regen + diff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: extractions/setup-just@v2
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - name: Install backend deps
+        working-directory: backend
+        run: uv sync --frozen
+      - name: Install frontend deps
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+      - name: Regenerate schema + client
+        run: just gen-openapi
+      - name: Verify no drift
+        run: |
+          if ! git diff --exit-code -- contracts/ frontend/src/api/; then
+            echo "::error::Generated artifacts drifted. Run 'just gen-openapi' locally and commit the result."
+            exit 1
+          fi
+
+  backend-integration:
+    name: backend (integration / Postgres 16)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: sca_tracker_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/sca_tracker_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Verify Postgres connectivity
+        run: |
+          uv run python -c "
+          import psycopg
+          conn = psycopg.connect('postgresql://postgres:postgres@localhost:5432/sca_tracker_test')
+          cur = conn.cursor()
+          cur.execute('SELECT version()')
+          print(cur.fetchone()[0])
+          conn.close()
+          "
+      - name: Run integration tests (when present)
+        run: |
+          # M0: no integration tests yet. This job verifies the Postgres
+          # service block works end-to-end; M1+ will replace with:
+          # uv run pytest -m integration
+          echo "no integration tests in M0 yet — job verifies service block"
