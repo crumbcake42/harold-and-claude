@@ -1,0 +1,17 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Stray dependency / cache dirs (per-language .gitignores cover the in-tree ones)
+node_modules/
+.venv/
+
+# Logs
+*.log
+
+# Env files
+.env
+.env.local
