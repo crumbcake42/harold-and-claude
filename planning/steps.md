@@ -183,11 +183,126 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ---
 
-## Step 2 — M1 Roster + role administration (M)
+## Step 2 — M1 Roster + role administration (M, partitioned)
 
-**Brief:** Build the 7 roster entities (Employee / School / Contractor / User / EmployeeRole / UserRole / ContractorEngagement). Implement the admin CRUD class rule (`role >= admin` per ADR-0047). `grant_user_role` / `revoke_user_role` with the conservative grant authority parameterized predicate + `audit_reason` Note materialization (ADR-0040). EmployeeRole disjoint-ranges-per-`(employee, role_type, contract)` invariant (ADR-0045); `change_employee_role_rate` 4-branch compound with `contract` dim (ADR-0039 + ADR-0045). ContractorEngagement signatures + date defaults (carry-forward landing). Admin dashboard skeleton.
+**Partitioned 2026-05-19 (Session 34, Case 2)** into 4 sub-steps. All 7 fit-checklist signals fired during sizing: admin CRUD authoring shape, Caller concrete materialization (ADR-0059 deferred carry-forward), `audit_reason` Note polymorphism mechanism (ADR-0040 deferred carry-forward), `change_employee_role_rate` 4-branch decomposition, plus cross-concern reach (entity authoring + invariants + auth predicates + admin UI). Two scope additions resolved at sizing:
+
+- **Contract hoisted from M2 to M1.2.** ADR-0045 makes EmployeeRole's `contract_id` mandatory; the original M2 placement was a packaging convenience that left EmployeeRole's mandatory FK without an upstream entity. Contract is admin-roster CRUD in character per ADR-0047 Cluster 1.
+- **Auth substrate pulled into M1.1.** Authentication was an `architecture.md` line 108 out-of-band concern *"pinned at implementation kickoff"* but never milestoned in `roadmap.md`. M1's "admin dashboard skeleton" forces the question; M1.1 answers it. Lesson saved as [[check-out-of-band-concerns]].
+
+**Goal:** Build the 7 roster entities (+ Contract hoisted from M2) and the admin-side CRUD + role-administration surface that operates on them. Backend + frontend slices land per-sub-step so the admin dashboard is browser-dogfoodable end-to-end from M1.1 onward.
+
+**Sub-step roster:**
+
+| Sub-step | Title | Size | Branch | ADRs expected |
+|---|---|---|---|---|
+| **1.1** | M1.1 Auth substrate + frontend shell | M+ (possibly L) | `m1/01-auth-shell` | 2–3 (auth substrate + Caller shape + possibly route-guard pattern) |
+| **1.2** | M1.2 Admin substrate + flat roster (Employee / School / Contractor / User / Contract) | M | `m1/02-flat-roster` | 1–2 (admin-CRUD authoring shape; admin auth-predicate factory if non-obvious) |
+| **1.3** | M1.3 Role administration (UserRole grant/revoke + `audit_reason` Note) | S–M | `m1/03-role-admin` | 1 (`audit_reason` Note polymorphism mechanism) |
+| **1.4** | M1.4 Range-typed entities (EmployeeRole + ContractorEngagement + `change_employee_role_rate`) | M (possibly L) | `m1/04-range-typed` | 0–1 (compound decomposition if non-obvious) |
+
+**Execution order:** 1.1 → 1.2 → 1.3 → 1.4. Each sub-step FF-merges to `m1/roster`; `m1/roster` merges to `dev` with `--no-ff` + tag `m1-complete` at M1 close. Pre-M1.1 cleanup commit (consolidate `scripts/` → `app/cli/`) already landed on `m1/roster` (3684fad, 2026-05-19).
+
+**Inputs:** `planning/mvp.md` § Roster + role administration; `planning/roadmap.md` § M1; `planning/domain-model.md` § Roster entities + § Authorization predicates; `planning/data-model.md` (per-entity attribute rosters); `planning/decisions.md` — ADR-0040 (role catalog + audit_reason Notes), ADR-0045 (EmployeeRole contract scoping), ADR-0047 (per-command authorization predicates), ADR-0059 (Command base class + Caller carry-forward), ADR-0060 (cascade mechanism); `planning/architecture.md` § Out-of-band concerns (auth pull-in rationale).
+
+**Done when:** All 4 sub-steps complete; M2 can begin (Project + WABundle can hang off Contract; admin can grant coordinator roles to users who will run M2's project-tracking flows).
+
+---
+
+### Step 2.1 — M1.1 Auth substrate + frontend shell (M+, possibly L)
+
+**Goal:** Land the authentication substrate end-to-end — backend login flow producing a Caller, session persistence, frontend login page, auth-guarded route shell, and the Caller concrete shape (resolves ADR-0059's deferred carry-forward). Subsequent sub-steps dogfood the admin dashboard in a browser.
+
+**Locked decisions** (Session 34 chat-side canvass; ADRs author them up):
+
+1. **Session mechanism:** DB-backed server-side sessions. Opaque random token in `httpOnly Secure SameSite=Lax` cookie. `sessions` table `(id, user_id, created_at, expires_at, last_seen_at)`. Default TTL 12h sliding (refresh `last_seen_at` on each request; `expires_at = last_seen_at + 12h`). Revoke = delete row.
+2. **Password hashing:** argon2id via `argon2-cffi`. OWASP 2024 default parameters.
+3. **First-admin bootstrap:** `app/cli/bootstrap_admin.py` CLI command — prompts for username + password; creates User row + UserRole `superadmin` grant. Pytest fixture seeds a known superadmin for tests.
+4. **CORS:** `fastapi.middleware.cors.CORSMiddleware(allow_origins=[settings.FRONTEND_ORIGIN])`. Single allowed origin from settings.
+5. **CSRF tokens:** deferred. `SameSite=Lax` cookies cover the practical CSRF surface at single-deployment MVP scale.
+6. **Caller concrete shape:** Pydantic `Caller(id: UUID, username: str, roles: frozenset[Role])`. Constructed by FastAPI dependency from session lookup; passed to dispatcher. ADR-0047 predicates read `.roles` directly. Resolves ADR-0059's *"Caller concrete shape"* carry-forward.
+7. **Route guard:** TanStack Router `_authenticated` route layout group with `beforeLoad` checking the current-user query; login route sits outside the group; API client interceptor redirects to login on 401.
+8. **Login as non-Command surface:** login itself does not go through the Command pipeline (pipeline requires a Caller; login produces one). Implemented as a FastAPI route directly. Documented as the exception.
+
+**In scope:**
+
+- **Backend:**
+  - User entity table + Alembic migration. Schema: `(id, username UNIQUE, password_hash, employee_id? UNIQUE, soft_delete_at?)`.
+  - Session entity table + Alembic migration per Decision 1.
+  - `app.framework.auth` module: argon2id hash/verify wrappers; session creation/lookup/deletion; FastAPI `current_user` dependency producing Caller.
+  - Auth routes (non-Command): `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`.
+  - `Caller` Pydantic model (location decided at session head — likely `app.framework.caller`).
+  - CORS middleware wiring.
+  - `app/cli/bootstrap_admin.py`.
+  - Pytest fixture for "logged in as <role>" (creates User + Session + returns Caller).
+- **Frontend:**
+  - `/login` route with form (username/password) + error surface.
+  - `_authenticated` route layout group with `beforeLoad` auth check.
+  - `useCurrentUser` TanStack Query hook.
+  - Logout button in the authenticated shell.
+  - API client interceptor that redirects to `/login` on 401.
+  - Admin dashboard shell page (placeholder header + nav; per-entity pages land in 1.2+).
+  - Storybook entries for login form + auth shell.
+
+**Out of scope (MVP-deferred):**
+
+- Password reset flow (admin re-sets via `edit_user` in M1.2).
+- Login rate limiting / lockout.
+- Remember-me / persistent sessions beyond 12h sliding TTL.
+- 2FA / MFA / OAuth / SSO.
+- Immediate session invalidation on `revoke_user_role` (per `mvp.md` line 73; next-request authorization check is MVP behavior).
+- CSRF tokens (deferred per Decision 5).
+
+**Inputs:** Session 34 canvass (Decisions A–G + D'); ADR-0040 (role catalog); ADR-0047 (predicates); ADR-0059 (Caller carry-forward); `app/framework/command.py` (Caller Protocol shape); `app/framework/dispatcher.py` (Caller call sites); `app/framework/db.py` (engine + session factory); `app/cli/export_openapi.py` (existing CLI pattern).
+
+**Outputs:**
+
+- User + Session entity tables + Alembic migration.
+- `app.framework.auth` module + `Caller` concrete Pydantic model.
+- Auth routes (`/auth/login`, `/auth/logout`, `/auth/me`).
+- CORS middleware wired.
+- `app/cli/bootstrap_admin.py` + pytest fixture.
+- Frontend login page + authenticated layout group + current-user hook + 401 interceptor + admin dashboard shell.
+- 2–3 ADRs at write time **ADR-0061+**: auth substrate (sessions + hashing + bootstrap + CORS + non-Command login, likely bundled); Caller concrete shape (closes ADR-0059 carry-forward); possibly frontend route-guard pattern if non-obvious.
+
+**Estimate:** M+ (possibly L). Contingency: if frontend route-guard pattern surfaces unexpected complexity (TanStack Router `beforeLoad` × current-user hook interaction), split 1.1a backend / 1.1b frontend.
+
+**Done when:**
+
+- Fresh DB + `uv run python -m app.cli.bootstrap_admin` produces a usable superadmin.
+- Browser flow: visit `/`, redirected to `/login`, log in, land on admin shell, can hit `/auth/me`, logout returns to login.
+- Pytest fixtures let M1.2+ tests construct "logged in as admin" Callers trivially.
+- Auth ADRs land + Caller concrete shape consumed by the dispatcher (no Protocol-typed placeholder).
+
+---
+
+### Step 2.2 — M1.2 Admin substrate + flat roster (M)
+
+**Brief:** First ADR-0047 predicate landing (`role >= admin` class rule + admin auth-predicate factory shape — ADR-worthy if non-obvious). Admin-CRUD authoring shape decision (generalized factory vs. hand-authored per entity; ADR-worthy). 5 flat (no-FK, no-lifecycle, audit-log or no-history) entities: Employee, School, Contractor, User, **Contract** (hoisted from M2). Admin CRUD commands (`create_*` / `edit_*` / `delete_*`) under the admin class rule. Basic read routes (`GET /<entities>`, `GET /<entity>/{id}`) per entity so frontend admin pages can list/detail without waiting for M7's reporting work. Frontend: per-entity admin pages (list + detail/form) wired to the admin dashboard shell from M1.1.
 
 **Roadmap pointer:** `planning/roadmap.md` § M1.
+
+**Branch:** `m1/02-flat-roster` off `m1/roster`.
+
+---
+
+### Step 2.3 — M1.3 Role administration (S–M)
+
+**Brief:** UserRole entity + `grant_user_role` / `revoke_user_role` commands with conservative grant authority parameterized predicate per ADR-0040. `audit_reason` Note materialization mechanism (Note polymorphism extension to history records per ADR-0040 — concrete implementation deferred from ADR-0040; ADR-worthy). Frontend: role-management UI (grant/revoke flows with optional reason text input).
+
+**Roadmap pointer:** `planning/roadmap.md` § M1.
+
+**Branch:** `m1/03-role-admin` off `m1/roster`.
+
+---
+
+### Step 2.4 — M1.4 Range-typed entities (M, possibly L)
+
+**Brief:** EmployeeRole + ContractorEngagement entities. EmployeeRole `(employee, role_type, contract_id, rate, start_date, end_date?)` with disjoint-ranges-per-`(employee, role_type, contract)` invariant under SERIALIZABLE (first ADR-0056 D1.c consumer in M1+ code; record as code-comment criterion-application referencing ADR-0056 — no new ADR). Lifecycle commands: `create_employee_role`, `edit_employee_role`, `close_employee_role`, `start_contractor_engagement`, `end_contractor_engagement`. `change_employee_role_rate` 4-branch compound (signature includes `contract` per ADR-0045; auto-reparent branch stays dissolved since Time Entry doesn't exist until M4 — branches 1/2/4 fully functional; branch 3 reduces to close+create). ContractorEngagement signatures + date defaults (carry-forward landing per `planning/roadmap.md` § Carry-forward landing index). Frontend: EmployeeRole rate-management UI + ContractorEngagement UI.
+
+**Roadmap pointer:** `planning/roadmap.md` § M1.
+
+**Branch:** `m1/04-range-typed` off `m1/roster`.
 
 ---
 
