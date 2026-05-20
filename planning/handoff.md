@@ -38,7 +38,7 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Current phase
 
-**Implementation** — Phase 2. **Step 1 / M0 Foundations ✓ COMPLETE 2026-05-19 (Session 33).** **Step 2 / M1 Roster partitioned 2026-05-19 (Session 34, Case 2)** into 4 sub-steps. **Step 2.1 / M1.1 Auth substrate + frontend shell ✓ COMPLETE 2026-05-19 (Session 35).** Currently on branch **`m1/01-auth-shell`** (tip = `f0a651d`, two commits: backend slice `b7b75b6` + frontend/tests slice `f0a651d`). Sub-step status: M1.2 next (admin substrate + flat roster, incl. Contract hoisted from M2); M1.3 / M1.4 stubs in `steps.md`. **Branch state pending:** `m1/01-auth-shell` not yet FF-merged to `m1/roster` (decision deferred to user signal). **Next branch op at Session 36 head:** FF-merge `m1/01-auth-shell` → `m1/roster` if not already done, then `git checkout -b m1/02-flat-roster` off `m1/roster`.
+**Implementation** — Phase 2. **Step 1 / M0 Foundations ✓ COMPLETE 2026-05-19 (Session 33).** **Step 2 / M1 Roster partitioned 2026-05-19 (Session 34, Case 2)** into 4 sub-steps. **Step 2.1 / M1.1 Auth substrate + frontend shell ✓ COMPLETE 2026-05-19 (Session 35).** Currently on branch **`m1/01-auth-shell`** (tip = `f0a651d`, two commits: backend slice `b7b75b6` + frontend/tests slice `f0a651d`). Sub-step status: **Step 2.1b / Frontend architecture & conventions inserted 2026-05-19** (an insertion between M1.1 and M1.2 — see `sessions.md` § Restructure log) is the next session; M1.2 follows it as Session 37; M1.3 / M1.4 stubs in `steps.md`. **Branch state pending:** `m1/01-auth-shell` not yet FF-merged to `m1/roster` (decision deferred to user signal). **Next branch op at Session 36 head:** FF-merge `m1/01-auth-shell` → `m1/roster` if not already done, then `git checkout -b m1/01b-fe-conventions` off `m1/roster`.
 
 ## Last session summary
 
@@ -86,11 +86,11 @@ Planning close-out (this commit) lands ADRs 0061 / 0062 / 0063 + steps.md (Step 
 
 ## Open questions
 
-**For the next session (Session 36 — Step 2.2 / M1.2 Admin substrate + flat roster, Case 2 sizing then likely partitioned implementation):**
+**For Session 37 — Step 2.2 / M1.2 Admin substrate + flat roster** (Case 2 sizing then likely partitioned implementation). *Step 2.1b (frontend architecture & conventions) was inserted ahead of M1.2 on 2026-05-19 and is now Session 36; the M1.2 detail below is one session out and stays as forward reference.*
 
 - **Branch op at session head:** if `m1/01-auth-shell` is not yet FF-merged to `m1/roster` (check `git log m1/roster..m1/01-auth-shell`), do that first. Then `git checkout -b m1/02-flat-roster` off `m1/roster`. Tag-anchor `m1.1-complete` on `m1/roster` is optional (the `m<X>-complete` convention is for milestone close per [[project-branching-convention]], not sub-step close).
 - **Case 2 sizing required at session head.** Step 2.2 has a stub brief in `steps.md` — not a scoped prompt. Expect sizing to surface several fit-checklist signals: independently-deliberable decisions (admin-CRUD authoring shape — generalized factory vs hand-authored per entity, ADR-worthy; admin auth-predicate factory shape, ADR-worthy); five new entity tables (Employee, School, Contractor, User-side admin CRUD, Contract); cross-concern reach (backend entity authoring + first ADR-0047 predicate landing + frontend per-entity admin pages); likely >60 min duration. **Likely partition needed** — natural seam is backend entities + commands → backend admin routes → frontend admin pages. Hold the partition canvass at session head per Case 2 protocol; don't pre-decide.
-- **ADR numbering.** Next at write time **ADR-0064**. M1.2 likely lands 1–2 ADRs: admin-CRUD authoring shape (generalized factory vs hand-authored), admin auth-predicate factory shape if non-obvious. First ADR-0047 predicate landing in M1+ code; the `role >= admin` Cluster 1 class rule is the first concrete use of `has_role_at_least` from ADR-0062.
+- **ADR numbering.** Step 2.1b (Session 36) takes **ADR-0064** (poss. +ADR-0065 for the UI/form stack); M1.2 therefore starts at the next free number at its write time. M1.2 likely lands 1–2 ADRs: admin-CRUD authoring shape (generalized factory vs hand-authored), admin auth-predicate factory shape if non-obvious. First ADR-0047 predicate landing in M1+ code; the `role >= admin` Cluster 1 class rule is the first concrete use of `has_role_at_least` from ADR-0062.
 - **Five entities to land** (per ADR-0047 Cluster 1):
   - **Employee** — HR-driven, no lifecycle, audit-log history per ADR-0052.
   - **School** — flat, no lifecycle, audit-log history.
@@ -102,7 +102,7 @@ Planning close-out (this commit) lands ADRs 0061 / 0062 / 0063 + steps.md (Step 
   - **Admin-CRUD authoring shape.** Generalized factory (`make_create_command(Entity, Payload)`) vs hand-authored Command per entity. Factory wins on volume (5 entities × 3 commands = 15); hand-authored wins on flexibility for non-uniform predicates. Worth a structured canvass. Likely ADR-worthy regardless of pick.
   - **Read routes** (`GET /<entity>`, `GET /<entity>/{id}`). Per-entity hand-authored, or generalized? Frontend admin pages need them in M1.2 — can't wait for M7's reporting work. Likely hand-authored (5 endpoints, low complexity).
   - **Admin auth-predicate factory.** ADR-0047 Cluster 1 class rule is uniform `role >= admin`. Encode once as a reusable predicate factory; or inline per command? Lean factory.
-  - **Frontend admin page shape.** List + detail/form per entity. Component shape? Shadcn/ui adoption decision was deferred per ADR-0051; M1.2 forces it unless we hand-roll. Resurface the shadcn deferral or proceed with plain Tailwind/CSS.
+  - **Frontend admin page shape.** List + detail/form per entity, built on the shadcn/ui + four-layer conventions landed in Step 2.1b. Shadcn/ui is adopted there — no longer an open M1.2 decision; M1.2 consumes `frontend/src/PATTERNS.md`.
 - **Read first at session head:** Session 35 summary above + Open questions for Session 36 + `planning/steps.md` § Step 2 high-level + § Step 2.2 stub + ADR-0040 (role catalog) + ADR-0047 (per-command authorization predicates — Cluster 1 is M1.2's surface) + ADR-0044 / ADR-0045 (Contract + WABundle structural shape, contract scoping) + ADR-0061 / 0062 (auth substrate + Caller from Session 35) + `data-model.md` § Roster entities (per-entity attribute rosters). Skim `app/framework/caller.py` + `app/framework/auth.py` (consumed by M1.2 routes); `app/domain/auth.py` (existing entity pattern that M1.2 entities mirror); `app/framework/history.py` (mixin pattern + audit-log shape for the 5 new entities); `tests/conftest.py` § per-role fixtures (M1.2 command tests build on these).
 - **Coordination points:**
   - The User table got created in M1.1 with `employee_id` as a plain UUID + no FK. M1.2's Employee migration adds the FK + UNIQUE constraint via a follow-up alter. Verify the alter handles existing rows (the bootstrap superadmin will have null `employee_id`, which is the nullable-FK shape ADR-0041 Gap 5 anticipates).
@@ -138,9 +138,46 @@ Planning close-out (this commit) lands ADRs 0061 / 0062 / 0063 + steps.md (Step 
 
 ## Next session
 
-**Session 36 — Step 2.2 / M1.2 Admin substrate + flat roster (Case 2 sizing, then implementation).** Branch op at session head: confirm `m1/01-auth-shell` FF-merge state to `m1/roster`; then `git checkout -b m1/02-flat-roster` off `m1/roster`. Case 2 sizing first (likely partition needed), then implementation per the partitioned plan. ADRs 0064+.
+**Session 36 — Step 2.1b / Frontend architecture & conventions (Case 2 sizing, then implementation).** An inserted step (2026-05-19) — adapt-and-port `sca-ih-tracker`'s four-layer frontend architecture into this repo before M1.2's first substantial frontend feature. Branch op at session head: FF-merge `m1/01-auth-shell` → `m1/roster` if not already done, then `git checkout -b m1/01b-fe-conventions` off `m1/roster`. Full plan: `.claude/plans/i-want-to-have-fluttering-wozniak.md`. ADRs 0064+. **M1.2 follows as Session 37** (staged prompt below; detail under Open questions above).
 
 ### Prompt for the next session
+
+> Resume work. **Step 2.1 / M1.1 ✓ COMPLETE** (Session 35). **Step 2.1b / Frontend architecture & conventions** is an inserted step (2026-05-19; not a roadmap milestone — see `sessions.md` § Restructure log). Adapt-and-port `sca-ih-tracker`'s mature four-layer frontend architecture into this repo so M1.2's first substantial frontend feature builds on settled conventions.
+>
+> **Full plan — read first:** `.claude/plans/i-want-to-have-fluttering-wozniak.md`. It is the scoped brief for this session; `steps.md` § Step 2.1b is the summary.
+>
+> **Branch op at session head:**
+> ```
+> git log m1/roster..m1/01-auth-shell    # confirm M1.1 commits not yet on m1/roster
+> git checkout m1/roster
+> git merge --ff-only m1/01-auth-shell   # if not already merged
+> git checkout -b m1/01b-fe-conventions
+> ```
+> Confirm the branch name at session head — `m<N>/NN-subslug` has no clean insertion slot; `m1/01b-fe-conventions` is a minor suffix bend.
+>
+> **Case 2 sizing first.** The step is M–L. Likely 2-way partition — natural seam: **A** adopt + scaffold + document (install shadcn/Tailwind/Zod/RHF, wire `@/` alias, relocate `src/api/generated/`, scaffold the four-layer folders, add ESLint layering rules, write `PATTERNS.md` + `CLAUDE.md`); **B** port the M1.1 auth code into the four-layer model + test/story colocation. Surface the partition in chat per the STOP-AND-CONFIRM gate; don't pre-decide.
+>
+> **Locked scope** (planning side-session, 2026-05-19): doc + ESLint enforcement + port M1.1 auth; adopt shadcn/ui + Zod + react-hook-form now; conventions doc co-located (`frontend/src/PATTERNS.md` + thin `frontend/CLAUDE.md`). The port mapping, the adaptations (cookie-session variant of the route guard; no entity-abstractions yet), critical files, and verification steps are all in the plan file.
+>
+> **ADRs expected:** 1–2 at write time **ADR-0064+** — four-layer FE architecture + API barrel + test/story colocation + ESLint enforcement; poss. a second for the shadcn `radix-lyra` + Zod + RHF stack.
+>
+> **Read first:** the plan file; `steps.md` § Step 2.1b; ADR-0063 (frontend route-guard pattern — the port must preserve it); current `frontend/src/` (M1.1 auth shell). Reference repo: `C:\Users\crummy_P51\projects\sca-ih-tracker\frontend` — `src/PATTERNS.md`, `CLAUDE.md`, `eslint.config.js`, `src/features/schools/api/schools.ts`, `src/features/auth/api/hooks.ts`.
+>
+> **Out of scope:**
+> - Any M1.2 roster entity / command / route / admin page (Session 37).
+> - Entity-abstraction patterns (`EntityListPage`, `useEntityForm`, `DataTable`, comboboxes) — extracted just-in-time later, not invented now.
+> - Backend changes; OpenAPI-surface changes.
+>
+> **Process notes:**
+> - **STOP-AND-CONFIRM gate applies, including for source code.** Canvass the partition + non-obvious structural decisions in chat before writing.
+> - **Commit pattern: preserve incremental checkpoints** — coherent atomic changes at green-state boundaries.
+> - **Branch:** `m1/01b-fe-conventions` off `m1/roster`; FF-merge back to `m1/roster` at close.
+> - **ADR numbering:** next at write time **ADR-0064**.
+> - **On completion:** mark Step 2.1b complete in `steps.md`; promote the staged M1.2 prompt below to the active prompt; advance `handoff.md` to Session 37 / M1.2.
+
+### Staged — Session 37 prompt (Step 2.2 / M1.2)
+
+*Promoted to the active prompt when Step 2.1b closes. The M1.2 detail under Open questions above is the working reference until then; the prompt below predates the Step 2.1b insertion and will be refreshed at 2.1b close.*
 
 > Resume work. **Step 2.1 / M1.1 ✓ COMPLETE** (Session 35 — auth substrate + frontend shell, ADRs 0061 / 0062 / 0063). Session 36 opens **Step 2.2 / M1.2 Admin substrate + flat roster** — Case 2 sizing then implementation.
 >

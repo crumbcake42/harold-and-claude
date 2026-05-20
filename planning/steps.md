@@ -197,11 +197,12 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 | Sub-step | Title | Size | Branch | ADRs expected |
 |---|---|---|---|---|
 | **1.1** ✓ | M1.1 Auth substrate + frontend shell (Session 35, 2026-05-19) | M+ | `m1/01-auth-shell` | 3 (ADR-0061 auth substrate + ADR-0062 Caller shape + ADR-0063 route-guard pattern) |
+| **1.1b** | Frontend architecture & conventions (inserted 2026-05-19 — not an M-milestone) | M–L | `m1/01b-fe-conventions` | 1–2 (ADR-0064 four-layer FE architecture; poss. +1 UI/form stack) |
 | **1.2** | M1.2 Admin substrate + flat roster (Employee / School / Contractor / User / Contract) | M | `m1/02-flat-roster` | 1–2 (admin-CRUD authoring shape; admin auth-predicate factory if non-obvious) |
 | **1.3** | M1.3 Role administration (UserRole grant/revoke + `audit_reason` Note) | S–M | `m1/03-role-admin` | 1 (`audit_reason` Note polymorphism mechanism) |
 | **1.4** | M1.4 Range-typed entities (EmployeeRole + ContractorEngagement + `change_employee_role_rate`) | M (possibly L) | `m1/04-range-typed` | 0–1 (compound decomposition if non-obvious) |
 
-**Execution order:** 1.1 → 1.2 → 1.3 → 1.4. Each sub-step FF-merges to `m1/roster`; `m1/roster` merges to `dev` with `--no-ff` + tag `m1-complete` at M1 close. Pre-M1.1 cleanup commit (consolidate `scripts/` → `app/cli/`) already landed on `m1/roster` (3684fad, 2026-05-19).
+**Execution order:** 1.1 → 1.1b → 1.2 → 1.3 → 1.4. Each sub-step FF-merges to `m1/roster`; `m1/roster` merges to `dev` with `--no-ff` + tag `m1-complete` at M1 close. Pre-M1.1 cleanup commit (consolidate `scripts/` → `app/cli/`) already landed on `m1/roster` (3684fad, 2026-05-19).
 
 **Inputs:** `planning/mvp.md` § Roster + role administration; `planning/roadmap.md` § M1; `planning/domain-model.md` § Roster entities + § Authorization predicates; `planning/data-model.md` (per-entity attribute rosters); `planning/decisions.md` — ADR-0040 (role catalog + audit_reason Notes), ADR-0045 (EmployeeRole contract scoping), ADR-0047 (per-command authorization predicates), ADR-0059 (Command base class + Caller carry-forward), ADR-0060 (cascade mechanism); `planning/architecture.md` § Out-of-band concerns (auth pull-in rationale).
 
@@ -275,6 +276,28 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 - Browser flow: visit `/`, redirected to `/login`, log in, land on admin shell, can hit `/auth/me`, logout returns to login.
 - Pytest fixtures let M1.2+ tests construct "logged in as admin" Callers trivially.
 - Auth ADRs land + Caller concrete shape consumed by the dispatcher (no Protocol-typed placeholder).
+
+---
+
+### Step 2.1b — Frontend architecture & conventions (M–L, inserted)
+
+**Inserted 2026-05-19** between Step 2.1 (M1.1) and Step 2.2 (M1.2) — an insertion, not a split (mirrors the `6b-residual-2` precedent; logged in `sessions.md` § Restructure log). **Does not map to a roadmap milestone** — a documented exception to this file's 1:1 step↔milestone contract. Triggered by a planning side-session: adapt-and-port `sca-ih-tracker`'s mature four-layer frontend architecture into this repo *before* M1.2 builds the first substantial frontend feature. Full scoped brief: `.claude/plans/i-want-to-have-fluttering-wozniak.md`.
+
+**Goal:** Establish and enforce the frontend code-organization conventions M1.2+ will consume — a strictly one-way four-layer architecture (`routes → pages → features → components/hooks/fields/lib`), a per-feature API-barrel layer over the generated client, test/story colocation — captured in a co-located conventions doc, ESLint-enforced, with the M1.1 auth code restructured into the model as a working reference. Adopt shadcn/ui + Zod + react-hook-form so M1.2 is fully equipped (this also settles the shadcn-adoption question previously flagged as an open M1.2 decision).
+
+**In scope:** `frontend/src/PATTERNS.md` (full conventions, adapted from sca-ih-tracker) + thin auto-loaded `frontend/CLAUDE.md`; four-layer folder skeleton + ESLint `no-restricted-imports` layering enforcement; shadcn/ui (+ Tailwind), Zod, react-hook-form install/config + `@/` import alias; relocate the openapi-ts output to `src/api/generated/`; port the M1.1 auth code (login / `_authenticated` / `useCurrentUser`) into the four-layer model; move tests to colocation + add the first colocated test + story.
+
+**Out of scope:** entity-abstraction patterns (`EntityListPage`, `useEntityForm`, `DataTable`, comboboxes) — extracted just-in-time when M1.2+ yields a second consumer, not invented now; any M1.2 roster entity / command / route / admin page; backend or OpenAPI-surface changes.
+
+**Inputs:** `.claude/plans/i-want-to-have-fluttering-wozniak.md`; reference repo `sca-ih-tracker` — `frontend/src/PATTERNS.md`, `frontend/CLAUDE.md`, `frontend/eslint.config.js`, `frontend/src/features/{schools,auth}/api/*`; ADR-0063 (frontend route-guard pattern — the port must preserve it); current `frontend/src/` (M1.1 auth shell).
+
+**Outputs:** `PATTERNS.md` + `CLAUDE.md`; scaffolded + ESLint-enforced four-layer structure; shadcn/Zod/RHF installed; M1.1 auth ported; **ADR-0064** (four-layer FE architecture + API barrel + test/story colocation + ESLint enforcement; poss. **ADR-0065** for the shadcn `radix-lyra` + Zod + RHF stack).
+
+**Estimate:** M–L. Likely Case 2 partition — natural seam: **A** adopt + scaffold + document; **B** port M1.1 auth + tests.
+
+**Branch:** `m1/01b-fe-conventions` off `m1/roster` (after the `m1/01-auth-shell` FF-merge the handoff prescribes). Name to confirm at session head — the `m<N>/NN-subslug` convention has no clean insertion slot.
+
+**Done when:** conventions doc lands; four-layer skeleton + ESLint layering enforcement in place; shadcn/Zod/RHF installed; M1.1 auth runs unchanged from the new structure (login round-trip verified); `pnpm lint` / `typecheck` / `test` / `build` green; ADR-0064 written.
 
 ---
 
