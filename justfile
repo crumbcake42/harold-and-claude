@@ -5,15 +5,34 @@ set windows-shell := ["sh", "-c"]
 default:
     @just --list
 
-# --- install ---
+# --- install (idempotent env setup) ---
 
-install: install-backend install-frontend
+install: install-backend install-frontend migrate
 
 install-backend:
     cd backend && uv sync
 
 install-frontend:
     cd frontend && pnpm install
+
+# --- database ---
+
+# Apply Alembic migrations to the configured DATABASE_URL (idempotent).
+migrate:
+    cd backend && uv run alembic upgrade head
+
+# --- data init (interactive / destructive — kept out of `install`) ---
+
+# Create the first superadmin (prompts for username + password).
+bootstrap-admin:
+    cd backend && uv run python -m app.cli.bootstrap_admin
+
+# Load redacted CSVs from app/cli/seeds/ through the Command pipeline.
+seed:
+    cd backend && uv run python -m app.cli.seed_db
+
+# Fresh-machine setup: env setup, then interactive data init.
+first-run: install bootstrap-admin seed
 
 # --- dev servers ---
 

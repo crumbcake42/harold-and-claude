@@ -9,3 +9,7 @@ __pycache__/
 *.sqlite3
 .env
 .env.local
+
+# Seed CSVs hold redacted real data — keep them local; only the README
+# (app/cli/seeds/README.md) is committed.
+app/cli/seeds/*.csv
