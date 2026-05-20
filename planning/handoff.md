@@ -38,59 +38,54 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Current phase
 
-**Implementation** — Phase 2. **Step 1 / M0 Foundations ✓ COMPLETE 2026-05-19 (Session 33).** **Step 2 / M1 Roster partitioned 2026-05-19 (Session 34, Case 2)** into 4 sub-steps. **Step 2.1 / M1.1 Auth substrate + frontend shell ✓ COMPLETE 2026-05-19 (Session 35).** Currently on branch **`m1/01-auth-shell`** (tip = `f0a651d`, two commits: backend slice `b7b75b6` + frontend/tests slice `f0a651d`). Sub-step status: **Step 2.1b / Frontend architecture & conventions inserted 2026-05-19** (an insertion between M1.1 and M1.2 — see `sessions.md` § Restructure log) is the next session; M1.2 follows it as Session 37; M1.3 / M1.4 stubs in `steps.md`. **Branch state pending:** `m1/01-auth-shell` not yet FF-merged to `m1/roster` (decision deferred to user signal). **Next branch op at Session 36 head:** FF-merge `m1/01-auth-shell` → `m1/roster` if not already done, then `git checkout -b m1/01b-fe-conventions` off `m1/roster`.
+**Implementation** — Phase 2. **Step 1 / M0 Foundations ✓ COMPLETE 2026-05-19 (Session 33).** **Step 2 / M1 Roster** partitioned 2026-05-19 (Session 34, Case 2) into 4 sub-steps. **Step 2.1 / M1.1 Auth substrate + frontend shell ✓ COMPLETE 2026-05-19 (Session 35).** **Step 2.1b / Frontend architecture & conventions** (inserted; not a roadmap milestone) partitioned 2026-05-20 (Session 36, Case 2) into **2.1b-A** (adopt + scaffold + document) and **2.1b-B** (port M1.1 auth + test/story colocation). **Step 2.1b-A ✓ COMPLETE 2026-05-20 (Session 36).** Currently on branch **`m1/01b-fe-conventions`** (off `m1/roster`; `m1/01-auth-shell` was FF-merged to `m1/roster` at Session 36 head). 2.1b-A's implementation + close-out commits land on this branch. **Next: Session 37 / Step 2.1b-B** — port the M1.1 auth code into the four-layer model + test/story colocation; same branch; FF-merge `m1/01b-fe-conventions` → `m1/roster` at 2.1b-B close (which closes Step 2.1b). M1.2 follows as Session 38; M1.3 / M1.4 stubs in `steps.md`.
 
 ## Last session summary
 
-**Session 35 — Step 2.1 / M1.1 Auth substrate + frontend shell (2026-05-19, Case 3 implementation).** Auth substrate landed end-to-end on `m1/01-auth-shell`. Three ADRs (ADR-0061 / 0062 / 0063), two implementation commits, one Neon migration applied, one non-obvious bug surfaced + fixed at browser verification, one new project memory.
+**Session 36 — Step 2.1b-A / Adopt + scaffold + document (2026-05-20).** Opened with a Case 2 partition of the inserted Step 2.1b, then ran 2.1b-A as a Case 3 implementation.
 
-**The six *how*-level decisions canvassed at session head + pinned:**
+**Case 2 partition.** Step 2.1b split into **2.1b-A** (adopt + scaffold + document) and **2.1b-B** (port M1.1 auth + test/story colocation) — single branch `m1/01b-fe-conventions`, per the 1.3a/1.3b precedent. Fit-checklist signals 2 / 3 / 5 fired. The original scoped brief lived in `.claude/plans/` (harness-local, uncommitted) and did not survive a machine switch; the intact `sca-ih-tracker` reference repo + reconstructed `steps.md` sub-sub-step briefs became the working brief, and all dead `.claude/plans/` references were stripped from the planning files. See [[feedback-scoped-briefs-in-repo]].
 
-1. **Session token:** `secrets.token_urlsafe(32)` — 256 bits, URL-safe, opaque.
-2. **Argon2 parameters:** explicit OWASP 2024 pin (`time_cost=2`, `memory_cost=19456 KiB`, `parallelism=1`, `hash_len=32`, `salt_len=16`) — hashes stay verifiable across `argon2-cffi` version bumps.
-3. **`Caller` module:** new `app/framework/caller.py`; removed Protocol stub from `command.py`.
-4. **`app.framework.auth`:** single module (~150 LOC).
-5. **Frontend route guard:** TanStack Router file-based `_authenticated.tsx` layout + `beforeLoad` via `ensureQueryData`.
-6. **Pytest fixture shape:** dependency-override of `current_user` for `as_superadmin / as_admin / as_coordinator / as_auditor`.
+**Branch op.** Committed the user's `SubmitEvent` fix on `m1/01-auth-shell` (`4a3b4a9`); FF-merged `m1/01-auth-shell` → `m1/roster`; branched `m1/01b-fe-conventions`.
 
-Plus the `bootstrap_admin` CLI uses stdlib `input()` + `getpass`; Click adoption deferred to the 3rd CLI command per the `app/cli/` convention.
+**What landed (2.1b-A).**
 
-**Backend (commit `b7b75b6`).** `app/framework/caller.py` (concrete Caller + Role StrEnum + `has_role_at_least`); `app/framework/command.py` (dropped Caller Protocol, imports from caller); `app/domain/auth.py` (User / UserRole / Session models — User.employee_id nullable plain UUID until M1.2's Employee migration adds the FK); `app/framework/auth.py` (argon2id hash/verify with pinned params + session CRUD + `current_user` dep with `_ensure_utc` SQLite-tz shim); `app/routes/auth.py` (POST `/auth/login`, POST `/auth/logout`, GET `/auth/me`); CORS middleware in `app/main.py`; config additions (`frontend_origin`, `session_cookie_name`, `session_ttl_hours`, `cookie_secure`); migration `25ea83fcec61_auth_substrate` (autogen + applied to Neon per [[project-neon-current-policy]]); pyproject (argon2-cffi dep + ruff `extend-immutable-calls` for FastAPI deps to suppress B008 false positives).
+- Generated OpenAPI client relocated `src/api/` → `src/api/generated/`; hand-written config → `src/api/configure.ts` (sibling of `generated/`, survives regeneration); `openapi-ts.config.ts` `output.path` updated; 4 M1.1 import sites fixed. CI drift check unaffected (`frontend/src/api/` is the parent path).
+- `@/` import alias wired (Vite `resolve.alias` + tsconfig `paths`).
+- UI/form stack installed: Tailwind 4, shadcn/ui `radix-lyra` (Button / Input / Card / Field family / Sonner — ported verbatim from sca-ih-tracker, plus transitive Label / Separator), Zod, react-hook-form, Phosphor, sonner. `components.json` + radix-lyra theme tokens in `src/index.css`.
+- Four-layer folder skeleton (`pages/ features/ fields/ auth/`) + ESLint `no-restricted-imports` layering rules for `features/` + `pages/`.
+- `src/PATTERNS.md` (conventions, adapted + scank-scoped) + thin `frontend/CLAUDE.md`.
 
-**Frontend + tests (commit `f0a651d`).** `app/cli/bootstrap_admin.py` (stdlib `input()` + `getpass`, idempotent on collision); per-role pytest fixtures + 13 new auth tests in `tests/test_auth.py` (40 total backend tests green); regenerated `contracts/openapi.json` + `frontend/src/api/`; frontend auth shell — `api/configure.ts` (client.setConfig with `credentials: 'include'`), `hooks/useCurrentUser.ts` (TanStack Query hook + `currentUserQueryOptions` for use in route loaders), `routes/login.tsx` (form + mutation), `routes/_authenticated.tsx` (`beforeLoad` redirect guard), `routes/_authenticated/index.tsx` (admin shell + logout button), `main.tsx` (`configureApiClient` + `queryClient` on router context), `__root.tsx` (typed router context).
+**Implementation decisions.** The `routes/` ESLint layering rule is deferred to 2.1b-B — the un-ported M1.1 auth routes still import `@/api/generated/` directly, so enforcing it now would fail lint. `src/components/ui/**` is ESLint-ignored (vendored shadcn). `src/index.css` dropped sca-ih-tracker's brand fonts + typography plugin as not load-bearing.
 
-**Non-obvious bug surfaced + fixed at browser verification (pinned in ADR-0063).** Original login `onSuccess` used `queryClient.invalidateQueries({queryKey: ['auth', 'me']})` then `navigate({to: '/'})`. With no active subscriber to the user query on the `/login` page, `invalidateQueries` (default `refetchType: 'active'`) marked stale but did not refetch. Then `navigate` ran; `_authenticated.beforeLoad` called `ensureQueryData` which returned the *stale-but-cached* null (ensureQueryData returns cached data even when stale; only fetches on missing); beforeLoad bounced back to `/login`. Fix: `queryClient.setQueryData(currentUserQueryKey, response.data)` — the login response already contains the Caller, so seed the cache directly. Rule pinned: for auth-state mutations where the response carries the new value, prefer `setQueryData` over `invalidateQueries`.
+**ADRs landed (2).** ADR-0064 (four-layer FE architecture + API barrel + ESLint enforcement) + ADR-0065 (shadcn `radix-lyra` + Tailwind 4 + Zod + RHF stack). ADR-0063's config-file-placement consequence amended with a forward pointer to ADR-0064.
 
-**The 8 locked *what*-level decisions from Session 34 → ADR partition:**
+**Verification.** `pnpm lint` / `typecheck` / `test` (1/1) / `build` all green. M1.1 auth functionally unchanged (import-path edits only); browser round-trip not re-verified — no behavioral change.
 
-- ADR-0061 bundles decisions 1 (sessions) + 2 (argon2id) + 3 (bootstrap) + 4 (CORS) + 5 (CSRF deferral) + 8 (non-Command login).
-- ADR-0062 records decision 6 (Caller concrete shape) — closes ADR-0059's *"Caller concrete shape"* carry-forward.
-- ADR-0063 records decision 7 (frontend route guard) + the `setQueryData` rule from the bug above.
+**Commits (on `m1/01b-fe-conventions`).** `4a3b4a9` (M1.1 `SubmitEvent` fix, rode the FF-merge); 2.1b-A implementation; 2.1b-A close-out (ADR-0064/0065 + steps.md/handoff advance).
 
-**Commits landed this session (2).**
+**Memories saved (1 new).** `feedback-scoped-briefs-in-repo` — a scoped brief the handoff depends on must live in committed `planning/`, never `.claude/plans/` (harness-local; does not survive a machine switch).
 
-1. `b7b75b6` on `m1/01-auth-shell` — M1.1 step 1/2: backend auth substrate.
-2. `f0a651d` on `m1/01-auth-shell` — M1.1 step 2/2: bootstrap CLI + per-role fixtures + frontend auth shell.
-
-Planning close-out (this commit) lands ADRs 0061 / 0062 / 0063 + steps.md (Step 2.1 marked complete) + handoff.md (this rewrite).
-
-**ADRs landed this session (3).** ADR-0061 (auth substrate bundle), ADR-0062 (Caller concrete shape — closes ADR-0059 carry-forward), ADR-0063 (frontend route guard + `setQueryData` rule).
-
-**Memories saved (1 new).** `project_neon_current_policy` — Neon dev DB stays current with alembic head; apply migrations to Neon immediately at landing; `.env`'s `DATABASE_URL` is authoritative; throwaway sqlite OK for pre-commit iteration only. Triggered by Session 33's `b555ac8d13da` migration never being applied to Neon, surfaced when M1.1's autogen failed with "Target database is not up to date."
-
-**Files touched.** Backend: `app/cli/bootstrap_admin.py` (new), `app/config.py`, `app/domain/auth.py` (new), `app/framework/auth.py` (new), `app/framework/caller.py` (new), `app/framework/command.py`, `app/framework/db.py`, `app/framework/dispatcher.py`, `app/main.py`, `app/routes/auth.py` (new), `migrations/env.py`, `migrations/versions/25ea83fcec61_auth_substrate.py` (new), `pyproject.toml`, `uv.lock`, `tests/conftest.py`, `tests/test_auth.py` (new), `tests/test_capture_sink_integration.py`, `tests/test_dispatcher.py`, `tests/fixtures/smoketest/commands.py`. Frontend: `src/api/` (regenerated), `src/api/configure.ts` (new), `src/hooks/useCurrentUser.ts` (new), `src/main.tsx`, `src/routeTree.gen.ts`, `src/routes/__root.tsx`, `src/routes/index.tsx` (deleted → moved under `_authenticated/`), `src/routes/_authenticated.tsx` (new), `src/routes/_authenticated/index.tsx` (new), `src/routes/login.tsx` (new). Shared: `contracts/openapi.json` (regenerated). Planning: `decisions.md` (3 ADRs appended), `steps.md` (Step 2.1 marked complete), `handoff.md` (this rewrite). `_file-rules.md` **not regenerated** — no `## File contract` block changed.
-
-**Verification at session close.** Backend: 40 pytest green (27 prior + 13 new), ruff clean. Frontend: 1 vitest green, ESLint clean, `tsc --noEmit` clean. Neon dev DB at head (`25ea83fcec61_auth_substrate` applied). Browser flow round-tripped by user — `/` → `/login` → login → admin shell at `/` → sign out → back at `/login`; invalid credentials → "invalid credentials" message.
+`_file-rules.md` **not regenerated** — no `## File contract` block changed.
 
 ---
 
 ## Open questions
 
-**For Session 37 — Step 2.2 / M1.2 Admin substrate + flat roster** (Case 2 sizing then likely partitioned implementation). *Step 2.1b (frontend architecture & conventions) was inserted ahead of M1.2 on 2026-05-19 and is now Session 36; the M1.2 detail below is one session out and stays as forward reference.*
+**For Session 37 — Step 2.1b-B / Port M1.1 auth + test/story colocation** (Case 3 scoped — `steps.md` § Step 2.1b-B is the brief).
 
-- **Branch op at session head:** if `m1/01-auth-shell` is not yet FF-merged to `m1/roster` (check `git log m1/roster..m1/01-auth-shell`), do that first. Then `git checkout -b m1/02-flat-roster` off `m1/roster`. Tag-anchor `m1.1-complete` on `m1/roster` is optional (the `m<X>-complete` convention is for milestone close per [[project-branching-convention]], not sub-step close).
+- **Branch:** stay on `m1/01b-fe-conventions` — no branch op at session head (2.1b-A is already committed there). FF-merge `m1/01b-fe-conventions` → `m1/roster` at 2.1b-B close, which closes Step 2.1b entirely.
+- **Scope.** A structural port — move the M1.1 auth code into the four-layer model with no behavior change: route files stay in `routes/` (config only), page compositions move to `pages/`, the login feature (`LoginForm` + a login/logout API barrel) to `features/auth/`, cross-cutting auth (`useCurrentUser` / `currentUserQueryOptions`, consumed by the route guard) to `src/auth/`. Rebuild `LoginForm` on shadcn (`Field` family) + react-hook-form + Zod. Add the `routes/` ESLint layering rule (deferred from 2.1b-A — see the NOTE in `eslint.config.js`). Test/story colocation: `src/tests/` → `src/test/` (infra only — setup, `renderWithProviders`, `createTestQueryClient`) + first colocated `*.test.tsx` + `*.stories.tsx`.
+- **Preserve ADR-0063 exactly.** `setQueryData` (not `invalidateQueries`) on login success; cookie-session model — no Zustand store, no 401 interceptor (both explicitly rejected in ADR-0063); `beforeLoad` + `ensureQueryData` route guard. The browser round-trip (`/` → `/login` → login → admin shell → sign out) is the acceptance check.
+- **Decisions to canvass at session head:** the `src/auth/` vs `features/auth/` boundary (which auth files are cross-cutting vs feature-scoped); whether logout is an API-barrel mutation or a cross-cutting helper.
+- **ADR numbering.** Next free is **ADR-0066**; 2.1b-B may land 0 ADRs (structural port) or 1 if a non-obvious wrinkle surfaces. Amend `PATTERNS.md` if the port surfaces a convention wrinkle.
+- **Read first:** `steps.md` § Step 2.1b-B + § Step 2.1b; `frontend/src/PATTERNS.md` (conventions to apply); ADR-0063 (route-guard pattern — preserve) + ADR-0064 (four-layer architecture); current `frontend/src/` auth files (`routes/login.tsx`, `routes/_authenticated.tsx`, `routes/_authenticated/index.tsx`, `hooks/useCurrentUser.ts`, `api/configure.ts`); the `sca-ih-tracker` reference repo at `C:\Users\msilberstein\Documents\sca-ih-tracker` — `src/features/auth/`, `src/auth/`, `src/pages/login/`, `src/test/`.
+
+**For Session 38 — Step 2.2 / M1.2 Admin substrate + flat roster** (forward reference; Case 2 sizing then likely partitioned implementation).
+
+- **Branch op at session head:** `git checkout -b m1/02-flat-roster` off `m1/roster` (after 2.1b-B's FF-merge has landed `m1/01b-fe-conventions` on `m1/roster`).
 - **Case 2 sizing required at session head.** Step 2.2 has a stub brief in `steps.md` — not a scoped prompt. Expect sizing to surface several fit-checklist signals: independently-deliberable decisions (admin-CRUD authoring shape — generalized factory vs hand-authored per entity, ADR-worthy; admin auth-predicate factory shape, ADR-worthy); five new entity tables (Employee, School, Contractor, User-side admin CRUD, Contract); cross-concern reach (backend entity authoring + first ADR-0047 predicate landing + frontend per-entity admin pages); likely >60 min duration. **Likely partition needed** — natural seam is backend entities + commands → backend admin routes → frontend admin pages. Hold the partition canvass at session head per Case 2 protocol; don't pre-decide.
-- **ADR numbering.** Step 2.1b (Session 36) takes **ADR-0064** (poss. +ADR-0065 for the UI/form stack); M1.2 therefore starts at the next free number at its write time. M1.2 likely lands 1–2 ADRs: admin-CRUD authoring shape (generalized factory vs hand-authored), admin auth-predicate factory shape if non-obvious. First ADR-0047 predicate landing in M1+ code; the `role >= admin` Cluster 1 class rule is the first concrete use of `has_role_at_least` from ADR-0062.
+- **ADR numbering.** M1.2 starts at the next free number at its write time. M1.2 likely lands 1–2 ADRs: admin-CRUD authoring shape (generalized factory vs hand-authored), admin auth-predicate factory shape if non-obvious. First ADR-0047 predicate landing in M1+ code; the `role >= admin` Cluster 1 class rule is the first concrete use of `has_role_at_least` from ADR-0062.
 - **Five entities to land** (per ADR-0047 Cluster 1):
   - **Employee** — HR-driven, no lifecycle, audit-log history per ADR-0052.
   - **School** — flat, no lifecycle, audit-log history.
@@ -115,6 +110,7 @@ Planning close-out (this commit) lands ADRs 0061 / 0062 / 0063 + steps.md (Step 
 
 - **Step 1 / M0 ✓ COMPLETE 2026-05-19** (Session 33). Substrate for every M1+ command in place: Command base + dispatcher with retry loop, history infrastructure with real capture sink, advisory-lock + SERIALIZABLE primitives behind a documented adapter, Alembic + CI green on SQLite.
 - **Step 2.1 / M1.1 ✓ COMPLETE 2026-05-19** (Session 35). Auth substrate established for M1.2+ admin work. Per-role pytest fixtures available; concrete Caller flows through dispatcher.
+- **Step 2.1b-A ✓ COMPLETE 2026-05-20** (Session 36). Frontend four-layer architecture + UI/form stack (shadcn `radix-lyra`, Tailwind 4, Zod, RHF) + API-client relocation in place; `frontend/src/PATTERNS.md` is the conventions doc M1.2 frontend work consumes. Step 2.1b-B (auth port) remains.
 - **PaaS vendor pick stays deferred per ADR-0055.** Do not re-propose vendor canvass at any M1+ step head. See [[project-vendor-pick-deferred]] for the 5 portability discipline notes.
 - **Postgres CI service stays deferred** (Session 33 decision). Revisit if Docker access becomes reliable on the dev machine.
 - **Neon dev DB stays current with alembic head per [[project-neon-current-policy]].** Apply migrations to Neon immediately at landing; throwaway sqlite OK for pre-commit iteration only.
@@ -138,46 +134,44 @@ Planning close-out (this commit) lands ADRs 0061 / 0062 / 0063 + steps.md (Step 
 
 ## Next session
 
-**Session 36 — Step 2.1b / Frontend architecture & conventions (Case 2 sizing, then implementation).** An inserted step (2026-05-19) — adapt-and-port `sca-ih-tracker`'s four-layer frontend architecture into this repo before M1.2's first substantial frontend feature. Branch op at session head: FF-merge `m1/01-auth-shell` → `m1/roster` if not already done, then `git checkout -b m1/01b-fe-conventions` off `m1/roster`. Full plan: `.claude/plans/i-want-to-have-fluttering-wozniak.md`. ADRs 0064+. **M1.2 follows as Session 37** (staged prompt below; detail under Open questions above).
+**Session 37 — Step 2.1b-B / Port M1.1 auth + test/story colocation.** Port the M1.1 auth code into the four-layer model 2.1b-A established, and adopt test/story colocation. Case 3 scoped — `planning/steps.md` § Step 2.1b-B is the brief. No branch op at session head: stay on `m1/01b-fe-conventions`; FF-merge to `m1/roster` at close (closes Step 2.1b). Next ADR free is **ADR-0066** (likely none — structural port). **M1.2 follows as Session 38.**
 
 ### Prompt for the next session
 
-> Resume work. **Step 2.1 / M1.1 ✓ COMPLETE** (Session 35). **Step 2.1b / Frontend architecture & conventions** is an inserted step (2026-05-19; not a roadmap milestone — see `sessions.md` § Restructure log). Adapt-and-port `sca-ih-tracker`'s mature four-layer frontend architecture into this repo so M1.2's first substantial frontend feature builds on settled conventions.
+> Resume work. **Step 2.1b-A ✓ COMPLETE** (Session 36 — four-layer FE architecture + UI/form stack + API-client relocation; ADR-0064 / ADR-0065). Session 37 runs **Step 2.1b-B / Port M1.1 auth + test/story colocation** — a Case 3 scoped session that closes Step 2.1b.
 >
-> **Full plan — read first:** `.claude/plans/i-want-to-have-fluttering-wozniak.md`. It is the scoped brief for this session; `steps.md` § Step 2.1b is the summary.
+> **Scoped brief — read first:** `planning/steps.md` § Step 2.1b-B (and § Step 2.1b for parent context). `frontend/src/PATTERNS.md` is the conventions doc the port must conform to.
 >
-> **Branch op at session head:**
-> ```
-> git log m1/roster..m1/01-auth-shell    # confirm M1.1 commits not yet on m1/roster
-> git checkout m1/roster
-> git merge --ff-only m1/01-auth-shell   # if not already merged
-> git checkout -b m1/01b-fe-conventions
-> ```
-> Confirm the branch name at session head — `m<N>/NN-subslug` has no clean insertion slot; `m1/01b-fe-conventions` is a minor suffix bend.
+> **No branch op at session head** — stay on `m1/01b-fe-conventions` (2.1b-A is already committed there). FF-merge `m1/01b-fe-conventions` → `m1/roster` at 2.1b-B close.
 >
-> **Case 2 sizing first.** The step is M–L. Likely 2-way partition — natural seam: **A** adopt + scaffold + document (install shadcn/Tailwind/Zod/RHF, wire `@/` alias, relocate `src/api/generated/`, scaffold the four-layer folders, add ESLint layering rules, write `PATTERNS.md` + `CLAUDE.md`); **B** port the M1.1 auth code into the four-layer model + test/story colocation. Surface the partition in chat per the STOP-AND-CONFIRM gate; don't pre-decide.
+> **Scope — a structural port, no behavior change:**
+> - Route files stay in `src/routes/` as config only; page compositions move to `src/pages/`; the login feature (`LoginForm` + a login/logout API barrel) to `src/features/auth/`; cross-cutting auth (`useCurrentUser` / `currentUserQueryOptions`, consumed by the route guard) to `src/auth/`.
+> - Rebuild `LoginForm` on shadcn (`Field` family) + react-hook-form + Zod (`standardSchemaResolver`).
+> - Add the `routes/` ESLint `no-restricted-imports` layering rule — deferred from 2.1b-A; see the NOTE in `eslint.config.js`.
+> - Test/story colocation: rename `src/tests/` → `src/test/` (infra only — setup, `renderWithProviders`, `createTestQueryClient`); add the first colocated `*.test.tsx` + `*.stories.tsx`.
 >
-> **Locked scope** (planning side-session, 2026-05-19): doc + ESLint enforcement + port M1.1 auth; adopt shadcn/ui + Zod + react-hook-form now; conventions doc co-located (`frontend/src/PATTERNS.md` + thin `frontend/CLAUDE.md`). The port mapping, the adaptations (cookie-session variant of the route guard; no entity-abstractions yet), critical files, and verification steps are all in the plan file.
+> **Preserve ADR-0063 exactly.** `setQueryData` (not `invalidateQueries`) on login success; cookie-session model — no Zustand store, no 401 interceptor (both explicitly rejected in ADR-0063); `beforeLoad` + `ensureQueryData` route guard. The browser round-trip (`/` → `/login` → login → admin shell → sign out) is the acceptance check.
 >
-> **ADRs expected:** 1–2 at write time **ADR-0064+** — four-layer FE architecture + API barrel + test/story colocation + ESLint enforcement; poss. a second for the shadcn `radix-lyra` + Zod + RHF stack.
+> **Decisions to canvass at session head** (STOP-AND-CONFIRM gate): the `src/auth/` vs `features/auth/` boundary — which auth files are cross-cutting (route-guard-consumed) vs feature-scoped; whether logout is an API-barrel mutation or a cross-cutting helper.
 >
-> **Read first:** the plan file; `steps.md` § Step 2.1b; ADR-0063 (frontend route-guard pattern — the port must preserve it); current `frontend/src/` (M1.1 auth shell). Reference repo: `C:\Users\crummy_P51\projects\sca-ih-tracker\frontend` — `src/PATTERNS.md`, `CLAUDE.md`, `eslint.config.js`, `src/features/schools/api/schools.ts`, `src/features/auth/api/hooks.ts`.
+> **Read first:** `steps.md` § Step 2.1b-B + § Step 2.1b; `frontend/src/PATTERNS.md`; ADR-0063 (route guard — preserve) + ADR-0064 (four-layer architecture); current `frontend/src/` auth files (`routes/login.tsx`, `routes/_authenticated.tsx`, `routes/_authenticated/index.tsx`, `hooks/useCurrentUser.ts`, `api/configure.ts`); the `sca-ih-tracker` reference at `C:\Users\msilberstein\Documents\sca-ih-tracker` — `src/features/auth/`, `src/auth/`, `src/pages/login/`, `src/test/{setup,renderWithProviders,queryClient}`.
 >
 > **Out of scope:**
-> - Any M1.2 roster entity / command / route / admin page (Session 37).
-> - Entity-abstraction patterns (`EntityListPage`, `useEntityForm`, `DataTable`, comboboxes) — extracted just-in-time later, not invented now.
+> - Anything in 2.1b-A's scope (closed Session 36).
+> - Any M1.2 roster entity / command / route / admin page (Session 38).
+> - Entity-abstraction patterns (`EntityListPage`, `useEntityForm`, `DataTable`, comboboxes) — extracted just-in-time later.
 > - Backend changes; OpenAPI-surface changes.
 >
 > **Process notes:**
-> - **STOP-AND-CONFIRM gate applies, including for source code.** Canvass the partition + non-obvious structural decisions in chat before writing.
-> - **Commit pattern: preserve incremental checkpoints** — coherent atomic changes at green-state boundaries.
-> - **Branch:** `m1/01b-fe-conventions` off `m1/roster`; FF-merge back to `m1/roster` at close.
-> - **ADR numbering:** next at write time **ADR-0064**.
-> - **On completion:** mark Step 2.1b complete in `steps.md`; promote the staged M1.2 prompt below to the active prompt; advance `handoff.md` to Session 37 / M1.2.
+> - **STOP-AND-CONFIRM gate applies, including for source code.** Canvass the two decisions above in chat before writing.
+> - **Commit pattern: preserve incremental checkpoints.** `pnpm lint` / `typecheck` / `test` / `build` green at close; browser round-trip verified.
+> - **Branch:** `m1/01b-fe-conventions`; FF-merge to `m1/roster` at close — closes Step 2.1b entirely.
+> - **ADR numbering:** next free is **ADR-0066**.
+> - **On completion:** mark Step 2.1b-B and Step 2.1b complete in `steps.md`; advance `handoff.md` to Session 38 / M1.2 (refresh the staged M1.2 prompt).
 
-### Staged — Session 37 prompt (Step 2.2 / M1.2)
+### Staged — Session 38 prompt (Step 2.2 / M1.2)
 
-*Promoted to the active prompt when Step 2.1b closes. The M1.2 detail under Open questions above is the working reference until then; the prompt below predates the Step 2.1b insertion and will be refreshed at 2.1b close.*
+*Promoted to the active prompt when Step 2.1b-B closes (Session 37). The M1.2 detail under Open questions above is the working reference until then; the prompt below predates the Step 2.1b insertion and is refreshed when 2.1b-B closes.*
 
 > Resume work. **Step 2.1 / M1.1 ✓ COMPLETE** (Session 35 — auth substrate + frontend shell, ADRs 0061 / 0062 / 0063). Session 36 opens **Step 2.2 / M1.2 Admin substrate + flat roster** — Case 2 sizing then implementation.
 >
@@ -226,10 +220,10 @@ Planning close-out (this commit) lands ADRs 0061 / 0062 / 0063 + steps.md (Step 
 - Workflow protocol: `planning/_workflow.md`
 - File rules registry (generated): `planning/_file-rules.md` (last regenerated 2026-05-18)
 - Phase roster: `planning/phases.md` (Phase 1 ✓ complete 2026-05-17; Phase 2 current; Phase 3 stub)
-- Step list (current phase): `planning/steps.md` (Phase 2 / Implementation — 9 steps mirroring roadmap M0–M8; **Step 1 ✓ COMPLETE 2026-05-19 (Session 33)**; **Step 2 partitioned into 4 sub-steps 2026-05-19 (Session 34)**; **Step 2.1 ✓ COMPLETE 2026-05-19 (Session 35)**; M1.2 / M1.3 / M1.4 stubs; Steps 3–9 stubs)
+- Step list (current phase): `planning/steps.md` (Phase 2 / Implementation — 9 steps mirroring roadmap M0–M8; **Step 1 ✓ COMPLETE 2026-05-19 (Session 33)**; **Step 2 partitioned into 4 sub-steps 2026-05-19 (Session 34)**; **Step 2.1 ✓ COMPLETE 2026-05-19 (Session 35)**; **Step 2.1b partitioned into 2.1b-A / 2.1b-B 2026-05-20 (Session 36)**, **2.1b-A ✓ COMPLETE**; M1.2 / M1.3 / M1.4 stubs; Steps 3–9 stubs)
 - Archived step list (Phase 1): `planning/steps.archive/conceptualization.md`
 - Session conventions: `planning/sessions.md`
-- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0063; next ADR at write time: **ADR-0064**)
+- Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0065; next ADR at write time: **ADR-0066**)
 - **Roadmap (Step 9b output):** `planning/roadmap.md` — 9 milestones (M0 → M8). Canonical milestone-shape source for Phase 2.
 - **MVP scope (Step 7 output):** `planning/mvp.md` — 6 must-have features + categorized "not now" list + 1 carve-out + 7 command-shape carry-forwards.
 - **Domain model (Step 6d output):** `planning/domain-model.md` — 21 entities, relationship table, per-entity lifecycles, authorization predicates (via ADR-0047), history patterns, delete policy, 14 design patterns, blocker registry, vocabulary.

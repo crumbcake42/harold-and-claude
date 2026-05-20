@@ -281,23 +281,66 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ### Step 2.1b — Frontend architecture & conventions (M–L, inserted)
 
-**Inserted 2026-05-19** between Step 2.1 (M1.1) and Step 2.2 (M1.2) — an insertion, not a split (mirrors the `6b-residual-2` precedent; logged in `sessions.md` § Restructure log). **Does not map to a roadmap milestone** — a documented exception to this file's 1:1 step↔milestone contract. Triggered by a planning side-session: adapt-and-port `sca-ih-tracker`'s mature four-layer frontend architecture into this repo *before* M1.2 builds the first substantial frontend feature. Full scoped brief: `.claude/plans/i-want-to-have-fluttering-wozniak.md`.
+**Inserted 2026-05-19** between Step 2.1 (M1.1) and Step 2.2 (M1.2) — an insertion, not a split (mirrors the `6b-residual-2` precedent; logged in `sessions.md` § Restructure log). **Does not map to a roadmap milestone** — a documented exception to this file's 1:1 step↔milestone contract. Triggered by a planning side-session: adapt-and-port `sca-ih-tracker`'s mature four-layer frontend architecture into this repo *before* M1.2 builds the first substantial frontend feature.
+
+**Scoped brief (2026-05-20):** the sub-sub-step briefs below + the intact `sca-ih-tracker` reference repo (`C:\Users\msilberstein\Documents\sca-ih-tracker`) are the authoritative in-repo brief for this step.
+
+**Partitioned 2026-05-20 (Session 36, Case 2)** into two sub-sub-steps on a single branch. Fit-checklist signals 2 (multiple from-scratch artifacts — `PATTERNS.md` + `CLAUDE.md` + ADR-0064/0065), 3 (duration >60 min), 5 (cross-concern — tooling adoption + architecture + documentation) fired. Seam: **A** adopt + scaffold + document; **B** port M1.1 auth + test/story colocation. B depends on all of A. Commits land sequentially on the single branch (1.3a/1.3b precedent); FF-merge to `m1/roster` after 2.1b-B.
 
 **Goal:** Establish and enforce the frontend code-organization conventions M1.2+ will consume — a strictly one-way four-layer architecture (`routes → pages → features → components/hooks/fields/lib`), a per-feature API-barrel layer over the generated client, test/story colocation — captured in a co-located conventions doc, ESLint-enforced, with the M1.1 auth code restructured into the model as a working reference. Adopt shadcn/ui + Zod + react-hook-form so M1.2 is fully equipped (this also settles the shadcn-adoption question previously flagged as an open M1.2 decision).
 
-**In scope:** `frontend/src/PATTERNS.md` (full conventions, adapted from sca-ih-tracker) + thin auto-loaded `frontend/CLAUDE.md`; four-layer folder skeleton + ESLint `no-restricted-imports` layering enforcement; shadcn/ui (+ Tailwind), Zod, react-hook-form install/config + `@/` import alias; relocate the openapi-ts output to `src/api/generated/`; port the M1.1 auth code (login / `_authenticated` / `useCurrentUser`) into the four-layer model; move tests to colocation + add the first colocated test + story.
+**Out of scope (whole step):** entity-abstraction patterns (`EntityListPage`, `useEntityForm`, `DataTable`, comboboxes) — extracted just-in-time when M1.2+ yields a second consumer, not invented now; any M1.2 roster entity / command / route / admin page; backend or OpenAPI-surface changes.
 
-**Out of scope:** entity-abstraction patterns (`EntityListPage`, `useEntityForm`, `DataTable`, comboboxes) — extracted just-in-time when M1.2+ yields a second consumer, not invented now; any M1.2 roster entity / command / route / admin page; backend or OpenAPI-surface changes.
+**Inputs:** the `sca-ih-tracker` reference repo — `frontend/src/PATTERNS.md`, `frontend/CLAUDE.md`, `frontend/eslint.config.js`, `frontend/components.json`, `frontend/package.json`, `frontend/src/{auth,features/auth,features/schools/api}/*`; ADR-0063 (frontend route-guard pattern — the port must preserve it); current `frontend/src/` (M1.1 auth shell).
 
-**Inputs:** `.claude/plans/i-want-to-have-fluttering-wozniak.md`; reference repo `sca-ih-tracker` — `frontend/src/PATTERNS.md`, `frontend/CLAUDE.md`, `frontend/eslint.config.js`, `frontend/src/features/{schools,auth}/api/*`; ADR-0063 (frontend route-guard pattern — the port must preserve it); current `frontend/src/` (M1.1 auth shell).
+**Branch:** `m1/01b-fe-conventions` off `m1/roster` (after the `m1/01-auth-shell` FF-merge the handoff prescribes). Single branch holds both sub-sub-step commits.
 
-**Outputs:** `PATTERNS.md` + `CLAUDE.md`; scaffolded + ESLint-enforced four-layer structure; shadcn/Zod/RHF installed; M1.1 auth ported; **ADR-0064** (four-layer FE architecture + API barrel + test/story colocation + ESLint enforcement; poss. **ADR-0065** for the shadcn `radix-lyra` + Zod + RHF stack).
+**Estimate:** M–L.
 
-**Estimate:** M–L. Likely Case 2 partition — natural seam: **A** adopt + scaffold + document; **B** port M1.1 auth + tests.
+**Done when:** both sub-sub-steps complete; conventions doc lands; four-layer skeleton + ESLint layering enforcement in place; shadcn/Zod/RHF installed; M1.1 auth runs unchanged from the new structure (login round-trip verified); `pnpm lint` / `typecheck` / `test` / `build` green; ADR-0064 (+ poss. ADR-0065) written.
 
-**Branch:** `m1/01b-fe-conventions` off `m1/roster` (after the `m1/01-auth-shell` FF-merge the handoff prescribes). Name to confirm at session head — the `m<N>/NN-subslug` convention has no clean insertion slot.
+---
 
-**Done when:** conventions doc lands; four-layer skeleton + ESLint layering enforcement in place; shadcn/Zod/RHF installed; M1.1 auth runs unchanged from the new structure (login round-trip verified); `pnpm lint` / `typecheck` / `test` / `build` green; ADR-0064 written.
+#### Step 2.1b-A — Adopt + scaffold + document (M–L) ✓ COMPLETE
+
+**Completed Session 36 (2026-05-20).** Frontend four-layer architecture adopted on branch `m1/01b-fe-conventions`. Generated OpenAPI client relocated to `src/api/generated/` (hand-written config → `src/api/configure.ts`); `@/` alias wired; UI/form stack installed (Tailwind 4, shadcn/ui `radix-lyra` — Button / Input / Card / Field family / Sonner, Zod, react-hook-form, Phosphor, sonner); four-layer folder skeleton + ESLint `no-restricted-imports` layering rules for `features/` + `pages/` (the `routes/` rule deferred to 2.1b-B — the not-yet-ported M1.1 auth routes still import `@/api/generated/` directly); `src/PATTERNS.md` + `frontend/CLAUDE.md` written. **ADR-0064** (four-layer architecture) + **ADR-0065** (UI/form stack) landed; ADR-0063's config-file consequence amended. `pnpm lint` / `typecheck` / `test` / `build` green; M1.1 auth functionally unchanged (import-path edits only). Step 2.1b-B (the auth port) is next.
+
+**Goal:** Lay the substrate M1.2+ builds on and 2.1b-B ports onto — the dependency stack, the four-layer folder skeleton with ESLint enforcement, the relocated generated-client layout, and the conventions docs. Green at close with the M1.1 auth shell still round-tripping (unchanged behavior, new import paths only).
+
+**In scope:**
+
+1. Install + config Tailwind 4 + shadcn/ui (`radix-lyra` style) + Zod + react-hook-form (+ `@hookform/resolvers`) + Phosphor icons + sonner. Install only the shadcn primitives the 2.1b-B auth port consumes (Button, Input, Card, Field family) + Toaster — M1.2 adds more just-in-time.
+2. Wire the `@/` import alias (`tsconfig` + Vite).
+3. Relocate the openapi-ts output to `src/api/generated/` (update `openapi-ts.config.ts`, regenerate, fix the ~6 M1.1 import sites); move hand-written `api-config.ts` → `src/api/configure.ts` (sibling of the now-isolated generated dir).
+4. Scaffold the four-layer folder skeleton (`pages/`, `features/`, `components/`, `hooks/`, `fields/`, `lib/`, `auth/`; `routes/` exists).
+5. Add ESLint `no-restricted-imports` layering rules (features / pages / routes), adapted to scank's existing `typescript-eslint` flat config — add rules, do not swap the base config.
+6. Write `frontend/src/PATTERNS.md` (adapted from sca-ih-tracker, scoped to what this repo actually has — no entity-abstraction sections yet) + thin auto-loaded `frontend/CLAUDE.md`.
+7. ADR-0064 (four-layer FE architecture + API barrel + test/story colocation + ESLint enforcement) + ADR-0065 (shadcn `radix-lyra` + Zod + RHF stack).
+
+**Out of scope:** the M1.1 auth port + test/story colocation (2.1b-B); the whole-step out-of-scope list.
+
+**Decisions to canvass at session head:** shadcn primitive install scope; `src/api/configure.ts` placement (the relocated generated dir reopens the in-`src/api/` option the M1.1 fix commit closed); `@/` alias mechanism (manual Vite alias vs `vite-tsconfig-paths`); ADR-0064/0065 split boundary.
+
+**Done when:** stack installed; `@/` alias resolves; four-layer skeleton + ESLint layering rules in place; generated client at `src/api/generated/`; `PATTERNS.md` + `CLAUDE.md` land; `pnpm lint` / `typecheck` / `test` / `build` green; M1.1 auth still round-trips; ADR-0064 (+ ADR-0065) written.
+
+---
+
+#### Step 2.1b-B — Port M1.1 auth + test/story colocation (M)
+
+**Goal:** Move the M1.1 auth code into the four-layer model as the working reference for the conventions 2.1b-A documented, and establish test/story colocation. Structural port only — ADR-0063's cookie-session behavior is preserved exactly.
+
+**In scope:**
+
+1. Restructure the M1.1 auth code into the four-layer model: route files in `routes/` (config only), page compositions in `pages/`, the login feature (`LoginForm` + login/logout API barrel) in `features/auth/`, cross-cutting auth (`useCurrentUser` / `currentUserQueryOptions`, consumed by the route guard) in `src/auth/`.
+2. Rebuild `LoginForm` on shadcn + react-hook-form + Zod. **Preserve ADR-0063 exactly:** `setQueryData` (not `invalidateQueries`) on login success; cookie-session model (no Zustand store, no 401 interceptor — both explicitly rejected in ADR-0063); `beforeLoad` + `ensureQueryData` route guard.
+3. Test/story colocation: `src/tests/` → `src/test/` (infra only — setup, `renderWithProviders`, `createTestQueryClient`); add the first colocated `*.test.tsx` + `*.stories.tsx` sibling.
+4. Amend `PATTERNS.md` if the port surfaces a scank-specific convention wrinkle.
+
+**Out of scope:** everything in 2.1b-A; the whole-step out-of-scope list.
+
+**Decisions to canvass at session head:** the exact four-layer placement of each auth file (`src/auth/` vs `features/auth/` boundary); whether logout is an API-barrel mutation or a cross-cutting helper.
+
+**Done when:** M1.1 auth runs from the four-layer structure; login round-trip verified in a browser; first colocated test + story land; `pnpm lint` / `typecheck` / `test` / `build` green; FF-merge `m1/01b-fe-conventions` → `m1/roster`.
 
 ---
 
