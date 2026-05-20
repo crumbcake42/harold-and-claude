@@ -1,5 +1,9 @@
 // API client configuration for the M1.1 auth substrate.
 //
+// This file is hand-written and MUST live outside src/api/ -- openapi-ts
+// wipes and regenerates that entire directory on every `just gen-openapi`,
+// which would delete this file and break the contract-drift CI check.
+//
 // The openapi-ts generated client (src/api/client.gen.ts) ships with a
 // default Config; we override at app startup with:
 //
@@ -14,7 +18,7 @@
 // redirect logic in the API client risks recursive 401 → /auth/me → 401
 // loops and obscures the auth contract.
 
-import { client } from "./client.gen";
+import { client } from "./api/client.gen";
 
 export function configureApiClient(): void {
   const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
