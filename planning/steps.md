@@ -360,11 +360,11 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 | Sub-step | Title | Size | ADRs expected |
 |---|---|---|---|
-| **2.2a** | Backend substrate + Contract exemplar (decisions + factories + seed framework) | M–L | 2–3 (admin-CRUD authoring shape; admin auth-predicate factory; seed-tooling shape) |
+| **2.2a** ✓ | Backend substrate + Contract exemplar (decisions + factories + seed framework) — COMPLETE Session 39 | M–L | 2–3 (admin-CRUD authoring shape; admin auth-predicate factory; seed-tooling shape) — deferred to a Session 40 review |
 | **2.2b** | Backend remainder — Employee / School / Contractor / User-admin-CRUD | M | 0–1 (factory amendment if a non-uniform entity pressures the pattern) |
 | **2.2c** | Frontend admin pages (5 entities) | M | 0 |
 
-**Execution order:** 2.2a → 2.2b → 2.2c. Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity checkpoint commits within 2.2b and 2.2c (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
+**Execution order:** 2.2a ✓ (Session 39) → 2.2b → 2.2c. Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity checkpoint commits within 2.2b and 2.2c (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
 
 **Roadmap pointer:** `planning/roadmap.md` § M1.
 
@@ -372,7 +372,9 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ---
 
-#### Step 2.2a — Backend substrate + Contract exemplar (M–L)
+#### Step 2.2a — Backend substrate + Contract exemplar (M–L) ✓ COMPLETE
+
+**✓ COMPLETE Session 39 (2026-05-20).** The three M1.2 backend abstractions landed on branch `m1/02-flat-roster` (7 commits) and were proven end-to-end against Contract: the `require_role` admin auth-predicate factory; admin-CRUD authoring as hand-authored Command classes over shared `app/framework/crud.py` helpers (the **hybrid** shape — not a generalized class factory); the `seed_db` framework (CSV rows dispatched through the Command pipeline, skip-existing idempotency, JSONB sidecar CSV, seeds at `app/cli/seeds/`). Contract entity + migration `6dd5906ef088` (applied to Neon); `create/edit/delete_contract`; read routes `GET /contracts` + `/contracts/{id}`; production dispatcher wiring + dispatcher-exception→HTTP handlers; `just` recipes (`migrate` / `bootstrap-admin` / `seed` / `first-run`). 71 backend tests + ruff + pyright green; OpenAPI contract + client regenerated. **ADRs deferred to a Session 40 review** of the session's commits (user's call) — three approved abstractions + five in-flight implementation decisions to ratify, then ADRs from **ADR-0067**. Full record: `handoff.md` § Session 39 summary.
 
 **Goal:** Settle M1.2's three backend abstractions and prove them end-to-end against Contract — the most non-uniform of the five entities (JSONB `code_flat_fee_schedule`, derived `validity`). Hardest-first: if the abstractions survive Contract, 2.2b's four entities are mechanical. The ADRs land here.
 
