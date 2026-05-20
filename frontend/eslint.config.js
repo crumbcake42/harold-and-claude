@@ -37,6 +37,14 @@ export default defineConfig([
       "react-refresh/only-export-components": "off",
     },
   },
+  // Test files, stories, and test infrastructure export helpers and config
+  // objects, not components — Fast Refresh's component-only rule doesn't apply.
+  {
+    files: ["**/*.test.{ts,tsx}", "**/*.stories.{ts,tsx}", "src/test/**"],
+    rules: {
+      "react-refresh/only-export-components": "off",
+    },
+  },
   // --- Four-layer architecture enforcement (ADR-0064) ---
   // Direction is one-way: routes -> pages -> features -> components/hooks/fields/lib.
   // Feature components/hooks must not reach into routing layers or bypass the
@@ -80,8 +88,28 @@ export default defineConfig([
       ],
     },
   },
-  // NOTE: the routes/ layering rule (routes import only from @/pages/ and
-  // @/auth/) lands in Step 2.1b-B, once the M1.1 auth route files are ported
-  // off their direct @/api/generated/ imports. Adding it now would fail lint
-  // on the not-yet-ported login / _authenticated routes.
+  // Routes are config-only — they import from @/pages/ and @/auth/ only.
+  // No feature code, no direct API access: logic belongs in a page component.
+  {
+    files: ["src/routes/**"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/features/**"],
+              message:
+                "Route files import only from @/pages/ (and @/auth/). Move logic to a page component.",
+            },
+            {
+              group: ["**/api/generated/**"],
+              message:
+                "Route files import only from @/pages/ (and @/auth/). Use a page + the auth/feature api layer instead.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);
