@@ -2,7 +2,7 @@ import { useState, type SubmitEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
-import { loginAuthLoginPost, type LoginRequest } from "../api";
+import { loginAuthLoginPost, type LoginRequest } from "../api/generated";
 import { currentUserQueryKey } from "../hooks/useCurrentUser";
 
 export const Route = createFileRoute("/login")({

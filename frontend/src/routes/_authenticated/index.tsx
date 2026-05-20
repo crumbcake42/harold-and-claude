@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
-import { logoutAuthLogoutPost } from "../../api";
+import { logoutAuthLogoutPost } from "../../api/generated";
 import { useCurrentUser, currentUserQueryKey } from "../../hooks/useCurrentUser";
 
 export const Route = createFileRoute("/_authenticated/")({

@@ -15,6 +15,10 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Path alias (paths resolve relative to this tsconfig; no baseUrl —
+       deprecated in TS 6 — needed under moduleResolution: bundler) */
+    "paths": { "@/*": ["./src/*"] },
+
     /* Linting */
     "noUnusedLocals": true,
     "noUnusedParameters": true,

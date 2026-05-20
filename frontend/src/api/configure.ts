@@ -1,10 +1,11 @@
-// API client configuration for the M1.1 auth substrate.
+// API client configuration.
 //
-// This file is hand-written and MUST live outside src/api/ -- openapi-ts
-// wipes and regenerates that entire directory on every `just gen-openapi`,
-// which would delete this file and break the contract-drift CI check.
+// Hand-written — lives in src/api/ alongside the generated client, but NOT
+// inside src/api/generated/. openapi-ts wipes and regenerates only its
+// output dir (src/api/generated/, per openapi-ts.config.ts); files in
+// src/api/ outside that subdir are hand-authored and survive regeneration.
 //
-// The openapi-ts generated client (src/api/client.gen.ts) ships with a
+// The generated client (src/api/generated/client.gen.ts) ships with a
 // default Config; we override at app startup with:
 //
 //   - baseUrl: backend origin (env-driven; defaults to local dev port)
@@ -15,10 +16,10 @@
 // 401 handling is intentionally NOT done via an interceptor here -- the
 // _authenticated route's beforeLoad reads the useCurrentUser query and
 // throws a redirect on miss, which is the single canonical path. Putting
-// redirect logic in the API client risks recursive 401 → /auth/me → 401
-// loops and obscures the auth contract.
+// redirect logic in the API client risks recursive 401 -> /auth/me -> 401
+// loops and obscures the auth contract. See ADR-0063.
 
-import { client } from "./api/client.gen";
+import { client } from "./generated/client.gen";
 
 export function configureApiClient(): void {
   const baseUrl = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";

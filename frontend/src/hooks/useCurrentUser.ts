@@ -9,7 +9,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { meAuthMeGet } from "../api";
+import { meAuthMeGet } from "../api/generated";
 
 export const currentUserQueryKey = ["auth", "me"] as const;
 
