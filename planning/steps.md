@@ -198,7 +198,7 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 |---|---|---|---|---|
 | **1.1** ✓ | M1.1 Auth substrate + frontend shell (Session 35, 2026-05-19) | M+ | `m1/01-auth-shell` | 3 (ADR-0061 auth substrate + ADR-0062 Caller shape + ADR-0063 route-guard pattern) |
 | **1.1b** ✓ | Frontend architecture & conventions (inserted 2026-05-19 — not an M-milestone) | M–L | `m1/01b-fe-conventions` | 3 (ADR-0064 four-layer architecture, ADR-0065 UI/form stack, ADR-0066 auth module + conventions) |
-| **1.2** | M1.2 Admin substrate + flat roster (Employee / School / Contractor / User / Contract) | M | `m1/02-flat-roster` | 1–2 (admin-CRUD authoring shape; admin auth-predicate factory if non-obvious) |
+| **1.2** | M1.2 Admin substrate + flat roster (Employee / School / Contractor / User / Contract) — **partitioned 2026-05-20 (Session 38, Case 2) → 2.2a / 2.2b / 2.2c** | L (was M) | `m1/02-flat-roster` (shared) | 2–3 (admin-CRUD authoring shape; admin auth-predicate factory; seed-tooling shape) |
 | **1.3** | M1.3 Role administration (UserRole grant/revoke + `audit_reason` Note) | S–M | `m1/03-role-admin` | 1 (`audit_reason` Note polymorphism mechanism) |
 | **1.4** | M1.4 Range-typed entities (EmployeeRole + ContractorEngagement + `change_employee_role_rate`) | M (possibly L) | `m1/04-range-typed` | 0–1 (compound decomposition if non-obvious) |
 
@@ -348,13 +348,94 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ---
 
-### Step 2.2 — M1.2 Admin substrate + flat roster (M)
+### Step 2.2 — M1.2 Admin substrate + flat roster (L, partitioned)
 
-**Brief:** First ADR-0047 predicate landing (`role >= admin` class rule + admin auth-predicate factory shape — ADR-worthy if non-obvious). Admin-CRUD authoring shape decision (generalized factory vs. hand-authored per entity; ADR-worthy). 5 flat (no-FK, no-lifecycle, audit-log or no-history) entities: Employee, School, Contractor, User, **Contract** (hoisted from M2). Admin CRUD commands (`create_*` / `edit_*` / `delete_*`) under the admin class rule. Basic read routes (`GET /<entities>`, `GET /<entity>/{id}`) per entity so frontend admin pages can list/detail without waiting for M7's reporting work. Frontend: per-entity admin pages (list + detail/form) wired to the admin dashboard shell from M1.1.
+**Partitioned 2026-05-20 (Session 38, Case 2)** into 3 sub-steps. Six of seven fit-checklist signals fired: (1) multiple independently-deliberable decisions — admin-CRUD authoring shape, admin auth-predicate factory, seed-tooling shape; (2) multiple from-scratch artifacts; (3) >60 min; (4) input reading >3 planning files; (5) cross-concern reach — domain entities + authorization + read API + frontend + dev tooling; (6) partial — the seed framework depends on the `create_*` commands existing (an intra-step ordering constraint). Seam: **decision-first** — 2.2a settles the three backend abstractions (admin-CRUD authoring factory, admin auth-predicate factory, seed framework) and proves them against the hardest, most non-uniform entity (Contract); 2.2b applies the settled pattern to the four remaining backend entities; 2.2c builds the frontend admin pages. Commits land sequentially on a single shared branch (1.3a/1.3b + 2.1b-A/B precedent); FF-merge to `m1/roster` after 2.2c.
+
+**Scope addition — dev seed tooling (Session 38).** Scoped into M1.2 at this Case 2 sizing: a `seed_db` CLI that loads redacted CSVs into the DB **through the Command pipeline** (not direct ORM inserts — keeps seeded data real: invariants run, history + audit-log rows written; avoids a second exception to the every-state-change-is-a-Command rule, since a `Caller` exists post-bootstrap). Pairs with the dropped-in `redact_csv.py` (real data → redacted CSV → seed folder → `seed_db`). **Standing requirement: every entity-adding sub-step from M1.2 onward maintains `seed_db` coverage for the entities it introduces** (applies to M1.3 / M1.4 / M2+). Dev infrastructure, parallel to `bootstrap_admin` — not a roadmap milestone; distinct from M8's production data-import-from-spreadsheets work. Click adoption (ADR-0061's "3rd CLI command" trigger) **deferred** — `seed_db` uses stdlib `argparse` (matches `redact_csv` + `export_openapi`); the real Click trigger is restated as "when a unified `app.cli` subcommand group is wanted," a clean standalone step. `just` recipes split idempotent env-setup (`install` + `alembic upgrade head`) from interactive/destructive data-init (`bootstrap-admin`, `seed`); optional thin `first-run` chains them.
+
+**Goal:** First ADR-0047 Cluster 1 predicate landing in M1+ code; the 5 flat roster entities (Employee, School, Contractor, User-admin-CRUD, Contract) with admin CRUD + read routes; per-entity admin pages; and the dev seed-tooling substrate.
+
+**Sub-step roster:**
+
+| Sub-step | Title | Size | ADRs expected |
+|---|---|---|---|
+| **2.2a** | Backend substrate + Contract exemplar (decisions + factories + seed framework) | M–L | 2–3 (admin-CRUD authoring shape; admin auth-predicate factory; seed-tooling shape) |
+| **2.2b** | Backend remainder — Employee / School / Contractor / User-admin-CRUD | M | 0–1 (factory amendment if a non-uniform entity pressures the pattern) |
+| **2.2c** | Frontend admin pages (5 entities) | M | 0 |
+
+**Execution order:** 2.2a → 2.2b → 2.2c. Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity checkpoint commits within 2.2b and 2.2c (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
 
 **Roadmap pointer:** `planning/roadmap.md` § M1.
 
 **Branch:** `m1/02-flat-roster` off `m1/roster`.
+
+---
+
+#### Step 2.2a — Backend substrate + Contract exemplar (M–L)
+
+**Goal:** Settle M1.2's three backend abstractions and prove them end-to-end against Contract — the most non-uniform of the five entities (JSONB `code_flat_fee_schedule`, derived `validity`). Hardest-first: if the abstractions survive Contract, 2.2b's four entities are mechanical. The ADRs land here.
+
+**Decisions to canvass at session head (STOP-AND-CONFIRM gate):**
+1. **Admin-CRUD authoring shape** — generalized factory (`make_create_command(Entity, Payload)` etc.) vs. hand-authored `Command` per entity. Factory wins on volume (5 entities × 3 commands); hand-authored wins on non-uniform predicates/handlers. ADR-worthy regardless of pick.
+2. **Admin auth-predicate factory** — ADR-0047 Cluster 1's class rule is uniform `role >= admin`; encode once as a reusable predicate factory over `has_role_at_least` (ADR-0062) vs. inline per command. Lean factory.
+3. **Seed-tooling shape** — through-the-Command-pipeline is locked (Session 38). Open: CSV→Payload mapping mechanism; how a flat CSV represents Contract's JSONB `code_flat_fee_schedule` collection column; entity dependency ordering; idempotency (wipe-and-reload vs. skip-existing); seed-data folder location (default gitignored). ADR-worthy.
+
+**In scope:**
+1. The admin auth-predicate factory (consumes `has_role_at_least`, ADR-0062).
+2. The admin-CRUD authoring mechanism (factory or hand-authored per decision 1).
+3. **Contract** end-to-end backend: entity model (`contract_number`, `name?`, `start_date`, `end_date?`, `code_flat_fee_schedule` JSONB via `json_column()`, derived `validity`; `command_audit_log` history pattern); `create_contract` / `edit_contract` / `delete_contract`; read routes `GET /contracts`, `GET /contracts/{id}`; Alembic migration.
+4. The `seed_db` CLI (`app/cli/seed_db.py`, `argparse`, `python -m app.cli.seed_db`) + the seed-data folder convention + `seed_db` coverage for Contract.
+5. `just` recipe updates: `install` gains `alembic upgrade head`; new `seed` recipe; optional `first-run` chain.
+6. ADRs from **ADR-0067**: admin-CRUD authoring shape; admin predicate factory (possibly folded in); seed-tooling shape.
+
+**Out of scope:** Employee / School / Contractor / User-admin-CRUD (2.2b); all frontend (2.2c). `redact_csv.py` is brought into `app.cli` module shape + committed in 2.2b.
+
+**Inputs:** ADR-0047 (Cluster 1), ADR-0040 (role catalog + grant authority), ADR-0043 / ADR-0044 / ADR-0045 (Contract entity + shape + `code_flat_fee_schedule`), ADR-0061 / ADR-0062 (auth substrate + `Caller` + `has_role_at_least`), ADR-0052 / ADR-0057 (history / audit-log), ADR-0056 (`json_column` / SERIALIZABLE adapter); `data-model.md` § Contract; `app/framework/{command,dispatcher,caller,history,adapter}.py`; `app/domain/auth.py` (entity pattern); `app/cli/bootstrap_admin.py` (CLI + `SessionFactory` pattern); `tests/conftest.py` § per-role fixtures.
+
+**Done when:** the three abstractions exist; Contract CRUD + read routes flow through the dispatcher; `seed_db` loads a Contract CSV through `create_contract`; `just` recipes updated; backend tests + ruff green; migration applied to Neon per [[project-neon-current-policy]]; ADRs written.
+
+---
+
+#### Step 2.2b — Backend remainder: Employee / School / Contractor / User-admin-CRUD (M)
+
+**Goal:** Apply 2.2a's settled pattern to the four remaining flat roster entities. Mechanical where the factory generalizes; the two non-uniform points (User's `edit_user` password reset; the `User.employee_id` FK) get explicit handling.
+
+**Case 2 check at session head:** if 2.2a's admin-CRUD authoring decision landed "hand-authored per entity" (not a generalized factory), 4 entities × 3 commands is heavier — run the 7-signal checklist before implementing; split if it fires.
+
+**In scope:**
+1. **Employee** — `name` + HR attrs; `command_audit_log`; CRUD + read routes. Migration adds the Employee table **and** the `User.employee_id` FK + UNIQUE constraint (ADR-0061 carry-forward; the bootstrap superadmin's null `employee_id` is the nullable-FK shape ADR-0041 Gap 5 anticipates).
+2. **School** — `name` + identifying attrs; `no history`; CRUD + read routes.
+3. **Contractor** — `name` + roster attrs; `command_audit_log`; CRUD + read routes.
+4. **User-admin-CRUD** — admin CRUD on User beyond M1.1's bootstrap insert: `create_user`, `edit_user` (password reset via `hash_password`; `employee_id` link), `delete_user` per delete policy. All under ADR-0047 Cluster 1's `role >= admin` class rule.
+5. `seed_db` coverage for all four entities; bring `redact_csv.py` into `app.cli` module shape (`python -m app.cli.redact_csv`) and commit it.
+6. Alembic migration(s) for the four tables + the `User.employee_id` alter.
+
+**Out of scope:** all frontend (2.2c); anything in 2.2a's scope.
+
+**Commit cadence:** per-entity checkpoint commit — commit after each entity's additions land green, not only at sub-step close ([[preserve-incremental-commits]]).
+
+**Inputs:** 2.2a outputs (the settled factory + predicate factory + seed framework); ADR-0047 Cluster 1; `data-model.md` § Employee / School / Contractor / User; ADR-0061 § `user.employee_id` carry-forward; `app/domain/auth.py` (User model).
+
+**Done when:** four entities have CRUD + read routes + seed coverage on the settled pattern; `User.employee_id` FK/UNIQUE migrated; `redact_csv.py` committed in module shape; backend tests + ruff green; migration applied to Neon.
+
+---
+
+#### Step 2.2c — Frontend admin pages (M)
+
+**Goal:** Per-entity admin pages (list + detail/form) for the five roster entities, on the Step 2.1b four-layer + shadcn/RHF/Zod conventions. Employee is the first canonical `src/features/<domain>/` exemplar (auth is not a feature — ADR-0066).
+
+**Case 2 check at session head:** 5 pages; the first establishes the `src/features/<domain>/` shape and any just-in-time abstractions (`EntityListPage` etc. — extracted at the second consumer per ADR-0064). If per-entity page work overflows once the exemplar is built, run the 7-signal checklist.
+
+**In scope:** list + detail/form admin pages for Employee, School, Contractor, User, Contract; wired into the M1.1 admin-shell nav; per-feature `api/index.ts` barrels over the regenerated client; colocated tests + stories.
+
+**Out of scope:** anything backend (2.2a / 2.2b); the queued theme-toggle follow-up (separate small step per `handoff.md` § Open questions).
+
+**Commit cadence:** per-entity checkpoint commit.
+
+**Inputs:** `frontend/src/PATTERNS.md`; ADR-0064 / ADR-0065 / ADR-0066; the 2.2a/2.2b read + CRUD routes (regenerate the API client via `pnpm gen-api`); `frontend/src/auth/` (the working four-layer reference).
+
+**Done when:** five admin pages list + create/edit/delete through the backend; `pnpm lint` / `typecheck` / `test` / `build` green; FF-merge `m1/02-flat-roster` → `m1/roster` (closes Step 2.2 / M1.2; Step 2.3 / M1.3 next).
 
 ---
 

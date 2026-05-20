@@ -38,67 +38,50 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Current phase
 
-**Implementation** — Phase 2. **Step 1 / M0 Foundations ✓ COMPLETE 2026-05-19 (Session 33).** **Step 2 / M1 Roster** partitioned 2026-05-19 (Session 34, Case 2) into 4 sub-steps. **Step 2.1 / M1.1 Auth substrate + frontend shell ✓ COMPLETE 2026-05-19 (Session 35).** **Step 2.1b / Frontend architecture & conventions** (inserted; not a roadmap milestone) ✓ **COMPLETE 2026-05-20** — 2.1b-A (Session 36; ADR-0064 / 0065) + 2.1b-B (Session 37; ADR-0066), both on branch **`m1/01b-fe-conventions`**. **Next: Session 38 / Step 2.2 / M1.2 Admin substrate + flat roster** — Case 2 sizing then implementation. **Branch ops at 2.1b close → Session 38 head:** FF-merge `m1/01b-fe-conventions` → `m1/roster` (closes Step 2.1b); then `git checkout -b m1/02-flat-roster` off `m1/roster`. M1.3 / M1.4 stubs in `steps.md`.
+**Implementation** — Phase 2. **Step 1 / M0 Foundations ✓ COMPLETE 2026-05-19 (Session 33).** **Step 2 / M1 Roster** partitioned 2026-05-19 (Session 34, Case 2) into 4 sub-steps. **Step 2.1 / M1.1 Auth substrate + frontend shell ✓ COMPLETE 2026-05-19 (Session 35).** **Step 2.1b / Frontend architecture & conventions** (inserted; not a roadmap milestone) ✓ **COMPLETE 2026-05-20** — 2.1b-A (Session 36; ADR-0064 / 0065) + 2.1b-B (Session 37; ADR-0066). **Step 2.2 / M1.2 Admin substrate + flat roster** partitioned 2026-05-20 (Session 38, Case 2) into 3 sub-steps — 2.2a (backend substrate + Contract exemplar) / 2.2b (backend remainder) / 2.2c (frontend admin pages); dev seed tooling scoped in. **Next: Session 39 / Step 2.2a** — Case 3 scoped session. **Branch op at Session 39 head:** `git checkout -b m1/02-flat-roster` off `m1/roster` (the 2.1b FF-merge is already satisfied — `m1/roster` == `m1/01b-fe-conventions` == `f3bb595`). M1.3 / M1.4 stubs in `steps.md`.
 
 ## Last session summary
 
-**Session 37 — Step 2.1b-B / Port M1.1 auth + test/story colocation (2026-05-20).** Case 3 scoped session; closes Step 2.1b.
+**Session 38 — Step 2.2 / M1.2 Case 2 sizing + dev seed-tooling scope-in (2026-05-20).** Case 2 session; no implementation, no ADRs — the output is the M1.2 partition + this handoff advance.
 
-**Three-point conventions deliberation (pre-implementation).** Before coding, three code-organization questions were resolved with the user and landed in **ADR-0066**: (1) the per-feature API barrel is `api/index.ts` (imported `@/features/<domain>/api`), not `api/<domain>.ts` — kills the `auth/api/auth` redundancy; (2) **auth is one folder** — `src/auth/` is a single cross-cutting auth/session module, **no `features/auth/`** (the reference repo's two-folder split was driven by its Zustand store, which ADR-0063 deleted for scank); (3) feature subfolders are a closed vocabulary (`components/` / `hooks/` / `api/`), created when populated, **no `services/`** (no service layer in a TanStack-Query + openapi-ts stack).
+**Case 2 sizing.** M1.2 ran the 7-signal fit checklist — 5 hard fires + 1 partial: multiple independently-deliberable decisions; multiple from-scratch artifacts; >60 min; input reading >3 planning files; cross-concern reach; + the seed framework depends on the `create_*` commands (intra-step ordering constraint). Partitioned into 3 sub-steps on a **decision-first** seam: **2.2a** settles the three backend abstractions (admin-CRUD authoring factory, admin auth-predicate factory, seed framework) and proves them against **Contract** — the hardest, most non-uniform entity (JSONB `code_flat_fee_schedule`, derived `validity`; hardest-first de-risks the abstractions); **2.2b** applies the settled pattern to the four remaining backend entities; **2.2c** builds the 5 frontend admin pages. Single shared branch `m1/02-flat-roster`. Full sub-step briefs in `steps.md` § Step 2.2a / 2.2b / 2.2c.
 
-**What landed (the port).** `src/auth/` module — `api/{index,currentUser}.ts`, `hooks/{useCurrentUser,useLogin,useLogout}.ts`, `components/LoginForm.tsx` + colocated `.test.tsx` (4 tests) + `.stories.tsx`. `LoginForm` rebuilt on shadcn `Field` family + RHF + `standardSchemaResolver` + Zod (pure: props in, callback out). Pages `pages/login/` + `pages/admin-shell/`. Routes slimmed to config; `__root.tsx` mounts `<Toaster />`. Test infra `src/tests/` → `src/test/` (`setup.ts` + `renderWithProviders.tsx` + `queryClient.ts`). `routes/**` ESLint layering rule added (deferred from 2.1b-A); react-refresh exemption for tests/stories. `src/hooks/useCurrentUser.ts` removed; `src/hooks/` kept (`.gitkeep`).
+**Partition-shape deliberation.** User initially proposed a 4-way (Contract / Employee-alone / remainder / frontend); agent pushed back — an Employee-only sub-step is under-sized (one trivial entity on a settled pattern) and the Contract-first + Employee-checkpoint pair is redundant de-risking. Resolved at the agent's 3-way recommendation; Employee folds into the 2.2b backend-remainder.
 
-**ADR-0063 preserved exactly.** `setQueryData` (not `invalidateQueries`) on login; cookie-session — no Zustand, no 401 interceptor; `beforeLoad` + `ensureQueryData` guard. Navigation kept in pages (the `src/auth/` hooks are routing-agnostic). Server-error UX is now a `toast` — a minor refinement over M1.1's inline `<p>` (the `Field` family handles Zod validation only).
+**Dev seed tooling scoped into M1.2.** New requirement raised this session: a `seed_db` CLI loading redacted CSVs into the DB, pairing with the dropped-in `redact_csv.py`. **Decided: `seed_db` dispatches CSV rows through the Command pipeline** (not direct ORM inserts) — keeps seeded data real (invariants, history, audit-log rows) and avoids a second exception to the every-state-change-is-a-Command rule. **Standing requirement: every entity-adding sub-step from M1.2 onward maintains `seed_db` coverage.** Click adoption **deferred** (ADR-0061's "3rd CLI command" trigger restated as "when a unified `app.cli` subcommand group is wanted"); `seed_db` uses `argparse`. `just` recipes: idempotent env-setup (`install` + `alembic upgrade head`) split from interactive/destructive data-init (`bootstrap-admin`, `seed`); optional `first-run` chain.
 
-**ADRs landed (1).** ADR-0066 (auth-as-module + `api/index.ts` barrel + feature subfolder vocabulary). ADR-0064 annotated — its `api/<domain>.ts` and its `features/auth/` carry-forward superseded.
+**No ADRs landed.** M1.2's decisions (admin-CRUD authoring shape, predicate factory, seed-tooling shape) are recorded as locked/open inputs in the `steps.md` § Step 2.2a brief; ADRs are written when 2.2a implements them (from **ADR-0067**), matching the Session 34→35 locked-decisions-then-ADRs precedent.
 
-**Verification.** `pnpm lint` / `typecheck` / `test` (4/4) / `build` all green. `routeTree.gen.ts` unchanged (route topology identical). Browser round-trip (`/` → `/login` → login → admin shell → sign out) is the standing acceptance check — needs the backend + Neon, same as M1.1.
-
-**Commits (on `m1/01b-fe-conventions`).** 2.1b-B implementation checkpoints + close-out (ADR-0066 + planning advance). FF-merge `m1/01b-fe-conventions` → `m1/roster` closes Step 2.1b.
-
-**Memories saved (1 new).** `reference-phosphor-icons` — verify/discover Phosphor icon names via one `Glob` on `dist/csr/`, never read the ~1500-icon index.
+**Untracked file.** `backend/app/cli/redact_csv.py` — dropped in by the user; a CSV-redaction utility for the seed pipeline. Stays untracked this session; 2.2b brings it into `app.cli` module shape and commits it.
 
 `_file-rules.md` **not regenerated** — no `## File contract` block changed.
+
+**Memory updated (1).** `preserve-incremental-commits` — added per-entity checkpoint-commit granularity (commit after each entity's additions within a multi-entity sub-step, not only at sub-step close).
 
 ---
 
 ## Open questions
 
-**Queued — frontend follow-ups (post-2.1b; not yet scheduled).** Raised by the user at Session 37 wrap-up; fold into M1.2 sizing.
+**Queued — frontend follow-ups (post-2.1b; not yet scheduled).** Raised by the user at Session 37 wrap-up; still queued — **not** part of M1.2's three sub-steps (2.2a/2.2b/2.2c).
 
-- **Item 1 — theme toggle (small, its own step).** A light / dark / auto toggle in the admin shell header; button at `src/components/ThemeToggleBtn`. Substrate already exists — `src/index.css` has `:root` + `.dark` token blocks and `next-themes` is installed. Work: mount `<ThemeProvider>` from `next-themes` (not currently mounted — the Sonner `Toaster` just degrades to "system"), build `ThemeToggleBtn`, wire it into `pages/admin-shell`. `next-themes`' `enableSystem` gives "auto" free. ~30 min. Keep it **out of** any "no behavior change" step — a small dedicated step (natural M1.2 opener or standalone).
+- **Item 1 — theme toggle (small, its own step).** A light / dark / auto toggle in the admin shell header; button at `src/components/ThemeToggleBtn`. Substrate already exists — `src/index.css` has `:root` + `.dark` token blocks and `next-themes` is installed. Work: mount `<ThemeProvider>` from `next-themes` (not currently mounted — the Sonner `Toaster` just degrades to "system"), build `ThemeToggleBtn`, wire it into `pages/admin-shell`. `next-themes`' `enableSystem` gives "auto" free. ~30 min. A small dedicated standalone step — slot it between M1.2 sub-steps or after M1.2; out of scope for 2.2c.
 - **Item 2 — themeable architecture (POST-MVP).** A theme registry + user-facing theme dropdown; each theme defines light + dark; a user picks either one theme (both modes) or distinct light/dark themes. Design the schema for the general case: a theme = one named token-value set for a single mode; a user preference = `(lightThemeId, darkThemeId, mode)`. Per-user persistence to a `User` preference is a **backend change** → firmly post-MVP, ADR-worthy when it lands (superseding ADR per `steps.md`'s contract). Not MVP — default theme suffices; not in `mvp.md`'s 6 must-haves. **Prep already done:** `PATTERNS.md` § UI components now mandates styling via semantic theme tokens only, which keeps this a drop-in; nothing else to build now.
 
-**For Session 38 — Step 2.2 / M1.2 Admin substrate + flat roster** (next; Case 2 sizing then likely partitioned implementation).
+**For Session 39 — Step 2.2a / M1.2 backend substrate + Contract exemplar** (next; Case 3 scoped session).
 
-- **Branch op at session head:** `git checkout -b m1/02-flat-roster` off `m1/roster` (after 2.1b-B's FF-merge has landed `m1/01b-fe-conventions` on `m1/roster`).
-- **Case 2 sizing required at session head.** Step 2.2 has a stub brief in `steps.md` — not a scoped prompt. Expect sizing to surface several fit-checklist signals: independently-deliberable decisions (admin-CRUD authoring shape — generalized factory vs hand-authored per entity, ADR-worthy; admin auth-predicate factory shape, ADR-worthy); five new entity tables (Employee, School, Contractor, User-side admin CRUD, Contract); cross-concern reach (backend entity authoring + first ADR-0047 predicate landing + frontend per-entity admin pages); likely >60 min duration. **Likely partition needed** — natural seam is backend entities + commands → backend admin routes → frontend admin pages. Hold the partition canvass at session head per Case 2 protocol; don't pre-decide.
-- **ADR numbering.** M1.2 starts at the next free number at its write time. M1.2 likely lands 1–2 ADRs: admin-CRUD authoring shape (generalized factory vs hand-authored), admin auth-predicate factory shape if non-obvious. First ADR-0047 predicate landing in M1+ code; the `role >= admin` Cluster 1 class rule is the first concrete use of `has_role_at_least` from ADR-0062.
-- **Five entities to land** (per ADR-0047 Cluster 1):
-  - **Employee** — HR-driven, no lifecycle, audit-log history per ADR-0052.
-  - **School** — flat, no lifecycle, audit-log history.
-  - **Contractor** — flat, no lifecycle, audit-log history.
-  - **User** (admin-CRUD beyond M1.1's auth-substrate insert) — `edit_user` for password resets and `employee_id` link; `delete_user` per delete policy.
-  - **Contract** — hoisted from M2 per Session 34 sizing. ADR-0044 carries the structural shape; admin-CRUD in character per ADR-0047 Cluster 1. The `code_flat_fee_schedule` (per ADR-0045) is the substantive attribute.
-  - Add Employee FK + UNIQUE constraint to `user.employee_id` in the M1.2 migration (M1.1 left it as a plain UUID per the carry-forward note in ADR-0061 § Consequences).
-- **Decision detail to canvass at session head:**
-  - **Admin-CRUD authoring shape.** Generalized factory (`make_create_command(Entity, Payload)`) vs hand-authored Command per entity. Factory wins on volume (5 entities × 3 commands = 15); hand-authored wins on flexibility for non-uniform predicates. Worth a structured canvass. Likely ADR-worthy regardless of pick.
-  - **Read routes** (`GET /<entity>`, `GET /<entity>/{id}`). Per-entity hand-authored, or generalized? Frontend admin pages need them in M1.2 — can't wait for M7's reporting work. Likely hand-authored (5 endpoints, low complexity).
-  - **Admin auth-predicate factory.** ADR-0047 Cluster 1 class rule is uniform `role >= admin`. Encode once as a reusable predicate factory; or inline per command? Lean factory.
-  - **Frontend admin page shape.** List + detail/form per entity, built on the shadcn/ui + four-layer conventions landed in Step 2.1b. Shadcn/ui is adopted there — no longer an open M1.2 decision; M1.2 consumes `frontend/src/PATTERNS.md`.
-- **Read first at session head:** Session 35 summary above + Open questions for Session 36 + `planning/steps.md` § Step 2 high-level + § Step 2.2 stub + ADR-0040 (role catalog) + ADR-0047 (per-command authorization predicates — Cluster 1 is M1.2's surface) + ADR-0044 / ADR-0045 (Contract + WABundle structural shape, contract scoping) + ADR-0061 / 0062 (auth substrate + Caller from Session 35) + `data-model.md` § Roster entities (per-entity attribute rosters). Skim `app/framework/caller.py` + `app/framework/auth.py` (consumed by M1.2 routes); `app/domain/auth.py` (existing entity pattern that M1.2 entities mirror); `app/framework/history.py` (mixin pattern + audit-log shape for the 5 new entities); `tests/conftest.py` § per-role fixtures (M1.2 command tests build on these).
-- **Coordination points:**
-  - The User table got created in M1.1 with `employee_id` as a plain UUID + no FK. M1.2's Employee migration adds the FK + UNIQUE constraint via a follow-up alter. Verify the alter handles existing rows (the bootstrap superadmin will have null `employee_id`, which is the nullable-FK shape ADR-0041 Gap 5 anticipates).
-  - First write-path commands hit M0.4's adapter boundary — `json_column()` for any JSONB columns (e.g., `Contract.code_flat_fee_schedule`); `SERIALIZABLE` isolation per ADR-0056 D1.a default. First chance to verify the adapter behaves as designed on real domain code.
-- **Carry-forwards for M1.2 to land:**
-  - `User.employee_id` FK + UNIQUE constraint (per ADR-0061 § Consequences carry-forward).
-  - First ADR-0047 Cluster 1 predicate landing — formalize `role >= admin` class rule as a reusable predicate factory.
+- **The full 2.2a brief is `steps.md` § Step 2.2a** — Goal, the three decisions to canvass, In/Out of scope, Inputs, Done-when. Read it first; this block is the pointer, not a duplicate.
+- **Branch op at session head:** `git checkout -b m1/02-flat-roster` off `m1/roster`. The 2.1b FF-merge is already satisfied (`m1/roster` == `m1/01b-fe-conventions` == `f3bb595`).
+- **Three decisions to canvass at session head (STOP-AND-CONFIRM):** (1) admin-CRUD authoring shape — generalized factory vs hand-authored per entity; (2) admin auth-predicate factory shape — reusable factory over `has_role_at_least` (ADR-0062) vs inline; (3) seed-tooling design details — CSV→Payload mapping, JSONB-column representation in CSV, entity dependency ordering, idempotency, seed-folder location. The through-the-Command-pipeline decision is already locked (Session 38). All three ADR-worthy; ADRs land from **ADR-0067**.
+- **Locked Session 38:** `seed_db` dispatches through the Command pipeline; Click deferred (`seed_db` uses `argparse`); `just` env-setup split from data-init. See `steps.md` § Step 2.2 scope-addition note.
+- **Read routes** (`GET /<entity>` + `GET /<entity>/{id}`) land per-entity, hand-authored — low complexity, 2 endpoints/entity; frontend admin pages (2.2c) consume them, can't wait for M7's reporting work.
+- **Coordination point — adapter boundary.** 2.2a's Contract is the first M1+ write-path domain code to hit M0.4's adapter — `json_column()` for `code_flat_fee_schedule`, `SERIALIZABLE` per ADR-0056. First chance to verify the adapter on real domain code.
+- **Carry-forward for 2.2b (not 2.2a):** `User.employee_id` FK + UNIQUE constraint lands in 2.2b's Employee migration (M1.1 left it a plain UUID per ADR-0061 § Consequences).
 
 **For Phase 2 broadly (M1+ outlook):**
 
 - **Step 1 / M0 ✓ COMPLETE 2026-05-19** (Session 33). Substrate for every M1+ command in place: Command base + dispatcher with retry loop, history infrastructure with real capture sink, advisory-lock + SERIALIZABLE primitives behind a documented adapter, Alembic + CI green on SQLite.
 - **Step 2.1 / M1.1 ✓ COMPLETE 2026-05-19** (Session 35). Auth substrate established for M1.2+ admin work. Per-role pytest fixtures available; concrete Caller flows through dispatcher.
-- **Step 2.1b-A ✓ COMPLETE 2026-05-20** (Session 36). Frontend four-layer architecture + UI/form stack (shadcn `radix-lyra`, Tailwind 4, Zod, RHF) + API-client relocation in place; `frontend/src/PATTERNS.md` is the conventions doc M1.2 frontend work consumes. Step 2.1b-B (auth port) remains.
+- **Step 2.1b ✓ COMPLETE 2026-05-20** (Sessions 36–37). Frontend four-layer architecture + UI/form stack (shadcn `radix-lyra`, Tailwind 4, Zod, RHF) + API-client relocation + M1.1 auth port; `frontend/src/PATTERNS.md` is the conventions doc M1.2 frontend work (2.2c) consumes.
 - **PaaS vendor pick stays deferred per ADR-0055.** Do not re-propose vendor canvass at any M1+ step head. See [[project-vendor-pick-deferred]] for the 5 portability discipline notes.
 - **Postgres CI service stays deferred** (Session 33 decision). Revisit if Docker access becomes reliable on the dev machine.
 - **Neon dev DB stays current with alembic head per [[project-neon-current-policy]].** Apply migrations to Neon immediately at landing; throwaway sqlite OK for pre-commit iteration only.
@@ -114,7 +97,8 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 **Process notes (apply to Phase 2 generally):**
 
 - **STOP-AND-CONFIRM gate stays in force, including for source code.** Each sub-step opens with chat-side deliberation before any code or ADR write.
-- **Commit pattern: preserve incremental checkpoints; FF sub-step branches to `m1/roster`; merge `m1/roster` → `dev` with `--no-ff` + tag `m1-complete` at M1 close** (per [[preserve-incremental-commits]] + [[project-branching-convention]]).
+- **Commit pattern: preserve incremental checkpoints; FF sub-step branches to `m1/roster`; merge `m1/roster` → `dev` with `--no-ff` + tag `m1-complete` at M1 close** (per [[preserve-incremental-commits]] + [[project-branching-convention]]). **Per-entity granularity:** within a multi-entity sub-step, commit after each entity's additions land green — not only at sub-step close.
+- **Seed coverage is a standing requirement** (Session 38): every entity-adding sub-step from M1.2 onward maintains `seed_db` coverage for the entities it introduces. `seed_db` dispatches CSV rows through the Command pipeline.
 - **Contract-drift CI job enforces schema + client are in sync.** Any backend OpenAPI-surface change requires `just gen-openapi` + commit of `contracts/openapi.json` + `frontend/src/api/` (see [[committed-generated-artifacts]]).
 - **Cross-check architecture.md out-of-band concerns at every Case 2 sizing** per [[check-out-of-band-concerns]] — applied at M1 (caught auth slip); apply at M2+. For M1.2 Case 2 sizing: the relevant out-of-band concerns are file storage (not surfaced until M5), background jobs (not surfaced until M3 RFA auto-draft regeneration), notifications (post-MVP). None of those apply to M1.2.
 - **`mvp.md` is the canonical MVP scope reference.**
@@ -122,37 +106,36 @@ If the user says something like _"resume work"_ / _"start the next session"_ / _
 
 ## Next session
 
-**Session 38 — Step 2.2 / M1.2 Admin substrate + flat roster.** Build the 5 flat roster entities (Employee / School / Contractor / User-admin-CRUD / Contract) + admin CRUD commands + read routes + per-entity admin pages. **Case 2 sizing first** — Step 2.2 carries a stub brief in `planning/steps.md`; expect a partition. **Branch ops at session head:** FF-merge `m1/01b-fe-conventions` → `m1/roster` (if not already done — closes Step 2.1b), then `git checkout -b m1/02-flat-roster` off `m1/roster`. Next ADR free is **ADR-0067**.
+**Session 39 — Step 2.2a / M1.2 backend substrate + Contract exemplar.** Settle M1.2's three backend abstractions (admin-CRUD authoring factory, admin auth-predicate factory, seed framework) and prove them end-to-end against Contract. **Case 3 scoped session** — `planning/steps.md` § Step 2.2a carries the full brief. **Branch op at session head:** `git checkout -b m1/02-flat-roster` off `m1/roster`. Next ADR free: **ADR-0067**.
 
 ### Prompt for the next session
 
-> Resume work. **Step 2.1b ✓ COMPLETE** (Sessions 36–37 — frontend four-layer architecture, UI/form stack, and the M1.1 auth port; ADR-0064 / 0065 / 0066). Session 38 opens **Step 2.2 / M1.2 Admin substrate + flat roster** — Case 2 sizing, then implementation.
+> Resume work. **Step 2.2 / M1.2 partitioned** 2026-05-20 (Session 38, Case 2) into 3 sub-steps. Session 39 opens **Step 2.2a / M1.2 backend substrate + Contract exemplar** — a Case 3 scoped session.
 >
-> **Branch ops at session head:**
+> **Branch op at session head:**
 > ```
-> git checkout m1/roster
-> git merge --ff-only m1/01b-fe-conventions   # closes Step 2.1b, if not already merged
-> git checkout -b m1/02-flat-roster
+> git checkout -b m1/02-flat-roster m1/roster
 > ```
+> The 2.1b FF-merge is already satisfied — `m1/roster` == `m1/01b-fe-conventions` == `f3bb595`.
 >
-> **Case 2 sizing first.** Step 2.2 has a stub brief in `planning/steps.md` § Step 2.2 — not a scoped prompt. Run the 7-signal fit checklist per `_workflow.md` Case 2. Expect multiple signals: 5 entity tables (Employee, School, Contractor, User-admin-CRUD, Contract); admin-CRUD authoring shape (ADR-worthy); admin auth-predicate factory shape (ADR-worthy); first ADR-0047 predicate landing in M1+ code; cross-concern reach (backend entities + commands + routes + frontend pages). **Likely partition** — natural seam: backend entities + commands → backend admin routes → frontend admin pages. Surface partition options in chat per the STOP-AND-CONFIRM gate; don't pre-decide.
+> **The full 2.2a brief is `planning/steps.md` § Step 2.2a** — Goal, the three decisions to canvass at session head, In/Out of scope, Inputs, Done-when. Read it first. 2.2a settles three backend abstractions (admin-CRUD authoring factory, admin auth-predicate factory, seed framework) and proves them end-to-end against **Contract** — the hardest, most non-uniform of the five M1.2 entities (JSONB `code_flat_fee_schedule`, derived `validity`). 2.2b then applies the result to the four remaining backend entities; 2.2c builds the frontend.
 >
-> **The detailed M1.2 working reference is the "For Session 38" block under Open questions above** — the five entities, the admin-CRUD / read-route / auth-predicate-factory decisions to canvass, coordination points, and carry-forwards (`User.employee_id` FK + UNIQUE; first `role >= admin` predicate factory). Read it first.
+> **Three decisions to canvass at session head (STOP-AND-CONFIRM gate):** (1) admin-CRUD authoring shape — generalized factory vs hand-authored per entity; (2) admin auth-predicate factory shape — reusable factory over `has_role_at_least` vs inline; (3) seed-tooling design details — CSV→Payload mapping, JSONB-column representation in CSV, entity dependency ordering, idempotency, seed-folder location. The seed through-the-Command-pipeline decision is already locked (Session 38). All three are ADR-worthy; ADRs land this session from **ADR-0067**.
 >
-> **Frontend is now equipped.** `frontend/src/PATTERNS.md` is the conventions doc M1.2 frontend work consumes — four-layer architecture, per-feature `api/index.ts` barrel, shadcn/ui + RHF + Zod forms. The shadcn-adoption question is settled (ADR-0065) — no longer an open M1.2 decision. M1.2's Employee feature is the first canonical `src/features/<domain>/` exemplar (auth is not a feature — see ADR-0066).
+> **Locked from Session 38:** `seed_db` dispatches CSV rows through the Command pipeline (not direct ORM inserts — keeps seeded data real); Click adoption deferred (`seed_db` uses stdlib `argparse`); `just` env-setup split from interactive/destructive data-init. See `steps.md` § Step 2.2 scope-addition note. Standing requirement: every entity-adding sub-step from M1.2 onward maintains `seed_db` coverage.
 >
-> **Read first:** Session 37 Last session summary + the "For Session 38" Open questions block above; `planning/steps.md` § Step 2 + § Step 2.2; ADR-0040 (role catalog), ADR-0047 (Cluster 1 admin predicates), ADR-0044 / ADR-0045 (Contract shape + `code_flat_fee_schedule`), ADR-0061 / 0062 (auth substrate + Caller); `planning/data-model.md` § Roster entities. Skim `app/framework/caller.py` + `app/framework/auth.py`, `app/domain/auth.py` (entity pattern), `app/framework/history.py`, `tests/conftest.py` § per-role fixtures.
+> **Read first:** Session 38 summary above + the "For Session 39" Open-questions block; `steps.md` § Step 2.2 envelope + § Step 2.2a; ADR-0047 (Cluster 1 admin predicates), ADR-0040 (role catalog), ADR-0043 / ADR-0044 / ADR-0045 (Contract entity + shape + `code_flat_fee_schedule`), ADR-0061 / ADR-0062 (auth substrate + `Caller` + `has_role_at_least`); `data-model.md` § Contract. Skim `app/framework/{command,dispatcher,caller,history,adapter}.py`, `app/domain/auth.py` (entity pattern), `app/cli/bootstrap_admin.py` (CLI pattern), `tests/conftest.py` § per-role fixtures.
 >
-> **Out of scope:** M1.3 (role administration), M1.4 (range-typed entities); WABundle; PaaS vendor pick + Postgres CI (both stay deferred). The two queued frontend follow-ups (theme toggle, themeable architecture) under Open questions — item 1 is a small separate step, item 2 is post-MVP.
+> **Out of scope:** Employee / School / Contractor / User-admin-CRUD (2.2b); all frontend (2.2c); M1.3 / M1.4; WABundle; PaaS vendor pick + Postgres CI (both stay deferred); the two queued frontend follow-ups (theme toggle, themeable architecture).
 >
-> **Process notes:** STOP-AND-CONFIRM gate applies, including source code. Migration discipline per [[project-neon-current-policy]] (author → `uv run alembic upgrade head` on Neon → commit). Preserve incremental commits. Branch `m1/02-flat-roster` off `m1/roster`, FF-merge back at M1.2 close. Next ADR free: **ADR-0067**.
+> **Process notes:** STOP-AND-CONFIRM gate applies, including source code. Migration discipline per [[project-neon-current-policy]] (author → `uv run alembic upgrade head` on Neon → commit). Preserve incremental commits (per-entity granularity from 2.2b on). Branch `m1/02-flat-roster` shared across 2.2a/2.2b/2.2c, FF-merge to `m1/roster` at M1.2 close. Next ADR free: **ADR-0067**.
 
 ## Pointers
 
 - Workflow protocol: `planning/_workflow.md`
 - File rules registry (generated): `planning/_file-rules.md` (last regenerated 2026-05-18)
 - Phase roster: `planning/phases.md` (Phase 1 ✓ complete 2026-05-17; Phase 2 current; Phase 3 stub)
-- Step list (current phase): `planning/steps.md` (Phase 2 / Implementation — 9 steps mirroring roadmap M0–M8; **Step 1 ✓ COMPLETE 2026-05-19 (Session 33)**; **Step 2 partitioned into 4 sub-steps 2026-05-19 (Session 34)**; **Step 2.1 ✓ COMPLETE 2026-05-19 (Session 35)**; **Step 2.1b ✓ COMPLETE 2026-05-20 (Sessions 36–37)**; M1.2 / M1.3 / M1.4 stubs; Steps 3–9 stubs)
+- Step list (current phase): `planning/steps.md` (Phase 2 / Implementation — 9 steps mirroring roadmap M0–M8; **Step 1 ✓ COMPLETE 2026-05-19 (Session 33)**; **Step 2 partitioned into 4 sub-steps 2026-05-19 (Session 34)**; **Step 2.1 ✓ COMPLETE 2026-05-19 (Session 35)**; **Step 2.1b ✓ COMPLETE 2026-05-20 (Sessions 36–37)**; **Step 2.2 partitioned into 2.2a/2.2b/2.2c 2026-05-20 (Session 38)**; M1.3 / M1.4 stubs; Steps 3–9 stubs)
 - Archived step list (Phase 1): `planning/steps.archive/conceptualization.md`
 - Session conventions: `planning/sessions.md`
 - Decisions log: `planning/decisions.md` (currently ADR-0001 through ADR-0066; next ADR at write time: **ADR-0067**)
