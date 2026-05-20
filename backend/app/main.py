@@ -1,8 +1,15 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import app.domain.commands  # noqa: F401  -- imports register every domain command (ADR-0059)
 from app.config import settings
-from app.routes import auth, healthcheck
+from app.framework.command import validate_registry
+from app.framework.error_handlers import register_error_handlers
+from app.routes import auth, contracts, healthcheck
+
+# Registry-load-time guard (ADR-0060): fails loudly at import if a
+# destructive command is cascaded without an explicit opt-in.
+validate_registry()
 
 app = FastAPI(title="sca-tracker", version="0.0.0")
 
@@ -17,5 +24,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Translate dispatcher-surfaced exceptions (ADR-0011 rejections, ADR-0058
+# contention) to HTTP responses.
+register_error_handlers(app)
+
 app.include_router(healthcheck.router)
 app.include_router(auth.router)
+app.include_router(contracts.router)
