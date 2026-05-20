@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type SubmitEvent } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
@@ -36,10 +36,10 @@ function LoginPage() {
     },
   });
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  const handleSubmit = (e: SubmitEvent<HTMLFormElement>) => {
+    e.preventDefault();
     loginMutation.mutate({ username, password });
-  }
+  };
 
   return (
     <main style={{ maxWidth: 320, margin: "4rem auto", fontFamily: "system-ui" }}>
