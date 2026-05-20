@@ -44,6 +44,12 @@ def _build_engine(url: str) -> Engine:
         connect_args=connect_args,
         future=True,
         json_serializer=json_serializer,
+        # Neon (the dev DB) suspends idle compute and kills its backends; a
+        # pooled connection handed out afterward is dead and raises
+        # psycopg AdminShutdown on first use. pool_pre_ping validates each
+        # connection at checkout (a cheap SELECT 1) and transparently
+        # recycles stale ones. Harmless on the SQLite test path.
+        pool_pre_ping=True,
         **engine_kwargs,
     )
 
