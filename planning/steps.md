@@ -198,7 +198,7 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 |---|---|---|---|---|
 | **1.1** ✓ | M1.1 Auth substrate + frontend shell (Session 35, 2026-05-19) | M+ | `m1/01-auth-shell` | 3 (ADR-0061 auth substrate + ADR-0062 Caller shape + ADR-0063 route-guard pattern) |
 | **1.1b** ✓ | Frontend architecture & conventions (inserted 2026-05-19 — not an M-milestone) | M–L | `m1/01b-fe-conventions` | 3 (ADR-0064 four-layer architecture, ADR-0065 UI/form stack, ADR-0066 auth module + conventions) |
-| **1.2** | M1.2 Admin substrate + flat roster (Employee / School / Contractor / User / Contract) — **partitioned 2026-05-20 (Session 38, Case 2) → 2.2a / 2.2b / 2.2c** | L (was M) | `m1/02-flat-roster` (shared) | 2–3 (admin-CRUD authoring shape; admin auth-predicate factory; seed-tooling shape) |
+| **1.2** | M1.2 Admin substrate + flat roster (Employee / School / Contractor / User / Contract) — **partitioned 2026-05-20 (Session 38, Case 2) → 2.2a / 2.2b / 2.2c / 2.2d** (2.2b — Backend architecture & conventions — inserted Session 40) | L (was M) | `m1/02-flat-roster` (shared) | ~8 (M1.2 closeout, written in 2.2b-A from ADR-0067) |
 | **1.3** | M1.3 Role administration (UserRole grant/revoke + `audit_reason` Note) | S–M | `m1/03-role-admin` | 1 (`audit_reason` Note polymorphism mechanism) |
 | **1.4** | M1.4 Range-typed entities (EmployeeRole + ContractorEngagement + `change_employee_role_rate`) | M (possibly L) | `m1/04-range-typed` | 0–1 (compound decomposition if non-obvious) |
 
@@ -350,7 +350,9 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ### Step 2.2 — M1.2 Admin substrate + flat roster (L, partitioned)
 
-**Partitioned 2026-05-20 (Session 38, Case 2)** into 3 sub-steps. Six of seven fit-checklist signals fired: (1) multiple independently-deliberable decisions — admin-CRUD authoring shape, admin auth-predicate factory, seed-tooling shape; (2) multiple from-scratch artifacts; (3) >60 min; (4) input reading >3 planning files; (5) cross-concern reach — domain entities + authorization + read API + frontend + dev tooling; (6) partial — the seed framework depends on the `create_*` commands existing (an intra-step ordering constraint). Seam: **decision-first** — 2.2a settles the three backend abstractions (admin-CRUD authoring factory, admin auth-predicate factory, seed framework) and proves them against the hardest, most non-uniform entity (Contract); 2.2b applies the settled pattern to the four remaining backend entities; 2.2c builds the frontend admin pages. Commits land sequentially on a single shared branch (1.3a/1.3b + 2.1b-A/B precedent); FF-merge to `m1/roster` after 2.2c.
+**Partitioned 2026-05-20 (Session 38, Case 2)** into 3 sub-steps. Six of seven fit-checklist signals fired: (1) multiple independently-deliberable decisions — admin-CRUD authoring shape, admin auth-predicate factory, seed-tooling shape; (2) multiple from-scratch artifacts; (3) >60 min; (4) input reading >3 planning files; (5) cross-concern reach — domain entities + authorization + read API + frontend + dev tooling; (6) partial — the seed framework depends on the `create_*` commands existing (an intra-step ordering constraint). Seam: **decision-first** — 2.2a settles the three backend abstractions (admin-CRUD authoring factory, admin auth-predicate factory, seed framework) and proves them against the hardest, most non-uniform entity (Contract); 2.2b applies the settled pattern to the four remaining backend entities; 2.2c builds the frontend admin pages. Commits land sequentially on a single shared branch (1.3a/1.3b + 2.1b-A/B precedent); FF-merge to `m1/roster` after 2.2d.
+
+**Inserted 2026-05-20 (Session 40): Step 2.2b — Backend architecture & conventions.** A backend-structure review found M1.1/M1.2 drifted from the Session-32 hexagonal `app/` design; M1.2 closeout (ADRs + conventions docs) + the structure refactor are packaged as a new inserted sub-step. **Old 2.2b → 2.2c, old 2.2c → 2.2d.** The Session-38 seam description above predates the insertion — current order: 2.2a → 2.2b → 2.2c → 2.2d.
 
 **Scope addition — dev seed tooling (Session 38).** Scoped into M1.2 at this Case 2 sizing: a `seed_db` CLI that loads redacted CSVs into the DB **through the Command pipeline** (not direct ORM inserts — keeps seeded data real: invariants run, history + audit-log rows written; avoids a second exception to the every-state-change-is-a-Command rule, since a `Caller` exists post-bootstrap). Pairs with the dropped-in `redact_csv.py` (real data → redacted CSV → seed folder → `seed_db`). **Standing requirement: every entity-adding sub-step from M1.2 onward maintains `seed_db` coverage for the entities it introduces** (applies to M1.3 / M1.4 / M2+). Dev infrastructure, parallel to `bootstrap_admin` — not a roadmap milestone; distinct from M8's production data-import-from-spreadsheets work. Click adoption (ADR-0061's "3rd CLI command" trigger) **deferred** — `seed_db` uses stdlib `argparse` (matches `redact_csv` + `export_openapi`); the real Click trigger is restated as "when a unified `app.cli` subcommand group is wanted," a clean standalone step. `just` recipes split idempotent env-setup (`install` + `alembic upgrade head`) from interactive/destructive data-init (`bootstrap-admin`, `seed`); optional thin `first-run` chains them.
 
@@ -360,11 +362,12 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 | Sub-step | Title | Size | ADRs expected |
 |---|---|---|---|
-| **2.2a** ✓ | Backend substrate + Contract exemplar (decisions + factories + seed framework) — COMPLETE Session 39 | M–L | 2–3 (admin-CRUD authoring shape; admin auth-predicate factory; seed-tooling shape) — deferred to a Session 40 review |
-| **2.2b** | Backend remainder — Employee / School / Contractor / User-admin-CRUD | M | 0–1 (factory amendment if a non-uniform entity pressures the pattern) |
-| **2.2c** | Frontend admin pages (5 entities) | M | 0 |
+| **2.2a** ✓ | Backend substrate + Contract exemplar (decisions + factories + seed framework) — COMPLETE Session 39 | M–L | M1.2 closeout ADRs deferred to 2.2b-A |
+| **2.2b** | Backend architecture & conventions (inserted Session 40) — closeout ADRs + `CLAUDE.md`/`PATTERNS.md` + structure refactor | M–L | ~8 from ADR-0067 (3 abstractions + 5 in-flight decisions + backend-architecture ADR) |
+| **2.2c** | Backend remainder — Employee / School / Contractor / User-admin-CRUD | M | 0–1 (factory amendment if a non-uniform entity pressures the pattern) |
+| **2.2d** | Frontend admin pages (5 entities) | M | 0 |
 
-**Execution order:** 2.2a ✓ (Session 39) → 2.2b → 2.2c. Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity checkpoint commits within 2.2b and 2.2c (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
+**Execution order:** 2.2a ✓ (Session 39) → 2.2b (2.2b-A → 2.2b-B) → 2.2c → 2.2d. Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity checkpoint commits within 2.2c and 2.2d (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
 
 **Roadmap pointer:** `planning/roadmap.md` § M1.
 
@@ -376,7 +379,7 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 **✓ COMPLETE Session 39 (2026-05-20).** The three M1.2 backend abstractions landed on branch `m1/02-flat-roster` (7 commits) and were proven end-to-end against Contract: the `require_role` admin auth-predicate factory; admin-CRUD authoring as hand-authored Command classes over shared `app/framework/crud.py` helpers (the **hybrid** shape — not a generalized class factory); the `seed_db` framework (CSV rows dispatched through the Command pipeline, skip-existing idempotency, JSONB sidecar CSV, seeds at `app/cli/seeds/`). Contract entity + migration `6dd5906ef088` (applied to Neon); `create/edit/delete_contract`; read routes `GET /contracts` + `/contracts/{id}`; production dispatcher wiring + dispatcher-exception→HTTP handlers; `just` recipes (`migrate` / `bootstrap-admin` / `seed` / `first-run`). 71 backend tests + ruff + pyright green; OpenAPI contract + client regenerated. **ADRs deferred to a Session 40 review** of the session's commits (user's call) — three approved abstractions + five in-flight implementation decisions to ratify, then ADRs from **ADR-0067**. Full record: `handoff.md` § Session 39 summary.
 
-**Goal:** Settle M1.2's three backend abstractions and prove them end-to-end against Contract — the most non-uniform of the five entities (JSONB `code_flat_fee_schedule`, derived `validity`). Hardest-first: if the abstractions survive Contract, 2.2b's four entities are mechanical. The ADRs land here.
+**Goal:** Settle M1.2's three backend abstractions and prove them end-to-end against Contract — the most non-uniform of the five entities (JSONB `code_flat_fee_schedule`, derived `validity`). Hardest-first: if the abstractions survive Contract, the remaining four entities are mechanical. The ADRs land here.
 
 **Decisions to canvass at session head (STOP-AND-CONFIRM gate):**
 1. **Admin-CRUD authoring shape** — generalized factory (`make_create_command(Entity, Payload)` etc.) vs. hand-authored `Command` per entity. Factory wins on volume (5 entities × 3 commands); hand-authored wins on non-uniform predicates/handlers. ADR-worthy regardless of pick.
@@ -391,7 +394,7 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 5. `just` recipe updates: `install` gains `alembic upgrade head`; new `seed` recipe; optional `first-run` chain.
 6. ADRs from **ADR-0067**: admin-CRUD authoring shape; admin predicate factory (possibly folded in); seed-tooling shape.
 
-**Out of scope:** Employee / School / Contractor / User-admin-CRUD (2.2b); all frontend (2.2c). `redact_csv.py` is brought into `app.cli` module shape + committed in 2.2b.
+**Out of scope:** Employee / School / Contractor / User-admin-CRUD (now 2.2c); all frontend (now 2.2d). `redact_csv.py` committed Session 40.
 
 **Inputs:** ADR-0047 (Cluster 1), ADR-0040 (role catalog + grant authority), ADR-0043 / ADR-0044 / ADR-0045 (Contract entity + shape + `code_flat_fee_schedule`), ADR-0061 / ADR-0062 (auth substrate + `Caller` + `has_role_at_least`), ADR-0052 / ADR-0057 (history / audit-log), ADR-0056 (`json_column` / SERIALIZABLE adapter); `data-model.md` § Contract; `app/framework/{command,dispatcher,caller,history,adapter}.py`; `app/domain/auth.py` (entity pattern); `app/cli/bootstrap_admin.py` (CLI + `SessionFactory` pattern); `tests/conftest.py` § per-role fixtures.
 
@@ -399,7 +402,43 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ---
 
-#### Step 2.2b — Backend remainder: Employee / School / Contractor / User-admin-CRUD (M)
+#### Step 2.2b — Backend architecture & conventions (M–L, inserted)
+
+**Inserted 2026-05-20 (Session 40)** — an insertion, not a milestone sub-step; the backend twin of Step 2.1b. A Session 40 backend-structure review found M1.1/M1.2 drifted from the Session-32 hexagonal `app/` design (`planning/follow-ups/backend-directory-structure-rewind.md`): `domain/` landed flat with a `domain/commands/` type-bucket instead of per-entity folders; `adapters/` was left empty while concrete-I/O code piled into `framework/`; route files carry transport DTOs + cookie helpers. **Renumbered:** old 2.2b → 2.2c, old 2.2c → 2.2d.
+
+**Goal:** Correct the drift, write the deferred M1.2 closeout ADRs (from ADR-0067), produce `backend/CLAUDE.md` + `backend/app/PATTERNS.md` (the backend twin of the frontend pair), and refactor the existing Contract + auth + framework + routes code into the settled shape — so 2.2c builds its four entities on the corrected structure.
+
+**Settled at the Session 40 review** (write up in the ADRs; do not re-deliberate): plural naming for all folders + type-noun files; per-entity domain folders (`domain/<entity-plural>/{__init__.py, entities.py, commands.py}`, `domain/auth/` the User/UserRole/Session cluster, `domain/predicates.py` a cross-cutting peer); routes hold no transport DTOs/helpers (they move to a transport-layer module, not into `domain/`); Session 39's five in-flight decisions ratified — #1/#3/#4/#5 as-is, **#2 reversed** (materialize `created_*/updated_*` columns as a dispatcher-maintained read projection).
+
+**Open forks for 2.2b-A** (STOP-AND-CONFIRM): `framework/` cohesion (finish the hexagonal engine/`adapters`/transport split — agent rec ~75% — vs. keep one folder); `routes/` shape (per-resource folders vs. flat + schemas module); DTO vs command `Payload` (keep separate — agent rec ~70% — vs. collapse); `entities.py` vs `models.py`; audit-column scope. Full framing: `handoff.md` § Open questions "For Step 2.2b-A".
+
+**Partitioned into 2.2b-A / 2.2b-B.** Single shared branch `m1/02-flat-roster`; commits land sequentially (1.3a/1.3b + 2.1b-A/B precedent).
+
+##### Step 2.2b-A — M1.2 closeout + backend conventions (M–L)
+
+**Goal:** Settle the open structure forks, write all deferred M1.2 ADRs from ADR-0067, produce `backend/CLAUDE.md` + `backend/app/PATTERNS.md`. Planning + documentation only — no code refactor.
+
+**In scope:** (1) settle the four structure forks (STOP-AND-CONFIRM canvass); (2) write the M1.2 ADRs — three Session-39 approved abstractions + five ratified in-flight decisions + a backend-architecture ADR (twin of ADR-0064); (3) write `backend/CLAUDE.md` (thin, auto-loaded) + `backend/app/PATTERNS.md` (the conventions doc 2.2c+ consumes).
+
+**Case 2 check at session head:** big — four independent forks + ~8 ADRs + 2 docs; run the 7-signal checklist, likely seam forks+ADRs vs. docs.
+
+**Inputs:** `handoff.md` § Session 40 summary + § Open questions "For Step 2.2b-A"; `planning/follow-ups/backend-directory-structure-rewind.md`; the Session 39 commits (`git log m1/roster..HEAD`); `frontend/CLAUDE.md` + `frontend/src/PATTERNS.md` + ADR-0064 (doc/ADR model).
+
+**Done when:** structure forks settled; M1.2 ADRs written from ADR-0067; `backend/CLAUDE.md` + `backend/app/PATTERNS.md` land.
+
+##### Step 2.2b-B — Backend structure refactor (M, Case 2)
+
+**Goal:** Execute 2.2b-A's settled patterns against the existing backend code. Behaviour-preserving refactor + the audit-column materialization.
+
+**In scope:** (1) `domain/` → per-entity folders; `framework/` split/relocate per the settled fork; extract route transport DTOs + helpers; update all imports, the command-registry barrel, tests, the OpenAPI export; (2) materialize `created_*/updated_*` columns on Contract + User — Alembic migration + dispatcher stamping step + a create-vs-update signal + read-schema fields; (3) green — backend tests + ruff + pyright, migration applied to Neon, OpenAPI contract + client regenerated.
+
+**Case 2 check at session head** (per the user's explicit request): run the 7-signal checklist on the full refactor + migration scope; split if it fires.
+
+**Done when:** backend runs on the settled structure; audit columns in read responses; all checks green; migration on Neon.
+
+---
+
+#### Step 2.2c — Backend remainder: Employee / School / Contractor / User-admin-CRUD (M)
 
 **Goal:** Apply 2.2a's settled pattern to the four remaining flat roster entities. Mechanical where the factory generalizes; the two non-uniform points (User's `edit_user` password reset; the `User.employee_id` FK) get explicit handling.
 
@@ -410,20 +449,20 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 2. **School** — `name` + identifying attrs; `no history`; CRUD + read routes.
 3. **Contractor** — `name` + roster attrs; `command_audit_log`; CRUD + read routes.
 4. **User-admin-CRUD** — admin CRUD on User beyond M1.1's bootstrap insert: `create_user`, `edit_user` (password reset via `hash_password`; `employee_id` link), `delete_user` per delete policy. All under ADR-0047 Cluster 1's `role >= admin` class rule.
-5. `seed_db` coverage for all four entities; bring `redact_csv.py` into `app.cli` module shape (`python -m app.cli.redact_csv`) and commit it.
+5. `seed_db` coverage for all four entities. (`redact_csv.py` — committed Session 40, already in `app.cli` module shape.)
 6. Alembic migration(s) for the four tables + the `User.employee_id` alter.
 
-**Out of scope:** all frontend (2.2c); anything in 2.2a's scope.
+**Out of scope:** all frontend (2.2d); anything in 2.2a's or 2.2b's scope.
 
 **Commit cadence:** per-entity checkpoint commit — commit after each entity's additions land green, not only at sub-step close ([[preserve-incremental-commits]]).
 
 **Inputs:** 2.2a outputs (the settled factory + predicate factory + seed framework); ADR-0047 Cluster 1; `data-model.md` § Employee / School / Contractor / User; ADR-0061 § `user.employee_id` carry-forward; `app/domain/auth.py` (User model).
 
-**Done when:** four entities have CRUD + read routes + seed coverage on the settled pattern; `User.employee_id` FK/UNIQUE migrated; `redact_csv.py` committed in module shape; backend tests + ruff green; migration applied to Neon.
+**Done when:** four entities have CRUD + read routes + seed coverage on the settled pattern; `User.employee_id` FK/UNIQUE migrated; backend tests + ruff green; migration applied to Neon.
 
 ---
 
-#### Step 2.2c — Frontend admin pages (M)
+#### Step 2.2d — Frontend admin pages (M)
 
 **Goal:** Per-entity admin pages (list + detail/form) for the five roster entities, on the Step 2.1b four-layer + shadcn/RHF/Zod conventions. Employee is the first canonical `src/features/<domain>/` exemplar (auth is not a feature — ADR-0066).
 
@@ -431,11 +470,11 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 **In scope:** list + detail/form admin pages for Employee, School, Contractor, User, Contract; wired into the M1.1 admin-shell nav; per-feature `api/index.ts` barrels over the regenerated client; colocated tests + stories.
 
-**Out of scope:** anything backend (2.2a / 2.2b); the queued theme-toggle follow-up (separate small step per `handoff.md` § Open questions).
+**Out of scope:** anything backend (2.2a / 2.2b / 2.2c); the queued theme-toggle follow-up (separate small step per `handoff.md` § Open questions).
 
 **Commit cadence:** per-entity checkpoint commit.
 
-**Inputs:** `frontend/src/PATTERNS.md`; ADR-0064 / ADR-0065 / ADR-0066; the 2.2a/2.2b read + CRUD routes (regenerate the API client via `pnpm gen-api`); `frontend/src/auth/` (the working four-layer reference).
+**Inputs:** `frontend/src/PATTERNS.md`; ADR-0064 / ADR-0065 / ADR-0066; the 2.2a/2.2c backend read + CRUD routes (regenerate the API client via `pnpm gen-api`); `frontend/src/auth/` (the working four-layer reference).
 
 **Done when:** five admin pages list + create/edit/delete through the backend; `pnpm lint` / `typecheck` / `test` / `build` green; FF-merge `m1/02-flat-roster` → `m1/roster` (closes Step 2.2 / M1.2; Step 2.3 / M1.3 next).
 
