@@ -44,6 +44,16 @@ class InvariantViolation(CommandRejected):
     """
 
 
+class EntityNotFound(CommandRejected):
+    """A command's target entity does not exist, or has been soft-deleted.
+
+    Raised by edit / delete handlers when resolve-by-id finds no live row.
+    Modeled as a CommandRejected so it shares the pipeline's rollback and
+    the route layer's typed-rejection translation; the transport layer
+    maps it to HTTP 404.
+    """
+
+
 class AdvisoryLockUnavailable(Exception):
     """Internal signal: pg_try_advisory_xact_lock returned False.
 
