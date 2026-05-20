@@ -197,7 +197,7 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 | Sub-step | Title | Size | Branch | ADRs expected |
 |---|---|---|---|---|
 | **1.1** ✓ | M1.1 Auth substrate + frontend shell (Session 35, 2026-05-19) | M+ | `m1/01-auth-shell` | 3 (ADR-0061 auth substrate + ADR-0062 Caller shape + ADR-0063 route-guard pattern) |
-| **1.1b** | Frontend architecture & conventions (inserted 2026-05-19 — not an M-milestone) | M–L | `m1/01b-fe-conventions` | 1–2 (ADR-0064 four-layer FE architecture; poss. +1 UI/form stack) |
+| **1.1b** ✓ | Frontend architecture & conventions (inserted 2026-05-19 — not an M-milestone) | M–L | `m1/01b-fe-conventions` | 3 (ADR-0064 four-layer architecture, ADR-0065 UI/form stack, ADR-0066 auth module + conventions) |
 | **1.2** | M1.2 Admin substrate + flat roster (Employee / School / Contractor / User / Contract) | M | `m1/02-flat-roster` | 1–2 (admin-CRUD authoring shape; admin auth-predicate factory if non-obvious) |
 | **1.3** | M1.3 Role administration (UserRole grant/revoke + `audit_reason` Note) | S–M | `m1/03-role-admin` | 1 (`audit_reason` Note polymorphism mechanism) |
 | **1.4** | M1.4 Range-typed entities (EmployeeRole + ContractorEngagement + `change_employee_role_rate`) | M (possibly L) | `m1/04-range-typed` | 0–1 (compound decomposition if non-obvious) |
@@ -279,7 +279,9 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ---
 
-### Step 2.1b — Frontend architecture & conventions (M–L, inserted)
+### Step 2.1b — Frontend architecture & conventions (M–L, inserted) ✓ COMPLETE
+
+**✓ COMPLETE 2026-05-20 (Session 37).** Both sub-sub-steps landed on `m1/01b-fe-conventions`: 2.1b-A (Session 36 — four-layer architecture + UI/form stack; ADR-0064/0065) and 2.1b-B (Session 37 — auth port + test/story colocation; ADR-0066). FF-merge `m1/01b-fe-conventions` → `m1/roster` at close.
 
 **Inserted 2026-05-19** between Step 2.1 (M1.1) and Step 2.2 (M1.2) — an insertion, not a split (mirrors the `6b-residual-2` precedent; logged in `sessions.md` § Restructure log). **Does not map to a roadmap milestone** — a documented exception to this file's 1:1 step↔milestone contract. Triggered by a planning side-session: adapt-and-port `sca-ih-tracker`'s mature four-layer frontend architecture into this repo *before* M1.2 builds the first substantial frontend feature.
 
@@ -325,9 +327,11 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ---
 
-#### Step 2.1b-B — Port M1.1 auth + test/story colocation (M)
+#### Step 2.1b-B — Port M1.1 auth + test/story colocation (M) ✓ COMPLETE
 
-**Goal:** Move the M1.1 auth code into the four-layer model as the working reference for the conventions 2.1b-A documented, and establish test/story colocation. Structural port only — ADR-0063's cookie-session behavior is preserved exactly.
+**Completed Session 37 (2026-05-20).** M1.1 auth ported into the four-layer model on branch `m1/01b-fe-conventions`. After a three-point conventions deliberation (resolved in ADR-0066), auth landed as a **single cross-cutting `src/auth/` module** — `api/{index,currentUser}.ts`, `hooks/{useCurrentUser,useLogin,useLogout}.ts`, `components/LoginForm.tsx` (+ colocated `.test.tsx` / `.stories.tsx`) — **no `features/auth/`**. `LoginForm` rebuilt on shadcn `Field` + RHF + Zod; pages `pages/login/` + `pages/admin-shell/`; routes slimmed to config; `<Toaster/>` mounted in `__root.tsx`. Test infra relocated `src/tests/` → `src/test/`. `routes/**` ESLint layering rule added (deferred from 2.1b-A). ADR-0063 preserved exactly. **ADR-0066** landed (auth-as-module + `api/index.ts` barrel + feature subfolder vocabulary); ADR-0064 annotated. `pnpm lint` / `typecheck` / `test` (4/4) / `build` green. Closes Step 2.1b.
+
+**Goal (original):** Move the M1.1 auth code into the four-layer model as the working reference for the conventions 2.1b-A documented, and establish test/story colocation. Structural port only — ADR-0063's cookie-session behavior is preserved exactly.
 
 **In scope:**
 

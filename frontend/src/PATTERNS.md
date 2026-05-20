@@ -28,11 +28,24 @@ routes/  →  pages/  →  features/*  →  components/, hooks/, fields/, lib/
 `routes/`. Pages use `getRouteApi('/path')` and never `import { Route }` from a
 route file. Routes import only from `@/pages/` (and `@/auth/`).
 
-`src/auth/` is a deliberate cross-cutting exception — see Routing policy.
+`src/auth/` is a deliberate cross-cutting **module**, not a feature — see
+Routing policy.
 
-Enforced by `no-restricted-imports` in `eslint.config.js`. The `features/` and
-`pages/` rules are active; the `routes/` rule lands in Step 2.1b-B, once the
-M1.1 auth routes are ported off their direct `@/api/generated/` imports.
+Enforced by `no-restricted-imports` in `eslint.config.js` — the `features/`,
+`pages/`, and `routes/` rules are all active.
+
+---
+
+## Feature structure
+
+A feature's subfolders are drawn from a **closed vocabulary** — `components/`,
+`hooks/`, `api/`. Create a subfolder when it gets its first file: there are no
+mandatory or placeholder folders, and no loose files at a feature root.
+
+There is **no `services/` folder**. In a TanStack-Query + openapi-ts stack the
+`api/` barrel, hooks, and concretely-named pure-function modules cover what a
+service layer would (ADR-0066). Pure domain logic gets a concretely-named
+module (`features/contracts/pricing.ts`), not a generic folder.
 
 ---
 
@@ -47,11 +60,12 @@ but **outside** `generated/`, so regeneration leaves it intact.
 ### Per-feature API wrappers
 
 Every feature that talks to the backend owns
-`src/features/<domain>/api/<domain>.ts`. Feature components and pages import
-query/mutation helpers from that file only.
+`src/features/<domain>/api/index.ts`, imported as `@/features/<domain>/api`.
+Feature components and pages import query/mutation helpers from that barrel
+only.
 
 ```ts
-// features/employees/api/employees.ts  (illustrative — employees land in M1.2)
+// features/employees/api/index.ts  (illustrative — employees land in M1.2)
 export {
   listEmployeesEmployeesGetOptions as listEmployeesOptions,
   listEmployeesEmployeesGetQueryKey as listEmployeesQueryKey,
@@ -98,10 +112,16 @@ helpers).
 - Pages read typed search/loader data via `getRouteApi('/path')`, never by
   importing `Route` from a route file (that creates a circular dependency).
 
-`src/auth/` holds the cross-cutting current-user query
-(`currentUserQueryOptions`, `useCurrentUser`) consumed by the route guard. It
-sits outside the feature layer because route files must reach it without
-violating the one-way rule.
+`src/auth/` is the cross-cutting **auth/session module** — not a feature. It
+owns the whole session surface: the current-user query (`api/currentUser.ts` —
+`currentUserQueryOptions` / `currentUserQueryKey`), the login and logout
+mutation hooks (`hooks/useLogin`, `hooks/useLogout`), `hooks/useCurrentUser`,
+and `components/LoginForm`. It is organized with the same `api/` / `hooks/` /
+`components/` vocabulary as a feature but lives at `src/` root, because route
+files (the `_authenticated` guard) must reach the current-user query without
+breaking the one-way rule, and because auth is identity infrastructure consumed
+app-wide. `src/auth/` is exempt from the per-feature API-barrel rule and may
+import `@/api/generated/` directly. (ADR-0066.)
 
 ---
 
@@ -115,6 +135,12 @@ not subject to project lint conventions. Add new primitives just-in-time.
 
 Icons: Phosphor (`@phosphor-icons/react`), using the `*Icon`-suffixed names
 (`SignOutIcon`, not the deprecated bare `SignOut`).
+
+Style with the semantic theme tokens only — `bg-background`, `text-foreground`,
+`text-muted-foreground`, `border-border`, etc. Never hardcode colors
+(`bg-white`, `text-gray-500`, hex values). A theme is just a set of values for
+those tokens; keeping styling token-only keeps light/dark — and
+user-selectable themes (post-MVP) — a drop-in.
 
 ---
 
