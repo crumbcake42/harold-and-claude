@@ -3,8 +3,20 @@
 import type { Client, Options as Options2, TDataShape } from "./client";
 import { client } from "./client.gen";
 import type {
+  CreateContractContractsPostData,
+  CreateContractContractsPostErrors,
+  CreateContractContractsPostResponses,
+  DeleteContractContractsContractIdDeleteData,
+  DeleteContractContractsContractIdDeleteErrors,
+  DeleteContractContractsContractIdDeleteResponses,
+  GetContractContractsContractIdGetData,
+  GetContractContractsContractIdGetErrors,
+  GetContractContractsContractIdGetResponses,
   HealthcheckHealthGetData,
   HealthcheckHealthGetResponses,
+  ListContractsContractsGetData,
+  ListContractsContractsGetErrors,
+  ListContractsContractsGetResponses,
   LoginAuthLoginPostData,
   LoginAuthLoginPostErrors,
   LoginAuthLoginPostResponses,
@@ -14,6 +26,9 @@ import type {
   MeAuthMeGetData,
   MeAuthMeGetErrors,
   MeAuthMeGetResponses,
+  UpdateContractContractsContractIdPutData,
+  UpdateContractContractsContractIdPutErrors,
+  UpdateContractContractsContractIdPutResponses,
 } from "./types.gen";
 
 export type Options<
@@ -88,4 +103,78 @@ export const meAuthMeGet = <ThrowOnError extends boolean = false>(
   (options?.client ?? client).get<MeAuthMeGetResponses, MeAuthMeGetErrors, ThrowOnError>({
     url: "/auth/me",
     ...options,
+  });
+
+/**
+ * List Contracts
+ */
+export const listContractsContractsGet = <ThrowOnError extends boolean = false>(
+  options?: Options<ListContractsContractsGetData, ThrowOnError>,
+) =>
+  (options?.client ?? client).get<
+    ListContractsContractsGetResponses,
+    ListContractsContractsGetErrors,
+    ThrowOnError
+  >({ url: "/contracts", ...options });
+
+/**
+ * Create Contract
+ */
+export const createContractContractsPost = <ThrowOnError extends boolean = false>(
+  options: Options<CreateContractContractsPostData, ThrowOnError>,
+) =>
+  (options.client ?? client).post<
+    CreateContractContractsPostResponses,
+    CreateContractContractsPostErrors,
+    ThrowOnError
+  >({
+    url: "/contracts",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
+  });
+
+/**
+ * Delete Contract
+ */
+export const deleteContractContractsContractIdDelete = <ThrowOnError extends boolean = false>(
+  options: Options<DeleteContractContractsContractIdDeleteData, ThrowOnError>,
+) =>
+  (options.client ?? client).delete<
+    DeleteContractContractsContractIdDeleteResponses,
+    DeleteContractContractsContractIdDeleteErrors,
+    ThrowOnError
+  >({ url: "/contracts/{contract_id}", ...options });
+
+/**
+ * Get Contract
+ */
+export const getContractContractsContractIdGet = <ThrowOnError extends boolean = false>(
+  options: Options<GetContractContractsContractIdGetData, ThrowOnError>,
+) =>
+  (options.client ?? client).get<
+    GetContractContractsContractIdGetResponses,
+    GetContractContractsContractIdGetErrors,
+    ThrowOnError
+  >({ url: "/contracts/{contract_id}", ...options });
+
+/**
+ * Update Contract
+ */
+export const updateContractContractsContractIdPut = <ThrowOnError extends boolean = false>(
+  options: Options<UpdateContractContractsContractIdPutData, ThrowOnError>,
+) =>
+  (options.client ?? client).put<
+    UpdateContractContractsContractIdPutResponses,
+    UpdateContractContractsContractIdPutErrors,
+    ThrowOnError
+  >({
+    url: "/contracts/{contract_id}",
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...options.headers,
+    },
   });

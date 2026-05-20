@@ -4,15 +4,32 @@ import { type DefaultError, queryOptions, type UseMutationOptions } from "@tanst
 
 import { client } from "../client.gen";
 import {
+  createContractContractsPost,
+  deleteContractContractsContractIdDelete,
+  getContractContractsContractIdGet,
   healthcheckHealthGet,
+  listContractsContractsGet,
   loginAuthLoginPost,
   logoutAuthLogoutPost,
   meAuthMeGet,
   type Options,
+  updateContractContractsContractIdPut,
 } from "../sdk.gen";
 import type {
+  CreateContractContractsPostData,
+  CreateContractContractsPostError,
+  CreateContractContractsPostResponse,
+  DeleteContractContractsContractIdDeleteData,
+  DeleteContractContractsContractIdDeleteError,
+  DeleteContractContractsContractIdDeleteResponse,
+  GetContractContractsContractIdGetData,
+  GetContractContractsContractIdGetError,
+  GetContractContractsContractIdGetResponse,
   HealthcheckHealthGetData,
   HealthcheckHealthGetResponse,
+  ListContractsContractsGetData,
+  ListContractsContractsGetError,
+  ListContractsContractsGetResponse,
   LoginAuthLoginPostData,
   LoginAuthLoginPostError,
   LoginAuthLoginPostResponse,
@@ -22,6 +39,9 @@ import type {
   MeAuthMeGetData,
   MeAuthMeGetError,
   MeAuthMeGetResponse,
+  UpdateContractContractsContractIdPutData,
+  UpdateContractContractsContractIdPutError,
+  UpdateContractContractsContractIdPutResponse,
 } from "../types.gen";
 
 export type QueryKey<TOptions extends Options> = [
@@ -169,3 +189,140 @@ export const meAuthMeGetOptions = (options?: Options<MeAuthMeGetData>) =>
     },
     queryKey: meAuthMeGetQueryKey(options),
   });
+
+export const listContractsContractsGetQueryKey = (
+  options?: Options<ListContractsContractsGetData>,
+) => createQueryKey("listContractsContractsGet", options);
+
+/**
+ * List Contracts
+ */
+export const listContractsContractsGetOptions = (
+  options?: Options<ListContractsContractsGetData>,
+) =>
+  queryOptions<
+    ListContractsContractsGetResponse,
+    ListContractsContractsGetError,
+    ListContractsContractsGetResponse,
+    ReturnType<typeof listContractsContractsGetQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await listContractsContractsGet({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: listContractsContractsGetQueryKey(options),
+  });
+
+/**
+ * Create Contract
+ */
+export const createContractContractsPostMutation = (
+  options?: Partial<Options<CreateContractContractsPostData>>,
+): UseMutationOptions<
+  CreateContractContractsPostResponse,
+  CreateContractContractsPostError,
+  Options<CreateContractContractsPostData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    CreateContractContractsPostResponse,
+    CreateContractContractsPostError,
+    Options<CreateContractContractsPostData>
+  > = {
+    mutationFn: async (fnOptions) => {
+      const { data } = await createContractContractsPost({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+/**
+ * Delete Contract
+ */
+export const deleteContractContractsContractIdDeleteMutation = (
+  options?: Partial<Options<DeleteContractContractsContractIdDeleteData>>,
+): UseMutationOptions<
+  DeleteContractContractsContractIdDeleteResponse,
+  DeleteContractContractsContractIdDeleteError,
+  Options<DeleteContractContractsContractIdDeleteData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    DeleteContractContractsContractIdDeleteResponse,
+    DeleteContractContractsContractIdDeleteError,
+    Options<DeleteContractContractsContractIdDeleteData>
+  > = {
+    mutationFn: async (fnOptions) => {
+      const { data } = await deleteContractContractsContractIdDelete({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};
+
+export const getContractContractsContractIdGetQueryKey = (
+  options: Options<GetContractContractsContractIdGetData>,
+) => createQueryKey("getContractContractsContractIdGet", options);
+
+/**
+ * Get Contract
+ */
+export const getContractContractsContractIdGetOptions = (
+  options: Options<GetContractContractsContractIdGetData>,
+) =>
+  queryOptions<
+    GetContractContractsContractIdGetResponse,
+    GetContractContractsContractIdGetError,
+    GetContractContractsContractIdGetResponse,
+    ReturnType<typeof getContractContractsContractIdGetQueryKey>
+  >({
+    queryFn: async ({ queryKey, signal }) => {
+      const { data } = await getContractContractsContractIdGet({
+        ...options,
+        ...queryKey[0],
+        signal,
+        throwOnError: true,
+      });
+      return data;
+    },
+    queryKey: getContractContractsContractIdGetQueryKey(options),
+  });
+
+/**
+ * Update Contract
+ */
+export const updateContractContractsContractIdPutMutation = (
+  options?: Partial<Options<UpdateContractContractsContractIdPutData>>,
+): UseMutationOptions<
+  UpdateContractContractsContractIdPutResponse,
+  UpdateContractContractsContractIdPutError,
+  Options<UpdateContractContractsContractIdPutData>
+> => {
+  const mutationOptions: UseMutationOptions<
+    UpdateContractContractsContractIdPutResponse,
+    UpdateContractContractsContractIdPutError,
+    Options<UpdateContractContractsContractIdPutData>
+  > = {
+    mutationFn: async (fnOptions) => {
+      const { data } = await updateContractContractsContractIdPut({
+        ...options,
+        ...fnOptions,
+        throwOnError: true,
+      });
+      return data;
+    },
+  };
+  return mutationOptions;
+};

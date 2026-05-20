@@ -29,6 +29,108 @@ export type Caller = {
 };
 
 /**
+ * CodeFlatFee
+ *
+ * One {code_type, fee} entry in a Contract's flat-fee schedule.
+ */
+export type CodeFlatFeeInput = {
+  /**
+   * Code Type
+   */
+  code_type: string;
+  /**
+   * Fee
+   */
+  fee: number | string;
+};
+
+/**
+ * CodeFlatFee
+ *
+ * One {code_type, fee} entry in a Contract's flat-fee schedule.
+ */
+export type CodeFlatFeeOutput = {
+  /**
+   * Code Type
+   */
+  code_type: string;
+  /**
+   * Fee
+   */
+  fee: string;
+};
+
+/**
+ * ContractRead
+ *
+ * Contract as returned by the read + write routes. `validity` and
+ * `display_label` are ADR-0043 derivations read off the entity.
+ */
+export type ContractRead = {
+  /**
+   * Id
+   */
+  id: string;
+  /**
+   * Contract Number
+   */
+  contract_number: string;
+  /**
+   * Name
+   */
+  name: string | null;
+  /**
+   * Start Date
+   */
+  start_date: string;
+  /**
+   * End Date
+   */
+  end_date: string | null;
+  /**
+   * Code Flat Fee Schedule
+   */
+  code_flat_fee_schedule: Array<CodeFlatFeeOutput>;
+  /**
+   * Validity
+   */
+  validity: "pending" | "active" | "expired";
+  /**
+   * Display Label
+   */
+  display_label: string;
+};
+
+/**
+ * ContractWriteRequest
+ *
+ * Request body for create (POST) and update (PUT). Both replace the
+ * full set of editable fields.
+ */
+export type ContractWriteRequest = {
+  /**
+   * Contract Number
+   */
+  contract_number: string;
+  /**
+   * Name
+   */
+  name?: string | null;
+  /**
+   * Start Date
+   */
+  start_date: string;
+  /**
+   * End Date
+   */
+  end_date?: string | null;
+  /**
+   * Code Flat Fee Schedule
+   */
+  code_flat_fee_schedule?: Array<CodeFlatFeeInput>;
+};
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -189,3 +291,155 @@ export type MeAuthMeGetResponses = {
 };
 
 export type MeAuthMeGetResponse = MeAuthMeGetResponses[keyof MeAuthMeGetResponses];
+
+export type ListContractsContractsGetData = {
+  body?: never;
+  path?: never;
+  query?: never;
+  url: "/contracts";
+};
+
+export type ListContractsContractsGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type ListContractsContractsGetError =
+  ListContractsContractsGetErrors[keyof ListContractsContractsGetErrors];
+
+export type ListContractsContractsGetResponses = {
+  /**
+   * Response List Contracts Contracts Get
+   *
+   * Successful Response
+   */
+  200: Array<ContractRead>;
+};
+
+export type ListContractsContractsGetResponse =
+  ListContractsContractsGetResponses[keyof ListContractsContractsGetResponses];
+
+export type CreateContractContractsPostData = {
+  body: ContractWriteRequest;
+  path?: never;
+  query?: never;
+  url: "/contracts";
+};
+
+export type CreateContractContractsPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type CreateContractContractsPostError =
+  CreateContractContractsPostErrors[keyof CreateContractContractsPostErrors];
+
+export type CreateContractContractsPostResponses = {
+  /**
+   * Successful Response
+   */
+  201: ContractRead;
+};
+
+export type CreateContractContractsPostResponse =
+  CreateContractContractsPostResponses[keyof CreateContractContractsPostResponses];
+
+export type DeleteContractContractsContractIdDeleteData = {
+  body?: never;
+  path: {
+    /**
+     * Contract Id
+     */
+    contract_id: string;
+  };
+  query?: never;
+  url: "/contracts/{contract_id}";
+};
+
+export type DeleteContractContractsContractIdDeleteErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type DeleteContractContractsContractIdDeleteError =
+  DeleteContractContractsContractIdDeleteErrors[keyof DeleteContractContractsContractIdDeleteErrors];
+
+export type DeleteContractContractsContractIdDeleteResponses = {
+  /**
+   * Successful Response
+   */
+  204: void;
+};
+
+export type DeleteContractContractsContractIdDeleteResponse =
+  DeleteContractContractsContractIdDeleteResponses[keyof DeleteContractContractsContractIdDeleteResponses];
+
+export type GetContractContractsContractIdGetData = {
+  body?: never;
+  path: {
+    /**
+     * Contract Id
+     */
+    contract_id: string;
+  };
+  query?: never;
+  url: "/contracts/{contract_id}";
+};
+
+export type GetContractContractsContractIdGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type GetContractContractsContractIdGetError =
+  GetContractContractsContractIdGetErrors[keyof GetContractContractsContractIdGetErrors];
+
+export type GetContractContractsContractIdGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: ContractRead;
+};
+
+export type GetContractContractsContractIdGetResponse =
+  GetContractContractsContractIdGetResponses[keyof GetContractContractsContractIdGetResponses];
+
+export type UpdateContractContractsContractIdPutData = {
+  body: ContractWriteRequest;
+  path: {
+    /**
+     * Contract Id
+     */
+    contract_id: string;
+  };
+  query?: never;
+  url: "/contracts/{contract_id}";
+};
+
+export type UpdateContractContractsContractIdPutErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError;
+};
+
+export type UpdateContractContractsContractIdPutError =
+  UpdateContractContractsContractIdPutErrors[keyof UpdateContractContractsContractIdPutErrors];
+
+export type UpdateContractContractsContractIdPutResponses = {
+  /**
+   * Successful Response
+   */
+  200: ContractRead;
+};
+
+export type UpdateContractContractsContractIdPutResponse =
+  UpdateContractContractsContractIdPutResponses[keyof UpdateContractContractsContractIdPutResponses];

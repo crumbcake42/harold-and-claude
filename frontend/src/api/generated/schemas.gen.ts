@@ -27,6 +27,170 @@ export const CallerSchema = {
     "The actor on whose behalf a command runs.\n\nConstructed by app.framework.auth.current_user from the session lookup.\nPassed to Dispatcher.dispatch and consumed by ADR-0047 authorization\npredicates. Frozen so callers cannot be mutated mid-pipeline.",
 } as const;
 
+export const CodeFlatFee_InputSchema = {
+  properties: {
+    code_type: {
+      type: "string",
+      title: "Code Type",
+    },
+    fee: {
+      anyOf: [
+        {
+          type: "number",
+        },
+        {
+          type: "string",
+          pattern: "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+        },
+      ],
+      title: "Fee",
+    },
+  },
+  type: "object",
+  required: ["code_type", "fee"],
+  title: "CodeFlatFee",
+  description: "One {code_type, fee} entry in a Contract's flat-fee schedule.",
+} as const;
+
+export const CodeFlatFee_OutputSchema = {
+  properties: {
+    code_type: {
+      type: "string",
+      title: "Code Type",
+    },
+    fee: {
+      type: "string",
+      pattern: "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+      title: "Fee",
+    },
+  },
+  type: "object",
+  required: ["code_type", "fee"],
+  title: "CodeFlatFee",
+  description: "One {code_type, fee} entry in a Contract's flat-fee schedule.",
+} as const;
+
+export const ContractReadSchema = {
+  properties: {
+    id: {
+      type: "string",
+      format: "uuid",
+      title: "Id",
+    },
+    contract_number: {
+      type: "string",
+      title: "Contract Number",
+    },
+    name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Name",
+    },
+    start_date: {
+      type: "string",
+      format: "date",
+      title: "Start Date",
+    },
+    end_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date",
+    },
+    code_flat_fee_schedule: {
+      items: {
+        $ref: "#/components/schemas/CodeFlatFee-Output",
+      },
+      type: "array",
+      title: "Code Flat Fee Schedule",
+    },
+    validity: {
+      type: "string",
+      enum: ["pending", "active", "expired"],
+      title: "Validity",
+    },
+    display_label: {
+      type: "string",
+      title: "Display Label",
+    },
+  },
+  type: "object",
+  required: [
+    "id",
+    "contract_number",
+    "name",
+    "start_date",
+    "end_date",
+    "code_flat_fee_schedule",
+    "validity",
+    "display_label",
+  ],
+  title: "ContractRead",
+  description:
+    "Contract as returned by the read + write routes. `validity` and\n`display_label` are ADR-0043 derivations read off the entity.",
+} as const;
+
+export const ContractWriteRequestSchema = {
+  properties: {
+    contract_number: {
+      type: "string",
+      title: "Contract Number",
+    },
+    name: {
+      anyOf: [
+        {
+          type: "string",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "Name",
+    },
+    start_date: {
+      type: "string",
+      format: "date",
+      title: "Start Date",
+    },
+    end_date: {
+      anyOf: [
+        {
+          type: "string",
+          format: "date",
+        },
+        {
+          type: "null",
+        },
+      ],
+      title: "End Date",
+    },
+    code_flat_fee_schedule: {
+      items: {
+        $ref: "#/components/schemas/CodeFlatFee-Input",
+      },
+      type: "array",
+      title: "Code Flat Fee Schedule",
+    },
+  },
+  type: "object",
+  required: ["contract_number", "start_date"],
+  title: "ContractWriteRequest",
+  description:
+    "Request body for create (POST) and update (PUT). Both replace the\nfull set of editable fields.",
+} as const;
+
 export const HTTPValidationErrorSchema = {
   properties: {
     detail: {
