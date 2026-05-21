@@ -90,14 +90,20 @@ def set_serializable_isolation(session: Session) -> None:
     """Set the current transaction's isolation level to SERIALIZABLE per
     ADR-0052 + ADR-0056 D1.a.
 
-    PostgreSQL: applies `isolation_level=SERIALIZABLE` to the session's
-    connection execution options for the duration of the transaction.
+    PostgreSQL: procures the session's connection with the
+    `isolation_level=SERIALIZABLE` execution option, scoped to that
+    transaction (SQLAlchemy restores the connection's default isolation when
+    it returns to the pool).
 
     SQLite: no-op. SQLite's single-writer concurrency approximates
     serializability by removing concurrency; degraded fallback per ADR-0056 --
     not production-equivalent.
 
-    Called once per top-level dispatch in `Dispatcher._run_pipeline`.
+    Called once per top-level dispatch in `Dispatcher._run_pipeline`. MUST be
+    the first operation on the session: the `isolation_level` option is
+    applied as the connection is first procured, and SQLAlchemy refuses to
+    alter it once the session's transaction has autobegun. `_run_pipeline`
+    calls this before any other session use.
     """
     if session.bind is not None and session.bind.dialect.name == "postgresql":
-        session.connection().execution_options(isolation_level="SERIALIZABLE")
+        session.connection(execution_options={"isolation_level": "SERIALIZABLE"})

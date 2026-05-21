@@ -7,10 +7,11 @@ These tests verify each adapter function's dialect-dispatch logic:
   - SQLite branch (lock returns True without executing SQL; isolation is a
     no-op; json_column falls back to portable JSON for non-PG dialects).
 
-The PG branch is exercised by mocking session.bind.dialect.name -- the live-
-engine PG path is verified by developers pointing DATABASE_URL at a real
-Postgres (no CI gate for PG in M0; docker-compose deferred until vendor pick
-per ADR-0055).
+The PG branch's dialect-dispatch is exercised by mocking
+session.bind.dialect.name. The live-engine PG path -- which the mocks cannot
+model -- is covered by a skipif-gated regression test that runs only when
+DATABASE_URL points at Postgres (no CI gate for PG; docker-compose deferred
+until vendor pick per ADR-0055).
 
 The SQLite branches are also exercised live by the 16 tests under
 test_dispatcher.py + test_capture_sink_integration.py.
@@ -20,11 +21,12 @@ from unittest.mock import MagicMock
 from uuid import UUID
 
 import pytest
-from sqlalchemy import JSON
+from sqlalchemy import JSON, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Dialect, Engine
 from sqlalchemy.orm import sessionmaker
 
+from app.adapters.db import is_postgres
 from app.adapters.postgres import (
     json_column,
     set_serializable_isolation,
@@ -129,17 +131,20 @@ def test_try_advisory_xact_lock_handles_unbound_session() -> None:
 
 
 def test_set_serializable_isolation_applies_execution_option_on_postgresql() -> None:
-    """On PostgreSQL the adapter sets isolation_level=SERIALIZABLE on the
-    session's connection execution options per ADR-0056.
+    """On PostgreSQL the adapter procures the session's connection with the
+    isolation_level=SERIALIZABLE execution option per ADR-0056.
+
+    Mock-level dialect-dispatch check only -- a MagicMock accepts any call
+    shape, so it cannot catch a wrong SQLAlchemy mechanism. The live-PG
+    regression test below is the real catch.
     """
     session = MagicMock()
     session.bind.dialect.name = "postgresql"
 
     set_serializable_isolation(session)
 
-    session.connection.assert_called_once_with()
-    session.connection.return_value.execution_options.assert_called_once_with(
-        isolation_level="SERIALIZABLE"
+    session.connection.assert_called_once_with(
+        execution_options={"isolation_level": "SERIALIZABLE"}
     )
 
 
@@ -163,6 +168,38 @@ def test_set_serializable_isolation_is_noop_on_unbound_session() -> None:
     set_serializable_isolation(session)
 
     session.connection.assert_not_called()
+
+
+# ----- Live PostgreSQL regression (Session 47) -----
+
+
+@pytest.mark.skipif(
+    not is_postgres(), reason="requires a Postgres DATABASE_URL (Neon dev DB)"
+)
+def test_set_serializable_isolation_against_live_postgres() -> None:
+    """Regression (Session 47): on a live Postgres connection,
+    set_serializable_isolation must switch the transaction to SERIALIZABLE
+    without raising.
+
+    The prior mechanism -- connection().execution_options(isolation_level=...)
+    -- raised InvalidRequestError: Session.connection() autobegins the
+    transaction, and SQLAlchemy refuses to alter isolation_level once a
+    transaction is open. The mocked test above cannot catch this (a MagicMock
+    models no autobegin). PG-only; the SQLite suite structurally cannot
+    exercise it. Skipped unless DATABASE_URL points at Postgres.
+    """
+    from app.adapters.db import engine
+
+    factory = sessionmaker(
+        bind=engine, autoflush=False, expire_on_commit=False, future=True
+    )
+    session = factory()
+    try:
+        set_serializable_isolation(session)  # must not raise
+        level = session.execute(text("SHOW transaction_isolation")).scalar()
+        assert level == "serializable"
+    finally:
+        session.close()
 
 
 # ----- Live SQLite end-to-end (not mocked) -----
