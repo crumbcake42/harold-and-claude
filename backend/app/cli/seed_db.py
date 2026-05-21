@@ -49,12 +49,12 @@ from pathlib import Path
 from pydantic import BaseModel
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.adapters.db import SessionFactory
 from app.domain.auth import User, UserRole
 from app.domain.commands.contract import CodeFlatFee, CreateContract
 from app.domain.contract import Contract
 from app.framework.caller import Caller, Role
 from app.framework.command import Command
-from app.framework.db import SessionFactory
 from app.framework.dispatcher import Dispatcher
 from app.framework.runtime import build_dispatcher
 

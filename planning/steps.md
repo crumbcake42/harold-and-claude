@@ -367,7 +367,7 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 | **2.2c** | Backend remainder — Employee / School / Contractor / User-admin-CRUD | M | 0–1 (factory amendment if a non-uniform entity pressures the pattern) |
 | **2.2d** | Frontend admin pages (5 entities) | M | 0 |
 
-**Execution order:** 2.2a ✓ (Session 39) → 2.2b (2.2b-A → 2.2b-B → 2.2b-C) → 2.2c → 2.2d. Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity checkpoint commits within 2.2c and 2.2d (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
+**Execution order:** 2.2a ✓ (Session 39) → 2.2b (2.2b-A → 2.2b-B → 2.2b-C-1 → 2.2b-C-2) → 2.2c → 2.2d. Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity checkpoint commits within 2.2c and 2.2d (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
 
 **Roadmap pointer:** `planning/roadmap.md` § M1.
 
@@ -410,7 +410,7 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 **Architecture settled — Session 41 / ADR-0070** (do not re-deliberate): the backend moved from hexagonal horizontal layers to **vertical feature slices over a shared command engine** — `framework/` (engine) + `adapters/` (shared concrete I/O) + `auth/` (top-level identity module) + `features/<entity>/` (per-entity slices; submodules file-or-package with uniform import paths). Route DTOs stay separate from command `Payload`s. This reversed the Session-32/40 hexagonal direction; the rewind follow-up doc is annotated superseded. **ADR-0067–0074** record the full M1.2 closeout — admin-CRUD authoring, `require_role` factory, `seed_db`, backend architecture, uniqueness pre-check, uniform audit-metadata columns, `EntityNotFound`→404, Cluster 1 → Contract.
 
-**Partitioned into 2.2b-A / 2.2b-B / 2.2b-C** — original 2.2b-A further split 2026-05-20 (Session 41, Case 2; 5 of 7 fit signals — multiple deliberable decisions, 2 from-scratch docs, >60 min, input reading, cross-concern). Seam: architecture deliberation (structure forks + ADRs, 2.2b-A) vs. conventions-doc authoring (2.2b-B); old 2.2b-B refactor → 2.2b-C. Single shared branch `m1/02-flat-roster`; commits land sequentially (1.3a/1.3b + 2.1b-A/B precedent).
+**Partitioned into 2.2b-A / 2.2b-B / 2.2b-C** — original 2.2b-A further split 2026-05-20 (Session 41, Case 2; 5 of 7 fit signals — multiple deliberable decisions, 2 from-scratch docs, >60 min, input reading, cross-concern). Seam: architecture deliberation (structure forks + ADRs, 2.2b-A) vs. conventions-doc authoring (2.2b-B); old 2.2b-B refactor → 2.2b-C. Single shared branch `m1/02-flat-roster`; commits land sequentially (1.3a/1.3b + 2.1b-A/B precedent). **2.2b-C itself further partitioned 2026-05-20 (Session 43, Case 2)** into 2.2b-C-1 (structure refactor) / 2.2b-C-2 (audit-column materialization) — see that sub-step's partition note.
 
 ##### Step 2.2b-A — Structure forks + M1.2 ADRs (M–L) ✓ COMPLETE
 
@@ -440,15 +440,29 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 **Done when:** `backend/CLAUDE.md` + `backend/app/PATTERNS.md` land.
 
-##### Step 2.2b-C — Backend structure refactor (M, Case 2)
+##### Step 2.2b-C — Backend structure refactor + audit columns (Case 2 → partitioned)
 
-**Goal:** Execute 2.2b-A's settled patterns against the existing backend code. Behaviour-preserving refactor + the audit-column materialization.
+**Partitioned 2026-05-20 (Session 43, Case 2)** into 2.2b-C-1 / 2.2b-C-2. The mandated session-head 7-signal check fired three signals: signal 3 (duration — structure refactor ~50–70 min + audit-column materialization ~30–45 min; combined 90–120 min), signal 4 (input reading — a behaviour-preserving refactor holds the whole `app/` tree, >1000 LOC, in context), signal 5 (cross-concern — code topology vs. dispatcher pipeline behaviour). Signals 1/2/6/7 did not fire: the structure is fully settled by ADR-0070 (mechanical, no open structural decision), the lone genuine decision is the audit create-vs-update signal, all inputs exist, scope is well-specified. Seam: **structure refactor vs. audit-column materialization** — the seam this step brief pre-identified. Order is forced — refactor first, so the audit-column work lands on the target layout rather than being moved twice. Single shared branch `m1/02-flat-roster`; commits land sequentially (1.3a/1.3b + 2.1b-A/B + 2.2b-A/B precedent).
 
-**In scope:** (1) reorganize `app/` into the ADR-0070 vertical-slice layout — `framework/` + `adapters/` + `auth/` + `features/<entity>/`; move concrete I/O out of `framework/` into `adapters/`; consolidate auth into `app/auth/`; extract route DTOs into each slice's `schemas`; hoist `runtime.py` to `app/` root; update all imports, the command registry, tests, the OpenAPI export; (2) materialize `created_*/updated_*` columns on Contract + User — Alembic migration + dispatcher stamping step + a create-vs-update signal + read-schema fields; (3) green — backend tests + ruff + pyright, migration applied to Neon, OpenAPI contract + client regenerated.
+###### Step 2.2b-C-1 — Backend structure refactor (M)
 
-**Case 2 check at session head** (per the user's explicit request): run the 7-signal checklist on the full refactor + migration scope; split if it fires.
+**Goal:** Execute ADR-0070 against the existing backend code — a behaviour-preserving move of the M1.1/M1.2 layout onto the vertical-slice structure. No new behaviour; no ADR.
 
-**Done when:** backend runs on the settled structure; audit columns in read responses; all checks green; migration on Neon.
+**In scope:** reorganize `app/` into `framework/` + `adapters/` + `auth/` + `features/contracts/`; move concrete I/O out of `framework/` into `adapters/` (`db.py`, `adapter.py`, `history.py`); split `capture.py` — the `CaptureSink` port + record types stay in `framework/`, the concrete `SqlAlchemyCaptureSink` → `adapters/`; consolidate auth (`framework/auth.py` + `domain/auth.py` + `routes/auth.py`) into `app/auth/`; turn `domain/contract.py` + `domain/commands/contract.py` + `routes/contracts.py` into a `features/contracts/` slice (`entities` / `commands` / `routes` / `schemas` / `queries` — extract route DTOs into `schemas`, read-query logic into `queries`); `framework/crud.py` + `framework/predicates.py` (currently `domain/predicates.py`) stay in `framework/` per ADR-0070; hoist `runtime.py` + `error_handlers.py` to `app/` root; update every import, the command registry, the tests, `migrations/env.py`, and the OpenAPI export.
+
+**Out of scope:** the audit-column materialization (2.2b-C-2); any behaviour change.
+
+**Done when:** backend runs on the ADR-0070 structure; backend tests + ruff + pyright green; OpenAPI contract + client regenerated (no surface change expected — a behaviour-preserving refactor); no migration (no schema change).
+
+###### Step 2.2b-C-2 — Audit-column materialization (S–M)
+
+**Goal:** Materialize ADR-0072's `created_*/updated_*` audit-metadata columns on Contract + User, on the post-2.2b-C-1 vertical-slice structure.
+
+**In scope:** add `created_at` / `created_by` / `updated_at` / `updated_by` to Contract + User; an Alembic migration; a dispatcher stamping step (`created_*` on the creating command, `updated_*` on every later mutating command) + a create-vs-update signal; read-schema fields; migration applied to Neon; OpenAPI contract + client regenerated.
+
+**ADR note:** the create-vs-update signal is the lone genuine open decision — likely **ADR-0075** if it is non-obvious. The behaviour-preserving 2.2b-C-1 carries no ADR.
+
+**Done when:** Contract + User carry the four columns; reads surface them; the dispatcher stamps them; backend tests + ruff + pyright green; migration applied to Neon; OpenAPI regenerated.
 
 ---
 

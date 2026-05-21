@@ -19,6 +19,7 @@ import pytest
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.adapters.postgres import set_serializable_isolation, try_advisory_xact_lock
 from app.framework.caller import Caller
 from app.framework.capture import (
     ComprehensiveRecord,
@@ -86,7 +87,12 @@ def sink() -> InMemorySink:
 def dispatcher(
     smoke_session_factory: sessionmaker[Session], sink: InMemorySink
 ) -> Dispatcher:
-    return Dispatcher(session_factory=smoke_session_factory, sink=sink)
+    return Dispatcher(
+        session_factory=smoke_session_factory,
+        sink=sink,
+        set_isolation=set_serializable_isolation,
+        try_advisory_lock=try_advisory_xact_lock,
+    )
 
 
 @pytest.fixture

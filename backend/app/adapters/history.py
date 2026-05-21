@@ -50,8 +50,8 @@ from uuid import UUID, uuid4
 from sqlalchemy import DateTime, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.framework.adapter import json_column
-from app.framework.db import Base
+from app.adapters.db import Base
+from app.adapters.postgres import json_column
 
 
 class CommonHistoryMixin:

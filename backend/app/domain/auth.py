@@ -28,7 +28,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.framework.db import Base
+from app.adapters.db import Base
 
 
 class User(Base):

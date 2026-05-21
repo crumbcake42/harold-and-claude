@@ -21,6 +21,7 @@ import logging
 import random
 import time
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -28,7 +29,6 @@ from pydantic import BaseModel
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.framework.adapter import set_serializable_isolation, try_advisory_xact_lock
 from app.framework.caller import Caller
 from app.framework.capture import (
     AuditLogRecord,
@@ -46,6 +46,12 @@ from app.framework.exceptions import (
     LifecycleViolation,
     TransientContention,
 )
+
+# Injected Postgres-primitive callables (ADR-0056). The dispatcher lives in the
+# engine layer (app.framework), which imports nothing from app.adapters; the
+# concrete implementations are wired in by app.runtime.build_dispatcher.
+SetIsolation = Callable[[Session], None]
+TryAdvisoryLock = Callable[[Session, str], bool]
 
 logger = logging.getLogger(__name__)
 
@@ -94,13 +100,24 @@ class Dispatcher:
     → history → commit pipeline, with retry on contention.
 
     Constructor injection per ADR-0059's test-ergonomics consequence:
-    session_factory + sink come in as args; tests construct
-    Dispatcher(session_factory=test_factory, sink=InMemorySink()).
+    session_factory, sink, and the two Postgres primitives
+    (set_isolation / try_advisory_lock) come in as args. Injecting the
+    primitives also keeps the engine layer (app.framework) free of any import
+    from app.adapters -- app.runtime.build_dispatcher wires the concrete
+    implementations; tests pass them too.
     """
 
-    def __init__(self, session_factory: sessionmaker[Session], sink: CaptureSink) -> None:
+    def __init__(
+        self,
+        session_factory: sessionmaker[Session],
+        sink: CaptureSink,
+        set_isolation: SetIsolation,
+        try_advisory_lock: TryAdvisoryLock,
+    ) -> None:
         self.session_factory = session_factory
         self.sink = sink
+        self._set_isolation = set_isolation
+        self._try_advisory_lock = try_advisory_lock
 
     def dispatch(
         self,
@@ -176,7 +193,7 @@ class Dispatcher:
         # Top-level: open session, set isolation, run, commit/rollback.
         session = self.session_factory()
         try:
-            set_serializable_isolation(session)
+            self._set_isolation(session)
             command_id = uuid.uuid4()
             try:
                 result = self._run_steps(
@@ -262,7 +279,7 @@ class Dispatcher:
         for invariant_cls in command_cls.invariants:
             if invariant_cls.primitive == "advisory_lock":
                 key = invariant_cls.lock_key(target)
-                if key is not None and not try_advisory_xact_lock(session, key):
+                if key is not None and not self._try_advisory_lock(session, key):
                     raise AdvisoryLockUnavailable(key)
             if not invariant_cls.check(session, target):
                 raise InvariantViolation(

@@ -15,6 +15,7 @@ from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
+from app.adapters.db import get_db
 from app.config import settings
 from app.domain.auth import User, UserRole
 from app.framework.auth import (
@@ -24,7 +25,6 @@ from app.framework.auth import (
     verify_password,
 )
 from app.framework.caller import Caller, Role
-from app.framework.db import get_db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

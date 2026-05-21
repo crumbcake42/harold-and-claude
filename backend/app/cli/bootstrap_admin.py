@@ -18,10 +18,10 @@ import getpass
 import sys
 from datetime import UTC, datetime
 
+from app.adapters.db import SessionFactory
 from app.domain.auth import User, UserRole
 from app.framework.auth import hash_password
 from app.framework.caller import Role
-from app.framework.db import SessionFactory
 
 
 def _read_password(prompt: str = "password: ") -> str:

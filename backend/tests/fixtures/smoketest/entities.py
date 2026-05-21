@@ -2,7 +2,7 @@
 
 Three entities exercise the three history patterns the dispatcher distinguishes
 (comprehensive / lifecycle / audit_log). Three corresponding history tables
-(reusing the production mixins from app.framework.history) let the integration
+(reusing the production mixins from app.adapters.history) let the integration
 test wire SqlAlchemyCaptureSink against SmokeBase tables in isolation from the
 production registries.
 """
@@ -12,12 +12,12 @@ from uuid import UUID, uuid4
 from sqlalchemy import Index, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.framework.adapter import json_column
-from app.framework.history import (
+from app.adapters.history import (
     CommonHistoryMixin,
     ComprehensiveHistoryMixin,
     LifecycleHistoryMixin,
 )
+from app.adapters.postgres import json_column
 
 
 class SmokeBase(DeclarativeBase):

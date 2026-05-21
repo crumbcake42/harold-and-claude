@@ -1,4 +1,4 @@
-"""Unit tests for app.framework.adapter -- the documented Postgres-specific
+"""Unit tests for app.adapters.postgres -- the documented Postgres-specific
 adapter boundary per ADR-0051 + ADR-0052.
 
 These tests verify each adapter function's dialect-dispatch logic:
@@ -25,7 +25,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Dialect, Engine
 from sqlalchemy.orm import sessionmaker
 
-from app.framework.adapter import (
+from app.adapters.postgres import (
     json_column,
     set_serializable_isolation,
     try_advisory_xact_lock,

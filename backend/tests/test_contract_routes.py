@@ -22,9 +22,9 @@ from app.framework.runtime import build_dispatcher
 def admin_client(
     sqlite_engine: Engine, sqlite_session_factory: sessionmaker[Session]
 ) -> Iterator[TestClient]:
+    from app.adapters.db import Base, get_db
     from app.config import settings
     from app.framework.auth import current_user
-    from app.framework.db import Base, get_db
     from app.framework.runtime import get_dispatcher
     from app.main import app
 

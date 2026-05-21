@@ -18,8 +18,9 @@ import pytest
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.adapters.capture import SqlAlchemyCaptureSink
+from app.adapters.postgres import set_serializable_isolation, try_advisory_xact_lock
 from app.framework.caller import Caller
-from app.framework.capture import SqlAlchemyCaptureSink
 from app.framework.command import _clear_registry_for_tests, register
 from app.framework.dispatcher import Dispatcher
 from app.framework.exceptions import InvariantViolation
@@ -69,7 +70,12 @@ def sink() -> SqlAlchemyCaptureSink:
 def dispatcher(
     smoke_session_factory: sessionmaker[Session], sink: SqlAlchemyCaptureSink
 ) -> Dispatcher:
-    return Dispatcher(session_factory=smoke_session_factory, sink=sink)
+    return Dispatcher(
+        session_factory=smoke_session_factory,
+        sink=sink,
+        set_isolation=set_serializable_isolation,
+        try_advisory_lock=try_advisory_xact_lock,
+    )
 
 
 @pytest.fixture

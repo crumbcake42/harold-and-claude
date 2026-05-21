@@ -14,6 +14,8 @@ import pytest
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.adapters.db import Base
+from app.adapters.history import CommandAuditLog
 from app.domain.commands.contract import (
     CodeFlatFee,
     CreateContract,
@@ -22,14 +24,12 @@ from app.domain.commands.contract import (
 )
 from app.domain.contract import Contract
 from app.framework.caller import Caller, Role
-from app.framework.db import Base
 from app.framework.dispatcher import Dispatcher
 from app.framework.exceptions import (
     AuthorizationDenied,
     EntityNotFound,
     InvariantViolation,
 )
-from app.framework.history import CommandAuditLog
 from app.framework.runtime import build_dispatcher
 
 ADMIN = Caller(id=uuid4(), username="admin", roles=frozenset({Role.ADMIN}))

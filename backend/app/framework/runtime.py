@@ -14,14 +14,15 @@ runs outside the request cycle.
 
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.framework.capture import SqlAlchemyCaptureSink
-from app.framework.db import SessionFactory
-from app.framework.dispatcher import Dispatcher
-from app.framework.history import (
+from app.adapters.capture import SqlAlchemyCaptureSink
+from app.adapters.db import SessionFactory
+from app.adapters.history import (
     COMPREHENSIVE_HISTORY,
     LIFECYCLE_HISTORY,
     CommandAuditLog,
 )
+from app.adapters.postgres import set_serializable_isolation, try_advisory_xact_lock
+from app.framework.dispatcher import Dispatcher
 
 
 def build_dispatcher(
@@ -35,7 +36,12 @@ def build_dispatcher(
         lifecycle=LIFECYCLE_HISTORY,
         audit_log_model=CommandAuditLog,
     )
-    return Dispatcher(session_factory=session_factory, sink=sink)
+    return Dispatcher(
+        session_factory=session_factory,
+        sink=sink,
+        set_isolation=set_serializable_isolation,
+        try_advisory_lock=try_advisory_xact_lock,
+    )
 
 
 _dispatcher = build_dispatcher()

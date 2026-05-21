@@ -1,10 +1,13 @@
 """Adapter boundary for Postgres-specific data-layer features per ADR-0051 +
 ADR-0052 + ADR-0056.
 
-Three call sites in the framework reach for Postgres-specific primitives that
-have no portable equivalent. This module is the single documented seam they
-all flow through; non-Postgres engines (SQLite is the only other supported
-target, used as offline-fallback per ADR-0051) receive degraded equivalents.
+This module (`app.adapters.postgres`) is the single documented seam for the
+three Postgres-specific primitives that have no portable equivalent;
+non-Postgres engines (SQLite is the only other supported target, used as
+offline-fallback per ADR-0051) receive degraded equivalents. `json_column()`
+is used at table-declaration time; `set_serializable_isolation` and
+`try_advisory_xact_lock` are injected into the command dispatcher, so the
+engine in `app.framework` imports nothing from `app.adapters`.
 
 Per ADR-0052 § Engine-portability discipline:
     "JSONB ops, advisory locks, and SERIALIZABLE isolation are

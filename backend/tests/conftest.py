@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import app.domain.auth  # noqa: F401 -- registers auth tables on Base.metadata
-from app.framework.db import json_serializer
+from app.adapters.db import json_serializer
 
 
 @pytest.fixture
@@ -74,8 +74,8 @@ def auth_client(
     Secure cookie over plain HTTP. Production keeps Secure=True via the
     .env / config default.
     """
+    from app.adapters.db import Base, get_db
     from app.config import settings
-    from app.framework.db import Base, get_db
     from app.main import app
 
     Base.metadata.create_all(sqlite_engine)

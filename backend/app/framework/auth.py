@@ -34,11 +34,11 @@ from argon2.exceptions import VerifyMismatchError
 from fastapi import Cookie, Depends, HTTPException, status
 from sqlalchemy.orm import Session as DbSession
 
+from app.adapters.db import get_db
 from app.config import settings
 from app.domain.auth import Session as SessionRow
 from app.domain.auth import User, UserRole
 from app.framework.caller import Caller, Role
-from app.framework.db import get_db
 
 # Pinned argon2id parameters per OWASP 2024 guidance (M1.1 decision). Module-
 # level singleton -- PasswordHasher is thread-safe.
