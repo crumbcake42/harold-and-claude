@@ -10,8 +10,11 @@ sees `page`. This mirrors the route-DTO-vs-command-`Payload` separation
 ADR-0070 already draws -- the wire speaks the frontend-friendly idiom, the
 internals speak the standard one.
 
-Engine-level and domain-agnostic: every feature slice's read routes import
-`Page`, `PaginationParams`, and `paginate` from here. Contract's
+Transport-layer and domain-agnostic: it lives in `app/http/` (cross-cutting
+FastAPI code, ADR-0079) -- `PaginationParams` reads `fastapi.Query`, and a
+`Page[T]` envelope is a read-API wire shape, neither of which belongs in the
+write-side command engine. Every feature slice's read routes import `Page`,
+`PaginationParams`, and `paginate` from here. Contract's
 `GET /contracts` is a deliberate exemption -- it holds a handful of rows
 growing ~1 every few years, so it is left on its bare-array shape
 (ADR-0078).
