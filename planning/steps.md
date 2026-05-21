@@ -354,6 +354,8 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 **Inserted 2026-05-20 (Session 40): Step 2.2b — Backend architecture & conventions.** A backend-structure review found M1.1/M1.2 drifted from the Session-32 hexagonal `app/` design; M1.2 closeout (ADRs + conventions docs) + the structure refactor are packaged as a new inserted sub-step. **Old 2.2b → 2.2c, old 2.2c → 2.2d.** The Session-38 seam description above predates the insertion — current order: 2.2a → 2.2b → 2.2c → 2.2d.
 
+**Re-scoped 2026-05-21 (Session 45) — 2.2c / 2.2d restructured to full-stack entity batching.** Per a user decision, the Session-38 decision-first seam (all backends in 2.2a + 2.2c, all five frontends in 2.2d) is replaced by full-stack batching. Contract — backend complete in 2.2a — gets its frontend as a standalone exemplar slice (**new 2.2c — Contract frontend admin**); the four similar entities (Employee / School / Contractor / User) are built full-stack as one batch (**new 2.2d — roster batch**) so the shared frontend abstractions are designed with all four entity shapes plus Contract's concrete frontend in view, rather than extracted retroactively. Old 2.2c's backend-remainder scope is absorbed into new 2.2d's backend portion. Sub-step count unchanged (2.2a–2.2d); no ADR — a Case 2 re-scope. The Session-38 seam description above is superseded for 2.2c / 2.2d.
+
 **Scope addition — dev seed tooling (Session 38).** Scoped into M1.2 at this Case 2 sizing: a `seed_db` CLI that loads redacted CSVs into the DB **through the Command pipeline** (not direct ORM inserts — keeps seeded data real: invariants run, history + audit-log rows written; avoids a second exception to the every-state-change-is-a-Command rule, since a `Caller` exists post-bootstrap). Pairs with the dropped-in `redact_csv.py` (real data → redacted CSV → seed folder → `seed_db`). **Standing requirement: every entity-adding sub-step from M1.2 onward maintains `seed_db` coverage for the entities it introduces** (applies to M1.3 / M1.4 / M2+). Dev infrastructure, parallel to `bootstrap_admin` — not a roadmap milestone; distinct from M8's production data-import-from-spreadsheets work. Click adoption (ADR-0061's "3rd CLI command" trigger) **deferred** — `seed_db` uses stdlib `argparse` (matches `redact_csv` + `export_openapi`); the real Click trigger is restated as "when a unified `app.cli` subcommand group is wanted," a clean standalone step. `just` recipes split idempotent env-setup (`install` + `alembic upgrade head`) from interactive/destructive data-init (`bootstrap-admin`, `seed`); optional thin `first-run` chains them.
 
 **Goal:** First ADR-0047 Cluster 1 predicate landing in M1+ code; the 5 flat roster entities (Employee, School, Contractor, User-admin-CRUD, Contract) with admin CRUD + read routes; per-entity admin pages; and the dev seed-tooling substrate.
@@ -364,10 +366,10 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 |---|---|---|---|
 | **2.2a** ✓ | Backend substrate + Contract exemplar (decisions + factories + seed framework) — COMPLETE Session 39 | M–L | M1.2 closeout ADRs deferred to 2.2b-A |
 | **2.2b** | Backend architecture & conventions (inserted Session 40) — closeout ADRs + `CLAUDE.md`/`PATTERNS.md` + structure refactor | M–L | ~8 from ADR-0067 (3 abstractions + 5 in-flight decisions + backend-architecture ADR) |
-| **2.2c** | Backend remainder — Employee / School / Contractor / User-admin-CRUD | M | 0–1 (factory amendment if a non-uniform entity pressures the pattern) |
-| **2.2d** | Frontend admin pages (5 entities) | M | 0 |
+| **2.2c** | Contract frontend admin (re-scoped Session 45) | S–M | 0 expected |
+| **2.2d** | Roster batch — Employee / School / Contractor / User, full-stack (re-scoped Session 45; Case 2-partitions at head) | L | 0–1 |
 
-**Execution order:** 2.2a ✓ (Session 39) → 2.2b (2.2b-A → 2.2b-B → 2.2b-C-1 → 2.2b-C-2) → 2.2c → 2.2d. Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity checkpoint commits within 2.2c and 2.2d (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
+**Execution order:** 2.2a ✓ (Session 39) → 2.2b ✓ (2.2b-A → 2.2b-B → 2.2b-C-1 → 2.2b-C-2) → 2.2c (Contract frontend admin) → 2.2d (roster batch — full-stack; Case 2-partitions at head). Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity / per-page checkpoint commits within 2.2c and 2.2d (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
 
 **Roadmap pointer:** `planning/roadmap.md` § M1.
 
@@ -470,45 +472,63 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ---
 
-#### Step 2.2c — Backend remainder: Employee / School / Contractor / User-admin-CRUD (M)
+#### Step 2.2c — Contract frontend admin (S–M)
 
-**Goal:** Apply 2.2a's settled pattern to the four remaining flat roster entities. Mechanical where the factory generalizes; the two non-uniform points (User's `edit_user` password reset; the `User.employee_id` FK) get explicit handling.
+**Re-scoped 2026-05-21 (Session 45)** from "Backend remainder" to Contract's frontend slice — see the Step 2.2 header re-scope note. Contract's backend (CRUD + read routes) landed in 2.2a; this wires its admin frontend.
 
-**Case 2 check at session head:** if 2.2a's admin-CRUD authoring decision landed "hand-authored per entity" (not a generalized factory), 4 entities × 3 commands is heavier — run the 7-signal checklist before implementing; split if it fires.
+**Goal:** Wire Contract's admin frontend — list/overview, create, edit pages + admin-shell nav — on the Step 2.1b four-layer + shadcn/RHF/Zod conventions. First frontend feature consumer in M1.2; establishes the exemplar layout the 2.2d roster batch templates from.
+
+**Layout-approval gate (heavyweight here):** before implementation, surface page inventory + an ASCII wireframe per page + information architecture + interaction flow in chat; wait for explicit approval. This review sets the pattern all five roster entities follow. Per `handoff.md` § Process notes — Frontend layout-approval gate.
 
 **In scope:**
+1. `src/features/contracts/` feature slice with an `api/index.ts` barrel over the regenerated client.
+2. List/overview, create, and edit pages in `pages/`; route config in `routes/`.
+3. Admin-shell nav entry for Contracts.
+4. The bespoke `code_flat_fee_schedule` JSONB editor (Contract-specific — does not generalize).
+5. Colocated tests + stories.
+
+Built **concrete** — no shared `EntityListPage` / `useEntityForm` abstractions yet; those are designed in 2.2d with all four roster entities plus this concrete Contract frontend in view.
+
+**Out of scope:** any backend; the four roster entities (2.2d); the queued theme-toggle follow-up.
+
+**Commit cadence:** per-page checkpoint commit.
+
+**Inputs:** `frontend/src/PATTERNS.md`; ADR-0064 / ADR-0065 / ADR-0066; 2.2a's Contract read + CRUD routes (regenerate the client via `pnpm gen-api`); `frontend/src/auth/` (the working four-layer reference); Contract's OpenAPI surface (`ContractRead` etc.).
+
+**Done when:** Contract admin pages list + create/edit/delete through the backend; nav wired; `pnpm lint` / `typecheck` / `test` / `build` green; the exemplar layout is approved.
+
+---
+
+#### Step 2.2d — Roster batch: Employee / School / Contractor / User, full-stack (L)
+
+**Re-scoped 2026-05-21 (Session 45)** from "Frontend admin pages (5 entities)" to a full-stack batch of the four similar roster entities — see the Step 2.2 header re-scope note. Absorbs old 2.2c's backend-remainder scope.
+
+**Goal:** The four similar roster entities — Employee, School, Contractor, User-admin-CRUD — built full-stack as one batch: backends (consuming 2.2a's settled factory + `crud.py` helpers) and frontends, with the shared frontend abstractions (`EntityListPage` / `DataTable` / `useEntityForm` / comboboxes) designed at the batch head with all four entity shapes plus Contract's concrete 2.2c frontend in view — not extracted retroactively.
+
+**Case 2 check mandatory at session head:** four entities × full-stack is L — expect a partition (likely 4-entity backend → shared-component design → 4-entity frontend). "Batch" is the design/scoping unit; implementation spans multiple sessions. Cross-check `architecture.md`'s out-of-band concerns per [[check-out-of-band-concerns]].
+
+**In scope — backend portion** (absorbed from old 2.2c):
 1. **Employee** — `name` + HR attrs; `command_audit_log`; CRUD + read routes. Migration adds the Employee table **and** the `User.employee_id` FK + UNIQUE constraint (ADR-0061 carry-forward; the bootstrap superadmin's null `employee_id` is the nullable-FK shape ADR-0041 Gap 5 anticipates).
 2. **School** — `name` + identifying attrs; `no history`; CRUD + read routes.
 3. **Contractor** — `name` + roster attrs; `command_audit_log`; CRUD + read routes.
 4. **User-admin-CRUD** — admin CRUD on User beyond M1.1's bootstrap insert: `create_user`, `edit_user` (password reset via `hash_password`; `employee_id` link), `delete_user` per delete policy. All under ADR-0047 Cluster 1's `role >= admin` class rule.
-5. `seed_db` coverage for all four entities. (`redact_csv.py` — committed Session 40, already in `app.cli` module shape.)
+5. `seed_db` coverage for all four entities.
 6. Alembic migration(s) for the four tables + the `User.employee_id` alter.
 
-**Out of scope:** all frontend (2.2d); anything in 2.2a's or 2.2b's scope.
+Each new entity is born with `AuditMetadataMixin` + a `creates`-flagged create command (ADR-0072 / ADR-0075); extract the shared `require_unique` helper from Contract's `_require_unique_number` once User's `username` is the second consumer (ADR-0071).
+
+**In scope — frontend portion:**
+7. Shared frontend abstractions designed at the batch head with all four entities + the Contract exemplar in view (resolves ADR-0064's "extract at the second consumer" deferral).
+8. Decide: retrofit Contract's generic frontend parts onto the shared components, or leave Contract standalone.
+9. List + create + edit pages for the four entities; admin-shell nav entries; per-feature `api/index.ts` barrels over the regenerated client; colocated tests + stories. Per-page layout-approval as deltas off the Contract exemplar (per `handoff.md` § Process notes).
+
+**Out of scope:** anything in 2.2a / 2.2b / 2.2c's scope; the queued theme-toggle follow-up.
 
 **Commit cadence:** per-entity checkpoint commit — commit after each entity's additions land green, not only at sub-step close ([[preserve-incremental-commits]]).
 
-**Inputs:** 2.2a outputs (the settled factory + predicate factory + seed framework); ADR-0047 Cluster 1; `data-model.md` § Employee / School / Contractor / User; ADR-0061 § `user.employee_id` carry-forward; `app/domain/auth.py` (User model).
+**Inputs:** 2.2a outputs (the settled factory + predicate factory + seed framework); 2.2c's Contract frontend (the exemplar); `data-model.md` § Employee / School / Contractor / User; ADR-0047 Cluster 1; ADR-0061 § `user.employee_id` carry-forward; ADR-0064 / ADR-0065 / ADR-0066; `frontend/src/PATTERNS.md`; `app/auth/` (User model) + `app/features/contracts/` (the backend slice reference).
 
-**Done when:** four entities have CRUD + read routes + seed coverage on the settled pattern; `User.employee_id` FK/UNIQUE migrated; backend tests + ruff green; migration applied to Neon.
-
----
-
-#### Step 2.2d — Frontend admin pages (M)
-
-**Goal:** Per-entity admin pages (list + detail/form) for the five roster entities, on the Step 2.1b four-layer + shadcn/RHF/Zod conventions. Employee is the first canonical `src/features/<domain>/` exemplar (auth is not a feature — ADR-0066).
-
-**Case 2 check at session head:** 5 pages; the first establishes the `src/features/<domain>/` shape and any just-in-time abstractions (`EntityListPage` etc. — extracted at the second consumer per ADR-0064). If per-entity page work overflows once the exemplar is built, run the 7-signal checklist.
-
-**In scope:** list + detail/form admin pages for Employee, School, Contractor, User, Contract; wired into the M1.1 admin-shell nav; per-feature `api/index.ts` barrels over the regenerated client; colocated tests + stories.
-
-**Out of scope:** anything backend (2.2a / 2.2b / 2.2c); the queued theme-toggle follow-up (separate small step per `handoff.md` § Open questions).
-
-**Commit cadence:** per-entity checkpoint commit.
-
-**Inputs:** `frontend/src/PATTERNS.md`; ADR-0064 / ADR-0065 / ADR-0066; the 2.2a/2.2c backend read + CRUD routes (regenerate the API client via `pnpm gen-api`); `frontend/src/auth/` (the working four-layer reference).
-
-**Done when:** five admin pages list + create/edit/delete through the backend; `pnpm lint` / `typecheck` / `test` / `build` green; FF-merge `m1/02-flat-roster` → `m1/roster` (closes Step 2.2 / M1.2; Step 2.3 / M1.3 next).
+**Done when:** four entities full-stack — backend CRUD + read routes + seed coverage on the settled pattern, plus frontend admin pages — work through the dispatcher and through the browser; the `User.employee_id` FK/UNIQUE is migrated; the shared frontend abstractions are extracted; backend tests + ruff + pyright green; `pnpm lint` / `typecheck` / `test` / `build` green; migration(s) applied to Neon; FF-merge `m1/02-flat-roster` → `m1/roster` (closes Step 2.2 / M1.2; Step 2.3 / M1.3 next).
 
 ---
 
