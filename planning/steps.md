@@ -366,10 +366,10 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 |---|---|---|---|
 | **2.2a** ✓ | Backend substrate + Contract exemplar (decisions + factories + seed framework) — COMPLETE Session 39 | M–L | M1.2 closeout ADRs deferred to 2.2b-A |
 | **2.2b** | Backend architecture & conventions (inserted Session 40) — closeout ADRs + `CLAUDE.md`/`PATTERNS.md` + structure refactor | M–L | ~8 from ADR-0067 (3 abstractions + 5 in-flight decisions + backend-architecture ADR) |
-| **2.2c** | Contract frontend admin (re-scoped Session 45) | S–M | 0 expected |
+| **2.2c** ✓ | Contract frontend admin — COMPLETE Session 46 | S–M | 0 |
 | **2.2d** | Roster batch — Employee / School / Contractor / User, full-stack (re-scoped Session 45; Case 2-partitions at head) | L | 0–1 |
 
-**Execution order:** 2.2a ✓ (Session 39) → 2.2b ✓ (2.2b-A → 2.2b-B → 2.2b-C-1 → 2.2b-C-2) → 2.2c (Contract frontend admin) → 2.2d (roster batch — full-stack; Case 2-partitions at head). Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity / per-page checkpoint commits within 2.2c and 2.2d (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
+**Execution order:** 2.2a ✓ (Session 39) → 2.2b ✓ (2.2b-A → 2.2b-B → 2.2b-C-1 → 2.2b-C-2) → 2.2c ✓ (Session 46) → 2.2d (roster batch — full-stack; Case 2-partitions at head). Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity / per-page checkpoint commits within 2.2c and 2.2d (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
 
 **Roadmap pointer:** `planning/roadmap.md` § M1.
 
@@ -472,7 +472,9 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ---
 
-#### Step 2.2c — Contract frontend admin (S–M)
+#### Step 2.2c — Contract frontend admin (S–M) ✓ COMPLETE
+
+**✓ COMPLETE 2026-05-21 (Session 46).** Contract's admin frontend landed on branch `m1/02-flat-roster` as a `features/contracts/` slice — `api/index.ts` barrel, `form.ts` (Zod schema + form↔API mappers), three mutation hooks, five components (`ContractsTable`, `ContractForm`, the bespoke `FeeScheduleEditor` JSONB editor, `ValidityBadge`, `DeleteContractDialog`) with colocated tests + stories — plus list/create/edit pages, routes, and `lib/apiError.ts`. The admin shell was promoted from a placeholder page to a layout (header + left sidebar nav); `pages/dashboard` added. shadcn `table` / `badge` / `alert-dialog` vendored. Two mid-session structural corrections on user pushback: pages regrouped to nested `pages/<entity>/<page>/` (`PATTERNS.md` amended — a refinement within ADR-0064, no new ADR), and the assumed `_authenticated/...` route scheme flagged as wrong-road (an `/admin/`-prefixed shape is a logged follow-up). `pnpm typecheck` / `lint` / `test` (13/13) / `build` green; API client regenerated (no drift). No ADR. **Browser create/edit/delete dogfood is blocked by a pre-existing backend bug** — `set_serializable_isolation` alters `isolation_level` after the connection's transaction has autobegun; PG-only, never caught by the SQLite test suite. Fixed in a dedicated debug session (Session 47); the 2.2c browser pass completes after that.
 
 **Re-scoped 2026-05-21 (Session 45)** from "Backend remainder" to Contract's frontend slice — see the Step 2.2 header re-scope note. Contract's backend (CRUD + read routes) landed in 2.2a; this wires its admin frontend.
 

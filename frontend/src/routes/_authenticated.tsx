@@ -1,6 +1,7 @@
-import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { currentUserQueryOptions } from "@/auth/api";
+import { AdminShellLayout } from "@/pages/admin-shell";
 
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ context }) => {
@@ -12,9 +13,7 @@ export const Route = createFileRoute("/_authenticated")({
     }
     return { user };
   },
-  component: AuthenticatedLayout,
+  // AdminShellLayout renders the persistent chrome + an <Outlet/> for the
+  // matched child page.
+  component: AdminShellLayout,
 });
-
-function AuthenticatedLayout() {
-  return <Outlet />;
-}

@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminShellPage } from "@/pages/admin-shell";
+import { DashboardPage } from "@/pages/dashboard";
 
 export const Route = createFileRoute("/_authenticated/")({
-  component: AdminShellPage,
+  component: DashboardPage,
 });

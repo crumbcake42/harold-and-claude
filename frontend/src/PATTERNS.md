@@ -20,7 +20,7 @@ routes/  →  pages/  →  features/*  →  components/, hooks/, fields/, lib/
 | Layer             | Location                                                  | Responsibility                                                                       |
 | ----------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | Routes            | `src/routes/`                                             | TanStack Router file-based config only — path, `loader`, `beforeLoad`, `validateSearch`. |
-| Pages             | `src/pages/<route>/`                                      | URL-bound compositions. Own `getRouteApi`, URL↔state wiring, loader-data consumption. |
+| Pages             | `src/pages/<page>/`                                       | URL-bound compositions. Own `getRouteApi`, URL↔state wiring, loader-data consumption. |
 | Features          | `src/features/<domain>/`                                  | Routing-agnostic domain components (props in, callbacks out) + per-domain API wrappers. |
 | Shared primitives | `src/components/`, `src/hooks/`, `src/fields/`, `src/lib/` | Generic, domain-free building blocks.                                                |
 
@@ -46,6 +46,31 @@ There is **no `services/` folder**. In a TanStack-Query + openapi-ts stack the
 `api/` barrel, hooks, and concretely-named pure-function modules cover what a
 service layer would (ADR-0066). Pure domain logic gets a concretely-named
 module (`features/contracts/pricing.ts`), not a generic folder.
+
+---
+
+## Page structure
+
+A page is a folder under `src/pages/` holding the page component as
+`index.tsx`. When the route has a loader, the loader is a `loader.ts`
+sibling rather than a second export from `index.tsx` — so the page file
+exports only its component (Fast Refresh's component-only rule).
+
+Pages for an entity with more than one route are **grouped under
+`pages/<entity>/`**, one subfolder per page:
+
+```
+pages/contracts/
+  list/      index.tsx + loader.ts
+  create/    index.tsx
+  edit/      index.tsx + loader.ts
+```
+
+This mirrors the per-entity grouping of `features/<entity>/` and keeps
+`pages/` legible as entities accumulate — the grouping is a folder
+boundary, not a name prefix. A standalone page that is not part of a
+multi-page entity stays flat at `pages/<page>/` (`pages/login/`,
+`pages/dashboard/`, `pages/admin-shell/`).
 
 ---
 
