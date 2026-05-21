@@ -4,10 +4,14 @@ Three items raised during Session 46 (Step 2.2c) via a `/eval-prompt` tangent.
 Surface these at the next session head, before resuming step work. Items 2 and 3
 are discussion items (deliberate, don't pre-decide).
 
-**Status (Session 48).** Items 2, 3, 4 land in the `m1/admin-followups` dedicated
-non-milestone slot — see `handoff.md` § Next session. Item 1 (container/
-presentational split) is deferred into Step 2.2d-2's head deliberations and is
-**not** part of the slot.
+**Status (Session 50) — all four items resolved; this file is now a closed
+historical record.** Items 2 and 3 ✓ landed in Slot-B of the `m1/admin-followups`
+slot — `.claude/skills/eval-prompt/SKILL.md` gained a keyword-`here`-triggered
+mid-session mode; `.claude/skills/assess/SKILL.md` is a new objective
+proposal-assessment skill. No ADR (skills are `.claude/` harness config). Item 4
+(routing path-shape) ✓ landed in Slot-A — ADR-0077, the role-segmented `/admin/*`
+URL scheme. Item 1 (container/presentational split) is deferred into Step
+2.2d-2's head deliberations and was **not** part of the slot.
 
 ---
 

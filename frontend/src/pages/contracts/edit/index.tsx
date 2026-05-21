@@ -13,7 +13,7 @@ import type { ContractFormValues } from "@/features/contracts/form";
 import { useUpdateContract } from "@/features/contracts/hooks/useUpdateContract";
 import { apiErrorMessage } from "@/lib/apiError";
 
-const routeApi = getRouteApi("/_authenticated/contracts/$contractId");
+const routeApi = getRouteApi("/_authenticated/admin/contracts/$contractId");
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString();
@@ -53,7 +53,7 @@ export function ContractEditPage() {
         body: formValuesToWriteRequest(values),
       });
       toast.success("Contract updated");
-      await navigate({ to: "/contracts" });
+      await navigate({ to: "/admin/contracts" });
     } catch (error) {
       toast.error(apiErrorMessage(error, "Could not update the contract."));
     }
@@ -62,7 +62,7 @@ export function ContractEditPage() {
   return (
     <div className="max-w-2xl">
       <Link
-        to="/contracts"
+        to="/admin/contracts"
         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
       >
         <CaretLeftIcon />
@@ -74,7 +74,7 @@ export function ContractEditPage() {
           <ContractForm
             defaultValues={contractToFormValues(contract)}
             onSubmit={handleSubmit}
-            onCancel={() => navigate({ to: "/contracts" })}
+            onCancel={() => navigate({ to: "/admin/contracts" })}
             isPending={updateContract.isPending}
             submitLabel="Save changes"
             metadata={<ContractMetadata contract={contract} />}
@@ -91,7 +91,7 @@ export function ContractEditError() {
   return (
     <div className="max-w-2xl">
       <Link
-        to="/contracts"
+        to="/admin/contracts"
         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
       >
         <CaretLeftIcon />
