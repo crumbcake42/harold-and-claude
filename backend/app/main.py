@@ -4,10 +4,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import app.features.contracts  # noqa: F401  -- importing the slice registers its commands (ADR-0059)
 from app.auth.routes import router as auth_router
 from app.config import settings
-from app.error_handlers import register_error_handlers
+from app.engine.command import validate_registry
 from app.features.contracts.routes import router as contracts_router
-from app.framework.command import validate_registry
-from app.health import router as health_router
+from app.http.error_handlers import register_error_handlers
+from app.http.health import router as health_router
 
 # Registry-load-time guard (ADR-0060): fails loudly at import if a
 # destructive command is cascaded without an explicit opt-in.

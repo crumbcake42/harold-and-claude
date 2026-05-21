@@ -2,13 +2,10 @@
 
 Conventions for the `sca-tracker` backend. **Read before building any new
 feature.** Established in Step 2.2b — ADR-0067 through ADR-0074 (especially
-ADR-0070, the architecture).
+ADR-0070, the architecture); the layer taxonomy was refined by ADR-0079.
 
-This document describes the **target** structure (ADR-0070). Until the Step
-2.2b-C refactor lands, the code still has the M1.1/M1.2 layout (`app/domain/`,
-`app/routes/`, concrete I/O inside `app/framework/`); the conventions below are
-what 2.2b-C moves the existing code onto, and what every slice from Step 2.2c
-onward is built on.
+This document describes the backend structure (ADR-0070, layer taxonomy
+refined by ADR-0079).
 
 Engine internals — the dispatcher pipeline, history capture, isolation
 primitives — are M0 substrate and are **not** re-documented here. This doc
@@ -20,28 +17,30 @@ covers how to *author a feature slice* over that engine.
 
 The backend is **vertical feature slices over a shared command engine** — not
 horizontal layers. Horizontal structure is used only where code is genuinely
-cross-cutting (the engine, the I/O adapters); per-concern code is vertical.
+cross-cutting (the engine, the I/O adapters, the transport layer);
+per-concern code is vertical.
 
 ```
 app/
-├── framework/        the command engine — domain-agnostic
+├── engine/           the command engine — domain- and framework-agnostic
 ├── adapters/         shared concrete I/O
+├── http/             cross-cutting FastAPI / transport code
 ├── auth/             identity: User / UserRole / Session, login, current_user
 ├── features/         one vertical slice per concern
 │   └── <entity>/
 ├── cli/              dev / admin CLIs (bootstrap_admin, seed_db, ...)
-├── config.py
+├── config.py         settings
 ├── runtime.py        composition root (builds the production dispatcher)
-├── error_handlers.py exception → HTTP mapping
 └── main.py           FastAPI app assembly
 ```
 
-| Folder        | Holds                                                                                                                                                                            |
-| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `framework/`  | `Command` / `Invariant` base + registry, the dispatcher, `Caller` / `Role`, the `CaptureSink` port + record types, exceptions, the `require_role` predicate factory, CRUD authoring helpers, lock-key policy. |
-| `adapters/`   | The SQLAlchemy engine / `Base` / session factory, the Postgres-specific primitives (`json_column`, advisory lock, SERIALIZABLE isolation), the per-entity history tables + `command_audit_log`, the concrete `SqlAlchemyCaptureSink`. |
-| `auth/`       | The entire identity concern — `User` / `UserRole` / `Session` entities, login / logout / me routes, user-admin CRUD, password hashing, session lifecycle, the `current_user` dependency. Not a feature: every request resolves it. |
-| `features/*`  | One vertical slice per concern. See **Feature-slice structure**.                                                                                                                  |
+| Folder       | Holds                                                                                                                                                                            |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `engine/`    | `Command` / `Invariant` base + registry, the dispatcher, `Caller` / `Role`, the `CaptureSink` port + record types, exceptions, the `require_role` predicate factory, CRUD authoring helpers, lock-key policy. Domain- *and* framework-agnostic — imports no web framework. |
+| `adapters/`  | The SQLAlchemy engine / `Base` / session factory, the Postgres-specific primitives (`json_column`, advisory lock, SERIALIZABLE isolation), the per-entity history tables + `command_audit_log`, the concrete `SqlAlchemyCaptureSink`. |
+| `http/`      | Cross-cutting FastAPI / transport code not owned by one feature: the exception → HTTP mapping (`error_handlers`), the read-API pagination contract (`pagination` — `Page` / `PaginationParams` / `paginate`), the healthcheck route (`health`). |
+| `auth/`      | The entire identity concern — `User` / `UserRole` / `Session` entities, login / logout / me routes, user-admin CRUD, password hashing, session lifecycle, the `current_user` dependency. Not a feature: every request resolves it. |
+| `features/*` | One vertical slice per concern. See **Feature-slice structure**.                                                                                                                  |
 
 ### The dependency rule
 
@@ -50,9 +49,10 @@ review (a mechanical import-linter check is a candidate follow-up).
 
 | Module                | May import                                              |
 | --------------------- | ------------------------------------------------------- |
-| `framework/`          | nothing internal                                        |
-| `adapters/`           | `framework/`                                            |
-| `auth/`, `features/*` | `framework/`, `adapters/` (a feature may also import `auth/`) |
+| `engine/`             | nothing internal                                        |
+| `adapters/`           | `engine/`                                               |
+| `http/`               | `engine/`                                               |
+| `auth/`, `features/*` | `engine/`, `adapters/`, `http/` (a feature may also import `auth/`) |
 | `runtime.py`, `main.py` | everything (composition roots)                        |
 
 `features/*` must **not** import each other — an entity class may be
@@ -112,14 +112,14 @@ dispatcher and cannot be skipped.
 You author a `Command`; the engine enforces auth, lifecycle, invariants,
 history / audit, and commit. The engine itself is M0 substrate — see ADR-0058
 (dispatcher + retry), ADR-0052 / ADR-0057 (history + audit), ADR-0056
-(isolation), and `framework/dispatcher.py`.
+(isolation), and `engine/dispatcher.py`.
 
 ---
 
 ## Writing a command
 
 Admin-roster CRUD commands are **hand-authored `Command` subclasses** — one
-class per (entity, operation) — over the shared helpers in `framework/crud.py`
+class per (entity, operation) — over the shared helpers in `engine/crud.py`
 (ADR-0067). **Not** a generalized factory: the roster entities are non-uniform
 (Contract's JSONB schedule, User's password hash), and a factory wide enough to
 cover them stops being simpler than an explicit class.
@@ -184,7 +184,7 @@ register(CreateContract)
 ## Authorization
 
 ADR-0047's chain-level **class-rule** predicates are encoded once as the
-factory `require_role(minimum: Role)` in `framework/predicates.py` (ADR-0068).
+factory `require_role(minimum: Role)` in `engine/predicates.py` (ADR-0068).
 It returns the `(caller, command_cls, payload, session) -> bool` callable the
 dispatcher reads off `Command.authorization`.
 
@@ -223,7 +223,7 @@ the second consumer (a Step 2.2c carry-forward).
 Every domain entity carries four **audit-metadata columns** — `created_at`,
 `created_by`, `updated_at`, `updated_by` — written **uniformly by the
 dispatcher** (ADR-0072 / ADR-0075). An entity opts in by mixing in
-`AuditMetadataMixin` from `app.framework.audit` alongside `Base`; the
+`AuditMetadataMixin` from `app.engine.audit` alongside `Base`; the
 dispatcher stamps any command target it recognizes. **Do not set them in a
 handler.**
 
@@ -250,7 +250,7 @@ command.
 ## Errors
 
 Handlers raise typed domain exceptions; the dispatcher lets them propagate
-unwrapped (ADR-0011); `app/error_handlers.py` owns the HTTP mapping. A handler
+unwrapped (ADR-0011); `app/http/error_handlers.py` owns the HTTP mapping. A handler
 must **never** raise `HTTPException` — that couples the domain to FastAPI.
 
 | Exception                                            | HTTP | Raised when                                          |

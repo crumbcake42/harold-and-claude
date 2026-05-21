@@ -24,7 +24,7 @@ from app.auth.security import (
     verify_password,
 )
 from app.config import settings
-from app.framework.caller import Caller, Role
+from app.engine.caller import Caller, Role
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

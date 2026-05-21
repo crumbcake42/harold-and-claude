@@ -19,8 +19,8 @@ from collections.abc import Callable
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.framework.caller import Caller, Role, has_role_at_least
-from app.framework.command import Command
+from app.engine.caller import Caller, Role, has_role_at_least
+from app.engine.command import Command
 
 # The shape the dispatcher's authorization step calls (ADR-0059 pipeline).
 AuthPredicate = Callable[[Caller, type[Command], BaseModel, Session], bool]

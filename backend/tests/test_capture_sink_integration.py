@@ -20,10 +20,10 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.capture import SqlAlchemyCaptureSink
 from app.adapters.postgres import set_serializable_isolation, try_advisory_xact_lock
-from app.framework.caller import Caller
-from app.framework.command import _clear_registry_for_tests, register
-from app.framework.dispatcher import Dispatcher
-from app.framework.exceptions import InvariantViolation
+from app.engine.caller import Caller
+from app.engine.command import _clear_registry_for_tests, register
+from app.engine.dispatcher import Dispatcher
+from app.engine.exceptions import InvariantViolation
 from tests.fixtures.smoketest.commands import (
     CloseSmokeLifecycle,
     CreateSmoke,
@@ -193,7 +193,7 @@ def test_sink_raises_keyerror_for_unregistered_entity_type(
 ) -> None:
     from datetime import UTC, datetime
 
-    from app.framework.capture import ComprehensiveRecord
+    from app.engine.capture import ComprehensiveRecord
 
     record = ComprehensiveRecord(
         id=uuid4(),

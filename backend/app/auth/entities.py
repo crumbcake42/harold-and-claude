@@ -34,7 +34,7 @@ from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.adapters.db import Base
-from app.framework.audit import AuditMetadataMixin
+from app.engine.audit import AuditMetadataMixin
 
 
 class User(Base, AuditMetadataMixin):

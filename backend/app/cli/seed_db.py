@@ -51,11 +51,11 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.db import SessionFactory
 from app.auth.entities import User, UserRole
+from app.engine.caller import Caller, Role
+from app.engine.command import Command
+from app.engine.dispatcher import Dispatcher
 from app.features.contracts.commands import CodeFlatFee, CreateContract
 from app.features.contracts.entities import Contract
-from app.framework.caller import Caller, Role
-from app.framework.command import Command
-from app.framework.dispatcher import Dispatcher
 from app.runtime import build_dispatcher
 
 DEFAULT_SEED_DIR = Path(__file__).resolve().parent / "seeds"

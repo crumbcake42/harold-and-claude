@@ -22,6 +22,8 @@ from sqlalchemy.orm import Session as DbSession
 
 from app.adapters.db import get_db
 from app.auth import current_user
+from app.engine.caller import Caller
+from app.engine.dispatcher import Dispatcher
 from app.features.contracts import queries
 from app.features.contracts.commands import (
     CreateContract,
@@ -29,8 +31,6 @@ from app.features.contracts.commands import (
     EditContract,
 )
 from app.features.contracts.schemas import ContractRead, ContractWriteRequest
-from app.framework.caller import Caller
-from app.framework.dispatcher import Dispatcher
 from app.runtime import get_dispatcher
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])

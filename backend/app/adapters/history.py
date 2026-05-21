@@ -29,7 +29,7 @@ FK timing (M0.3 / Step 1.3b):
   data-model.md § Common metadata names the FK direction (history.entity_id
   -> entity.id); honoring it requires the entity table to exist first.
 
-Column shape (matches the HistoryRecord variants in app.framework.capture):
+Column shape (matches the HistoryRecord variants in app.engine.capture):
   Common metadata: id, entity_id, command_id, command_name, caller_id, at.
   Comprehensive adds: snapshot.
   Lifecycle adds: from_state (nullable), to_state, transition_name,

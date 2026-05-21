@@ -22,7 +22,7 @@ from uuid import uuid4
 from app.adapters.db import SessionFactory
 from app.auth.entities import User, UserRole
 from app.auth.security import hash_password
-from app.framework.caller import Role
+from app.engine.caller import Role
 
 
 def _read_password(prompt: str = "password: ") -> str:

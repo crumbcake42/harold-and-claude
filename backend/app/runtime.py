@@ -22,7 +22,7 @@ from app.adapters.history import (
     CommandAuditLog,
 )
 from app.adapters.postgres import set_serializable_isolation, try_advisory_xact_lock
-from app.framework.dispatcher import Dispatcher
+from app.engine.dispatcher import Dispatcher
 
 
 def build_dispatcher(

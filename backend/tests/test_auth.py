@@ -24,7 +24,7 @@ from app.auth.entities import Session as SessionRow
 from app.auth.entities import User, UserRole
 from app.auth.security import hash_password
 from app.config import settings
-from app.framework.caller import Role
+from app.engine.caller import Role
 
 
 def _seed_admin(session_factory: sessionmaker[Session], username: str = "admin") -> User:

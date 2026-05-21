@@ -7,7 +7,7 @@ non-Postgres engines (SQLite is the only other supported target, used as
 offline-fallback per ADR-0051) receive degraded equivalents. `json_column()`
 is used at table-declaration time; `set_serializable_isolation` and
 `try_advisory_xact_lock` are injected into the command dispatcher, so the
-engine in `app.framework` imports nothing from `app.adapters`.
+engine in `app.engine` imports nothing from `app.adapters`.
 
 Per ADR-0052 § Engine-portability discipline:
     "JSONB ops, advisory locks, and SERIALIZABLE isolation are
@@ -49,7 +49,7 @@ from sqlalchemy import JSON, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
-from app.framework.locks import validate_key_namespace
+from app.engine.locks import validate_key_namespace
 
 
 def json_column() -> JSON:
@@ -73,7 +73,7 @@ def try_advisory_xact_lock(session: Session, key: str) -> bool:
     not production-equivalent.
 
     The key must start with a registered `LockNamespace` prefix per
-    `app.framework.locks`; validation raises `ValueError` otherwise.
+    `app.engine.locks`; validation raises `ValueError` otherwise.
     """
     validate_key_namespace(key)
     dialect = session.bind.dialect.name if session.bind is not None else ""
