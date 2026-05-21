@@ -4,6 +4,11 @@ Three items raised during Session 46 (Step 2.2c) via a `/eval-prompt` tangent.
 Surface these at the next session head, before resuming step work. Items 2 and 3
 are discussion items (deliberate, don't pre-decide).
 
+**Status (Session 48).** Items 2, 3, 4 land in the `m1/admin-followups` dedicated
+non-milestone slot — see `handoff.md` § Next session. Item 1 (container/
+presentational split) is deferred into Step 2.2d-2's head deliberations and is
+**not** part of the slot.
+
 ---
 
 ## 1. Refined design-question prompt — to be read and answered

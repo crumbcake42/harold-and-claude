@@ -367,9 +367,9 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 | **2.2a** ✓ | Backend substrate + Contract exemplar (decisions + factories + seed framework) — COMPLETE Session 39 | M–L | M1.2 closeout ADRs deferred to 2.2b-A |
 | **2.2b** | Backend architecture & conventions (inserted Session 40) — closeout ADRs + `CLAUDE.md`/`PATTERNS.md` + structure refactor | M–L | ~8 from ADR-0067 (3 abstractions + 5 in-flight decisions + backend-architecture ADR) |
 | **2.2c** ✓ | Contract frontend admin — COMPLETE Session 46 | S–M | 0 |
-| **2.2d** | Roster batch — Employee / School / Contractor / User, full-stack (re-scoped Session 45; Case 2-partitions at head) | L | 0–1 |
+| **2.2d** | Roster batch — Employee / School / Contractor / User, full-stack (re-scoped Session 45; partitioned Session 48 → 2.2d-1/2/3) | L | 0–1 |
 
-**Execution order:** 2.2a ✓ (Session 39) → 2.2b ✓ (2.2b-A → 2.2b-B → 2.2b-C-1 → 2.2b-C-2) → 2.2c ✓ (Session 46) → 2.2d (roster batch — full-stack; Case 2-partitions at head). Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity / per-page checkpoint commits within 2.2c and 2.2d (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
+**Execution order:** 2.2a ✓ (Session 39) → 2.2b ✓ (2.2b-A → 2.2b-B → 2.2b-C-1 → 2.2b-C-2) → 2.2c ✓ (Session 46) → [`m1/admin-followups` dedicated non-milestone slot — Session-46 routing + skill follow-ups] → 2.2d (partitioned Session 48 → 2.2d-1 backend / 2.2d-2 shared FE abstractions / 2.2d-3 roster FE pages). Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity / per-page checkpoint commits within 2.2c and 2.2d (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
 
 **Roadmap pointer:** `planning/roadmap.md` § M1.
 
@@ -505,9 +505,11 @@ Built **concrete** — no shared `EntityListPage` / `useEntityForm` abstractions
 
 **Re-scoped 2026-05-21 (Session 45)** from "Frontend admin pages (5 entities)" to a full-stack batch of the four similar roster entities — see the Step 2.2 header re-scope note. Absorbs old 2.2c's backend-remainder scope.
 
-**Goal:** The four similar roster entities — Employee, School, Contractor, User-admin-CRUD — built full-stack as one batch: backends (consuming 2.2a's settled factory + `crud.py` helpers) and frontends, with the shared frontend abstractions (`EntityListPage` / `DataTable` / `useEntityForm` / comboboxes) designed at the batch head with all four entity shapes plus Contract's concrete 2.2c frontend in view — not extracted retroactively.
+**Partitioned 2026-05-21 (Session 48, Case 2) into 2.2d-1 / 2.2d-2 / 2.2d-3.** Five of seven fit signals fired: (1) multiple deliberable decisions (shared-abstraction API, pagination contract, container/presentational split, Contract-retrofit); (2) multiple from-scratch artifacts (4 backend slices, 4 frontend slices, the shared abstractions); (3) >60 min (L); (4) input reading (`data-model.md` ×4 entities + the Contract backend & frontend slices as templates); (5) cross-concern (backend entity authoring vs. frontend component architecture). Signal 6 partial — the shared abstractions consume the 4 backends' regenerated client (intra-step ordering). Seam: **roster backend / shared FE abstractions / roster FE pages** — the seam this brief pre-identified; backend-first is forced so 2.2d-2 designs against concrete OpenAPI types for all four entities. Single shared branch `m1/02-flat-roster`; per-entity / per-page checkpoint commits. The `architecture.md` out-of-band cross-check ([[check-out-of-band-concerns]]) came back clean — none of the four concerns (file storage, background jobs, email, auth) intersect the roster entities.
 
-**Case 2 check mandatory at session head:** four entities × full-stack is L — expect a partition (likely 4-entity backend → shared-component design → 4-entity frontend). "Batch" is the design/scoping unit; implementation spans multiple sessions. Cross-check `architecture.md`'s out-of-band concerns per [[check-out-of-band-concerns]].
+**A dedicated non-milestone follow-up slot precedes 2.2d-1.** The Session-46 routing follow-up (`follow-ups/session-46-followups.md` item 4 — define the `/admin/`-prefixed route convention + migrate Contract's routes onto it) and the two skill follow-ups (items 2/3 — `/eval-prompt` mid-session mode, an `/assess` skill) land on branch `m1/admin-followups` off `m1/02-flat-roster`, `--no-ff` merge back (precedent: the `m0/admin-paas-deferral` admin branch). Settling routing here removes it as a cross-concern from the roster batch. Follow-up item 1 (container/presentational split) stays folded into 2.2d-2's head deliberations.
+
+**Goal:** The four similar roster entities — Employee, School, Contractor, User-admin-CRUD — built full-stack as one batch: backends (consuming 2.2a's settled factory + `crud.py` helpers) and frontends, with the shared frontend abstractions (`EntityListPage` / `DataTable` / `useEntityForm` / comboboxes) designed at the batch head with all four entity shapes plus Contract's concrete 2.2c frontend in view — not extracted retroactively.
 
 **In scope — backend portion** (absorbed from old 2.2c):
 1. **Employee** — `name` + HR attrs; `command_audit_log`; CRUD + read routes. Migration adds the Employee table **and** the `User.employee_id` FK + UNIQUE constraint (ADR-0061 carry-forward; the bootstrap superadmin's null `employee_id` is the nullable-FK shape ADR-0041 Gap 5 anticipates).
@@ -531,6 +533,46 @@ Each new entity is born with `AuditMetadataMixin` + a `creates`-flagged create c
 **Inputs:** 2.2a outputs (the settled factory + predicate factory + seed framework); 2.2c's Contract frontend (the exemplar); `data-model.md` § Employee / School / Contractor / User; ADR-0047 Cluster 1; ADR-0061 § `user.employee_id` carry-forward; ADR-0064 / ADR-0065 / ADR-0066; `frontend/src/PATTERNS.md`; `app/auth/` (User model) + `app/features/contracts/` (the backend slice reference).
 
 **Done when:** four entities full-stack — backend CRUD + read routes + seed coverage on the settled pattern, plus frontend admin pages — work through the dispatcher and through the browser; the `User.employee_id` FK/UNIQUE is migrated; the shared frontend abstractions are extracted; backend tests + ruff + pyright green; `pnpm lint` / `typecheck` / `test` / `build` green; migration(s) applied to Neon; FF-merge `m1/02-flat-roster` → `m1/roster` (closes Step 2.2 / M1.2; Step 2.3 / M1.3 next).
+
+##### Step 2.2d-1 — Roster backend: Employee / School / Contractor / User-admin-CRUD (M–L)
+
+**Goal:** Build the four roster entities' backends on 2.2a's settled `require_role` factory + `crud.py` helpers + the ADR-0070 vertical-slice structure. The abstractions are fixed — this is the "mechanical" application 2.2a's hardest-first strategy set up.
+
+**Scope:** umbrella In-scope items 1–6 — the four entity backends (Employee, School, Contractor, User-admin-CRUD), the shared `require_unique` extraction (ADR-0071), `seed_db` coverage for all four, and the Alembic migration(s) including the `User.employee_id` FK + UNIQUE alter (ADR-0061). Each new entity born with `AuditMetadataMixin` + a `creates`-flagged create command (ADR-0072 / ADR-0075).
+
+**Head decision (STOP-AND-CONFIRM):** the pagination **contract** — read-route query-param + response-envelope shape, uniform across all four entities (School carries a few hundred rows; the pagination *UI* is 2.2d-2, but the *contract* must be settled here so the backend emits it). Possibly ADR-worthy. Whether to retrofit Contract's `GET /contracts` onto the same envelope is a sub-decision.
+
+**Out of scope:** all frontend (2.2d-2 / 2.2d-3); routing (the dedicated follow-up slot).
+
+**Estimate:** M–L — **yellow on signal 3** (four entities); the mandatory session-head 7-signal check may split it 2+2.
+
+**Done when:** the four entity backends flow through the dispatcher; `require_unique` extracted; `seed_db` covers all four; the `User.employee_id` FK/UNIQUE is migrated; backend tests + ruff + pyright green; migration(s) applied to Neon; OpenAPI contract + client regenerated.
+
+##### Step 2.2d-2 — Frontend shared abstractions: design + build (L)
+
+**Goal:** Design and build the shared frontend abstractions — `EntityListPage` / `DataTable` / `useEntityForm` / comboboxes, with pagination — with all four roster entity shapes plus Contract's concrete 2.2c frontend in view. Resolves ADR-0064's "extract at the second consumer" deferral.
+
+**Scope:** umbrella In-scope items 7–8 — design the shared abstractions; resolve (and execute) the Contract-retrofit decision.
+
+**Head deliberations (STOP-AND-CONFIRM):** (a) container/presentational split — Session-46 follow-up item 1; if adopted, a `PATTERNS.md` clause, possibly ADR-worthy; (b) the shared-abstraction API surface — props/generics of `EntityListPage` / `DataTable` / `useEntityForm`, pagination wired to 2.2d-1's contract; (c) retrofit Contract's generic frontend parts onto the shared components vs. leave Contract standalone.
+
+**Out of scope:** the four entity pages (2.2d-3); routing (settled in the dedicated follow-up slot).
+
+**Estimate:** L — **expect a Case 2 split at the session head** (likely deliberation vs. build).
+
+**Done when:** the shared abstractions land green with colocated tests/stories; the Contract-retrofit decision is resolved (and executed if adopted); `pnpm lint` / `typecheck` / `test` / `build` green.
+
+##### Step 2.2d-3 — Roster frontend pages (M)
+
+**Goal:** The four roster entities' admin pages — list / create / edit — built on 2.2d-2's shared abstractions; closes Step 2.2 / M1.2.
+
+**Scope:** umbrella In-scope item 9 — per-entity feature slices with `api/index.ts` barrels over the regenerated client; list/create/edit pages; admin-shell nav entries; colocated tests/stories. Per-page layout-approval as deltas off the Contract exemplar (`handoff.md` § Process notes).
+
+**Out of scope:** anything in 2.2d-1 / 2.2d-2.
+
+**Estimate:** M.
+
+**Done when:** the four entities' admin pages list + create/edit/delete through the browser; nav wired; `pnpm lint` / `typecheck` / `test` / `build` green; FF-merge `m1/02-flat-roster` → `m1/roster` (closes Step 2.2 / M1.2; Step 2.3 / M1.3 next).
 
 ---
 
