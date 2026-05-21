@@ -103,7 +103,7 @@ def _override_current_user_with(role_value: str):
     the synthetic Caller the override returns.
     """
     from app.auth import current_user
-    from app.framework.caller import Caller, Role
+    from app.engine.caller import Caller, Role
     from app.main import app
 
     caller = Caller(

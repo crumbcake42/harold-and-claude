@@ -6,7 +6,7 @@ and is exercised through the per-entity route tests; `paginate()`'s
 slicing + total count is likewise exercised end-to-end there.
 """
 
-from app.framework.pagination import (
+from app.engine.pagination import (
     DEFAULT_PAGE_SIZE,
     MAX_PAGE_SIZE,
     Page,

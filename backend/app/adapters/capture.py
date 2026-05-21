@@ -1,7 +1,7 @@
 """Production capture sink -- the SQLAlchemy-backed `CaptureSink` adapter.
 
 The `CaptureSink` port + the typed record variants live in
-`app.framework.capture`; this module is the concrete adapter that INSERTs a
+`app.engine.capture`; this module is the concrete adapter that INSERTs a
 capture record into the per-entity history tables (comprehensive / lifecycle)
 or the shared command_audit_log table, in the same transaction as the entity
 mutation per ADR-0008 + ADR-0057.
@@ -9,7 +9,7 @@ mutation per ADR-0008 + ADR-0057.
 
 from sqlalchemy.orm import Session
 
-from app.framework.capture import (
+from app.engine.capture import (
     AuditLogRecord,
     ComprehensiveRecord,
     HistoryRecord,

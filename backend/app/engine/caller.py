@@ -1,9 +1,9 @@
 """Caller — the concrete actor passed through the dispatcher pipeline.
 
 Resolves ADR-0059's "Caller concrete shape" carry-forward. The dispatcher
-(app.framework.dispatcher) and ADR-0047 authorization predicates consume the
+(app.engine.dispatcher) and ADR-0047 authorization predicates consume the
 concrete Caller produced by app.auth.current_user; the Protocol stub
-that previously lived in app.framework.command is removed in this commit.
+that previously lived in app.engine.command is removed in this commit.
 
 Role catalog per ADR-0040: superadmin > admin > coordinator > auditor (linear
 hierarchy with conservative grant authority). The hierarchy is an emergent

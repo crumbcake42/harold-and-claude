@@ -20,20 +20,20 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.postgres import set_serializable_isolation, try_advisory_xact_lock
-from app.framework.caller import Caller
-from app.framework.capture import (
+from app.engine.caller import Caller
+from app.engine.capture import (
     ComprehensiveRecord,
     InMemorySink,
     LifecycleRecord,
 )
-from app.framework.command import (
+from app.engine.command import (
     _clear_registry_for_tests,
     cascade_drift_report,
     register,
     validate_registry,
 )
-from app.framework.dispatcher import Dispatcher
-from app.framework.exceptions import (
+from app.engine.dispatcher import Dispatcher
+from app.engine.exceptions import (
     AuthorizationDenied,
     InvariantViolation,
     LifecycleViolation,

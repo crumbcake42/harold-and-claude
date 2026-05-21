@@ -8,7 +8,7 @@ admin-roster CRUD in character; the class rule's entity set extends from
 M1.2 after ADR-0047 was written).
 
 Authoring shape: hand-authored Command classes over the shared helpers in
-`app.framework.crud` (the M1.2 admin-CRUD authoring decision). The
+`app.engine.crud` (the M1.2 admin-CRUD authoring decision). The
 non-uniform part -- Contract's JSONB `code_flat_fee_schedule`, whose
 Pydantic sub-models must be converted to plain dicts before they hit the
 JSON column -- stays explicit here rather than disappearing into a
@@ -30,16 +30,16 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.features.contracts.entities import Contract
-from app.framework.caller import Role
-from app.framework.command import Command, register
-from app.framework.crud import (
+from app.engine.caller import Role
+from app.engine.command import Command, register
+from app.engine.crud import (
     apply_scalar_fields,
     require_unique,
     resolve_for_command,
     soft_delete,
 )
-from app.framework.predicates import require_role
+from app.engine.predicates import require_role
+from app.features.contracts.entities import Contract
 
 # Scalar (non-JSONB) columns copied straight from payload to entity by both
 # create and edit. code_flat_fee_schedule is handled explicitly -- see below.

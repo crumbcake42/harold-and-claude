@@ -3,7 +3,7 @@
 Every state-changing operation in the system is a Command subclass with
 declared metadata (target entity, transition, authorization, invariants,
 cascade, destructive flag) and a nested Payload Pydantic model. The
-dispatcher (app.framework.dispatcher) consumes the declarations to run the
+dispatcher (app.engine.dispatcher) consumes the declarations to run the
 ADR-0012 / ADR-0009 / ADR-0010 / ADR-0008 / ADR-0011 pipeline.
 
 The registry is an explicit dict mapping command-name -> Command class.
@@ -28,11 +28,11 @@ from uuid import UUID
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.framework.caller import Caller
-from app.framework.exceptions import DestructiveCascadeViolation
+from app.engine.caller import Caller
+from app.engine.exceptions import DestructiveCascadeViolation
 
 if TYPE_CHECKING:
-    from app.framework.dispatcher import Dispatcher
+    from app.engine.dispatcher import Dispatcher
 
 
 class Invariant(ABC):
@@ -44,7 +44,7 @@ class Invariant(ABC):
     relies on the dispatcher's per-transaction SERIALIZABLE isolation; "advisory_lock"
     additionally acquires pg_try_advisory_xact_lock at the lock key returned by
     `lock_key(target)`. Lock-key strings must use a registered LockNamespace
-    prefix (app.framework.locks.LockNamespace).
+    prefix (app.engine.locks.LockNamespace).
     """
 
     primitive: ClassVar[str] = "serializable"

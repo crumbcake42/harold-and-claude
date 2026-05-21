@@ -29,7 +29,7 @@ from uuid import UUID
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.framework.exceptions import EntityNotFound, InvariantViolation
+from app.engine.exceptions import EntityNotFound, InvariantViolation
 
 
 def resolve_for_command[T](session: Session, model: type[T], entity_id: UUID) -> T:

@@ -15,7 +15,7 @@ Three responsibilities collected in one module:
 
   - **FastAPI current_user dependency.** Reads the session cookie, looks up
     the row (verifying not expired), refreshes last_seen_at, loads the
-    user's roles, and returns the concrete Caller (app.framework.caller).
+    user's roles, and returns the concrete Caller (app.engine.caller).
     Raises HTTPException(401) on any miss/expiration. This is the single
     seam at which "the request" becomes "the actor" for the dispatcher.
 
@@ -38,7 +38,7 @@ from app.adapters.db import get_db
 from app.auth.entities import Session as SessionRow
 from app.auth.entities import User, UserRole
 from app.config import settings
-from app.framework.caller import Caller, Role
+from app.engine.caller import Caller, Role
 
 # Pinned argon2id parameters per OWASP 2024 guidance (M1.1 decision). Module-
 # level singleton -- PasswordHasher is thread-safe.

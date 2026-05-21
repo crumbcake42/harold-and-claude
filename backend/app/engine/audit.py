@@ -10,9 +10,9 @@ by the dispatcher's stamping step (ADR-0075), never by a handler.
 with `command_audit_log.caller_id`: the actor is always a `User` id, but the
 column is a value, not a constrained reference.
 
-The mixin lives in `app.framework` so the dispatcher can `isinstance`-check
+The mixin lives in `app.engine` so the dispatcher can `isinstance`-check
 a command's target to decide whether it carries audit columns. The engine
-layer (`app.framework`) imports nothing from `app.adapters`; a declarative
+layer (`app.engine`) imports nothing from `app.adapters`; a declarative
 mixin is a plain class -- it does not need `Base` -- so it sits here cleanly.
 """
 

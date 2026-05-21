@@ -13,7 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
-from app.framework.exceptions import (
+from app.engine.exceptions import (
     AuthorizationDenied,
     CommandRejected,
     EntityNotFound,

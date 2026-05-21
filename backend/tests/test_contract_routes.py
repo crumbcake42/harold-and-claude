@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.framework.caller import Caller, Role
+from app.engine.caller import Caller, Role
 from app.runtime import build_dispatcher
 
 

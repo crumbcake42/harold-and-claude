@@ -36,7 +36,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.adapters.db import Base
 from app.adapters.postgres import json_column
-from app.framework.audit import AuditMetadataMixin
+from app.engine.audit import AuditMetadataMixin
 
 
 class Contract(Base, AuditMetadataMixin):

@@ -16,6 +16,15 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.db import Base
 from app.adapters.history import CommandAuditLog
+from app.engine.audit import AuditMetadataMixin
+from app.engine.caller import Caller, Role
+from app.engine.command import registered_commands
+from app.engine.dispatcher import Dispatcher
+from app.engine.exceptions import (
+    AuthorizationDenied,
+    EntityNotFound,
+    InvariantViolation,
+)
 from app.features.contracts.commands import (
     CodeFlatFee,
     CreateContract,
@@ -23,15 +32,6 @@ from app.features.contracts.commands import (
     EditContract,
 )
 from app.features.contracts.entities import Contract
-from app.framework.audit import AuditMetadataMixin
-from app.framework.caller import Caller, Role
-from app.framework.command import registered_commands
-from app.framework.dispatcher import Dispatcher
-from app.framework.exceptions import (
-    AuthorizationDenied,
-    EntityNotFound,
-    InvariantViolation,
-)
 from app.runtime import build_dispatcher
 
 ADMIN = Caller(id=uuid4(), username="admin", roles=frozenset({Role.ADMIN}))

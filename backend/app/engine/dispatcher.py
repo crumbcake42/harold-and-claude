@@ -29,17 +29,17 @@ from pydantic import BaseModel
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.framework.audit import AuditMetadataMixin
-from app.framework.caller import Caller
-from app.framework.capture import (
+from app.engine.audit import AuditMetadataMixin
+from app.engine.caller import Caller
+from app.engine.capture import (
     AuditLogRecord,
     CaptureSink,
     ComprehensiveRecord,
     HistoryRecord,
     LifecycleRecord,
 )
-from app.framework.command import Command
-from app.framework.exceptions import (
+from app.engine.command import Command
+from app.engine.exceptions import (
     AdvisoryLockUnavailable,
     AuthorizationDenied,
     CascadeViolation,
@@ -49,7 +49,7 @@ from app.framework.exceptions import (
 )
 
 # Injected Postgres-primitive callables (ADR-0056). The dispatcher lives in the
-# engine layer (app.framework), which imports nothing from app.adapters; the
+# engine layer (app.engine), which imports nothing from app.adapters; the
 # concrete implementations are wired in by app.runtime.build_dispatcher.
 SetIsolation = Callable[[Session], None]
 TryAdvisoryLock = Callable[[Session, str], bool]
@@ -103,7 +103,7 @@ class Dispatcher:
     Constructor injection per ADR-0059's test-ergonomics consequence:
     session_factory, sink, and the two Postgres primitives
     (set_isolation / try_advisory_lock) come in as args. Injecting the
-    primitives also keeps the engine layer (app.framework) free of any import
+    primitives also keeps the engine layer (app.engine) free of any import
     from app.adapters -- app.runtime.build_dispatcher wires the concrete
     implementations; tests pass them too.
     """

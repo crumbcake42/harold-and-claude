@@ -32,7 +32,7 @@ from app.adapters.postgres import (
     set_serializable_isolation,
     try_advisory_xact_lock,
 )
-from app.framework.locks import closure_readiness_key
+from app.engine.locks import closure_readiness_key
 
 # ----- json_column -----
 
