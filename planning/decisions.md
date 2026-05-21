@@ -2515,3 +2515,22 @@ Entries are numbered sequentially. Once `accepted`, do not edit in place — sup
 - **Amendments to other ADRs:** ADR-0047 — Cluster 1's entity set is widened to include Contract; the class rule itself is unchanged. ADR-0047's `Status` stays `accepted` (per the decisions.md amendment convention).
 
 ---
+
+## ADR-0075 — The dispatcher distinguishes create from update via a declared `creates` flag
+
+- **Date:** 2026-05-21
+- **Status:** accepted
+- **Decision:** The dispatcher's audit-metadata stamping step (ADR-0072) distinguishes a creating command from a mutating one via a **declared boolean class attribute** — `Command.creates` (default `False`; a creating command declares `creates = True`). The step reads `command_cls.creates`: it stamps `created_*` only when `creates` is `True`, and `updated_*` on **every** command. Entities opt into stamping by mixing in `AuditMetadataMixin` (`app/framework/audit.py`); the dispatcher stamps any command target it `isinstance`-recognizes, using one command clock — the same instant written to the matching `command_audit_log` / history row.
+- **Refines ADR-0072:** ADR-0072 described `updated_*` as written "on every *subsequent* mutating command," implying it is null until the first edit. ADR-0075 stamps `updated_*` on the creating command too, so at creation `created_* == updated_*`. This lets all four columns be `NOT NULL` — `updated_*` is always populated — and read schemas / clients need no null handling. The deviation is deliberate: "updated == created at creation" is the near-universal convention and is strictly more useful than a null. ADR-0072 stays `accepted`.
+- **Context:** ADR-0072 deferred the create-vs-update signal as "a 2.2b-C implementation detail." Step 2.2b-C-2 materializes the columns, so the signal had to be chosen.
+- **Alternatives considered:**
+  - *SQLAlchemy instance-state introspection (`target in session.new` before flush).* Rejected — couples audit correctness to ORM lifecycle state: it holds only while `autoflush` stays off and no handler flushes after `session.add`. A future handler that queries after adding its new entity would autoflush it, and the create would mis-classify as an update. Implicit and fragile.
+  - *`resolve_target` returning `None` as the signal.* Rejected — non-lifecycle edit/delete commands resolve their target inside the handler, not via `resolve_target`; reusing it as the signal would force every edit/delete to duplicate the resolve.
+  - *A `CreateCommand` base class carrying `creates = True`.* Rejected — introduces an inheritance level to propagate a single boolean, against ADR-0059's deliberately flat, hand-authored Command shape, and the base would carry no behavior (YAGNI). The "can't forget the flag" win is instead covered by a registry consistency test that also catches the inverse error (an edit command wrongly flagged `creates = True`).
+- **Consequences:**
+  - `Command.creates: ClassVar[bool] = False`; creating commands declare `creates = True`. A test asserts the flag matches the `Create`/`Edit`/`Delete` naming convention for every command targeting an `AuditMetadataMixin` entity.
+  - The stamping step is declarative — no ORM-state introspection.
+  - All four audit-metadata columns are `NOT NULL` from creation onward.
+  - A `CreateCommand` base remains available as a future refactor should creation commands grow shared behavior.
+
+---

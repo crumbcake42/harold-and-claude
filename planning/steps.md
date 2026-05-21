@@ -402,7 +402,7 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 ---
 
-#### Step 2.2b — Backend architecture & conventions (M–L, inserted)
+#### Step 2.2b — Backend architecture & conventions (M–L, inserted) ✓ COMPLETE
 
 **Inserted 2026-05-20 (Session 40)** — an insertion, not a milestone sub-step; the backend twin of Step 2.1b. A Session 40 backend-structure review found M1.1/M1.2 drifted from the Session-32 hexagonal `app/` design (`planning/follow-ups/backend-directory-structure-rewind.md`): `domain/` landed flat with a `domain/commands/` type-bucket instead of per-entity folders; `adapters/` was left empty while concrete-I/O code piled into `framework/`; route files carry transport DTOs + cookie helpers. **Renumbered:** old 2.2b → 2.2c, old 2.2c → 2.2d.
 
@@ -440,7 +440,7 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 **Done when:** `backend/CLAUDE.md` + `backend/app/PATTERNS.md` land.
 
-##### Step 2.2b-C — Backend structure refactor + audit columns (Case 2 → partitioned)
+##### Step 2.2b-C — Backend structure refactor + audit columns (Case 2 → partitioned) ✓ COMPLETE
 
 **Partitioned 2026-05-20 (Session 43, Case 2)** into 2.2b-C-1 / 2.2b-C-2. The mandated session-head 7-signal check fired three signals: signal 3 (duration — structure refactor ~50–70 min + audit-column materialization ~30–45 min; combined 90–120 min), signal 4 (input reading — a behaviour-preserving refactor holds the whole `app/` tree, >1000 LOC, in context), signal 5 (cross-concern — code topology vs. dispatcher pipeline behaviour). Signals 1/2/6/7 did not fire: the structure is fully settled by ADR-0070 (mechanical, no open structural decision), the lone genuine decision is the audit create-vs-update signal, all inputs exist, scope is well-specified. Seam: **structure refactor vs. audit-column materialization** — the seam this step brief pre-identified. Order is forced — refactor first, so the audit-column work lands on the target layout rather than being moved twice. Single shared branch `m1/02-flat-roster`; commits land sequentially (1.3a/1.3b + 2.1b-A/B + 2.2b-A/B precedent).
 
@@ -456,7 +456,9 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 **Done when:** backend runs on the ADR-0070 structure; backend tests + ruff + pyright green; OpenAPI contract + client regenerated (no surface change expected — a behaviour-preserving refactor); no migration (no schema change).
 
-###### Step 2.2b-C-2 — Audit-column materialization (S–M)
+###### Step 2.2b-C-2 — Audit-column materialization (S–M) ✓ COMPLETE
+
+**✓ COMPLETE 2026-05-21 (Session 44).** ADR-0072's four audit-metadata columns materialized on Contract + User via `AuditMetadataMixin` (new `app/framework/audit.py`); Alembic migration `162ac1ebc916` applied to Neon — the one bootstrap-superadmin row backfilled from `UserRole.granted_at` + self-id. The create-vs-update signal resolved as **ADR-0075** — a declared `Command.creates` flag over ORM-state introspection; the dispatcher's stamping step writes `created_*` on creating commands and `updated_*` on every command (so `created_* == updated_*` at creation — a deliberate refinement of ADR-0072 that lets all four columns be `NOT NULL`). `ContractRead` surfaces the columns; OpenAPI contract + client regenerated. `bootstrap_admin` stamps the columns itself (it bypasses the dispatcher). 75 tests + ruff + pyright green. Two checkpoint commits on `m1/02-flat-roster`. Closes Step 2.2b-C and the inserted Step 2.2b.
 
 **Goal:** Materialize ADR-0072's `created_*/updated_*` audit-metadata columns on Contract + User, on the post-2.2b-C-1 vertical-slice structure.
 
