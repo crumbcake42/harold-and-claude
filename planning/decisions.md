@@ -2534,3 +2534,23 @@ Entries are numbered sequentially. Once `accepted`, do not edit in place — sup
   - A `CreateCommand` base remains available as a future refactor should creation commands grow shared behavior.
 
 ---
+
+## ADR-0076 — Dispatcher SERIALIZABLE isolation applied at connection procurement (corrects ADR-0058's mechanism)
+
+- **Date:** 2026-05-21
+- **Status:** accepted
+- **Decision:** The dispatcher's per-transaction SERIALIZABLE isolation is applied by procuring the session's connection **with** the `isolation_level` execution option — `session.connection(execution_options={"isolation_level": "SERIALIZABLE"})` — as the first operation on the session, before its transaction autobegins. This corrects the mechanism ADR-0058 specified, `session.connection().execution_options(isolation_level="SERIALIZABLE")`, which does not work: `Session.connection()` autobegins the transaction, and SQLAlchemy 2.0 refuses to alter `isolation_level` on a connection with an open transaction (`InvalidRequestError`). The adapter seam (`set_serializable_isolation` in `app/adapters/postgres.py`, injected into the dispatcher per ADR-0059), the per-transaction scope, the dialect guard, and the SQLite no-op are all unchanged — only the SQLAlchemy call shape changes.
+- **Context:** Step 2.2c's browser dogfood (Session 46) surfaced a 500 on every `POST /contracts` — `set_serializable_isolation` raising `InvalidRequestError`. The PG branch is dialect-guarded, so the SQLite-only test suite (no docker PG in CI per Step 1.4) never exercised it, and the mocked unit test in `test_postgres.py` asserted the broken call shape against a `MagicMock`, which models no autobegin and so accepted it. Exactly the manual-PG-verification gap Step 1.4 anticipated. Pre-existing latent bug (M0.4 vintage); Session 47 was a dedicated debug session.
+- **Alternatives considered:**
+  - *Dedicated SERIALIZABLE engine handle + dispatcher-only `sessionmaker`* (`engine.execution_options(isolation_level="SERIALIZABLE")` bound to a separate factory). Rejected — robust and ordering-independent, but it removes the `set_isolation` injection seam (ADR-0059), widens the change to the `Dispatcher` constructor + every test that builds one + `runtime.build_dispatcher`, and overturns ADR-0058's explicit rejection of engine-/session-factory-level isolation. The mechanism correction keeps ADR-0058's design intact at one line of change.
+  - *connect/begin event hook.* Rejected — more machinery than the engine-handle option for the same ordering-independence, with no offsetting benefit.
+- **Consequences:**
+  - `set_serializable_isolation` calls `session.connection(execution_options={"isolation_level": "SERIALIZABLE"})`. Correctness depends on it running before the session's transaction autobegins; `Dispatcher._run_pipeline` calls it as the first session operation, and SQLAlchemy raises loudly if that invariant is ever broken. The adapter docstring states the requirement.
+  - SERIALIZABLE stays scoped per-transaction — SQLAlchemy restores the connection's default isolation on return to the pool; reads / scripts / health checks on the shared engine are unaffected (ADR-0058's intent, preserved).
+  - A skipif-gated live-Postgres regression test (`test_set_serializable_isolation_against_live_postgres`) asserts a real connection switches to `serializable`; it runs only when `DATABASE_URL` points at Postgres and is skipped in the SQLite CI. The mocked PG test is corrected to the new call shape, its docstring noting it cannot catch a wrong mechanism.
+  - Verified against the Neon dev DB: a full create → edit → delete command dispatch commits at SERIALIZABLE; the `POST /contracts` 500 is resolved and Step 2.2c's browser dogfood passed.
+- **Amendments to other ADRs:**
+  - **ADR-0058 § Decision + § Consequences ("Per-transaction SERIALIZABLE").** The literal mechanism `session.connection().execution_options(isolation_level="SERIALIZABLE")` is corrected to `session.connection(execution_options={"isolation_level": "SERIALIZABLE"})`. ADR-0058's design — dispatcher-level, per-transaction, neither engine- nor session-factory-level — is unchanged; only the SQLAlchemy call realizing it changes. ADR-0058 stays `accepted`.
+  - **ADR-0056 D1.a is not amended** — its wording ("set per-transaction at the dispatcher's top-level pipeline entry") names no mechanism and stays accurate.
+
+---
