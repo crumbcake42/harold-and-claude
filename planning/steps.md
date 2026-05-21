@@ -426,7 +426,9 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 **Done when:** structure forks settled; M1.2 ADRs written from ADR-0067.
 
-##### Step 2.2b-B — Backend conventions docs (M)
+##### Step 2.2b-B — Backend conventions docs (M) ✓ COMPLETE
+
+**✓ COMPLETE 2026-05-20 (Session 42).** Wrote `backend/CLAUDE.md` (thin, auto-loaded pointer) + `backend/app/PATTERNS.md` (the authoritative conventions doc, 13 sections) synthesizing ADR-0067–0074 into prescriptive backend conventions — the ADR-0070 vertical-slice architecture + dependency rule, the slice submodule vocabulary, the `Command` contract surface + `crud.py` helpers + PascalCase naming, the `require_role` factory, the uniqueness pre-check, audit-metadata columns, the exception→HTTP table, route DTOs vs `Payload`s, seeding, migrations, testing. Modeled on the `frontend/CLAUDE.md` + `frontend/src/PATTERNS.md` pair; `PATTERNS.md` written as Option B (a complete slice-authoring guide — restates the `Command` contract surface, points at M0 ADRs for engine internals). Case 2 check ran at head — no signal fired decisively, one session. `PATTERNS.md` describes the ADR-0070 *target* (the code keeps the M1.1/M1.2 layout until 2.2b-C). Documentation only — no application code, no ADRs; plus a wrap-up tooling fix at the user's request — backend `pyright` wired into `just typecheck` / `just ci` via a new `typecheck-backend` recipe (verified green).
 
 **Split out 2026-05-20 (Session 41, Case 2)** from the original 2.2b-A — the conventions-doc authoring half of the seam.
 

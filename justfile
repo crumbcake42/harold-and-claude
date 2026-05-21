@@ -62,9 +62,14 @@ format-backend:
 format-frontend:
     cd frontend && pnpm lint:fix
 
-# --- typecheck (frontend only; mypy not in stack) ---
+# --- typecheck ---
 
-typecheck:
+typecheck: typecheck-backend typecheck-frontend
+
+typecheck-backend:
+    cd backend && uv run pyright
+
+typecheck-frontend:
     cd frontend && pnpm typecheck
 
 # --- test ---
