@@ -24,7 +24,7 @@ export const CallerSchema = {
   required: ["id", "username", "roles"],
   title: "Caller",
   description:
-    "The actor on whose behalf a command runs.\n\nConstructed by app.framework.auth.current_user from the session lookup.\nPassed to Dispatcher.dispatch and consumed by ADR-0047 authorization\npredicates. Frozen so callers cannot be mutated mid-pipeline.",
+    "The actor on whose behalf a command runs.\n\nConstructed by app.auth.current_user from the session lookup.\nPassed to Dispatcher.dispatch and consumed by ADR-0047 authorization\npredicates. Frozen so callers cannot be mutated mid-pipeline.",
 } as const;
 
 export const CodeFlatFee_InputSchema = {

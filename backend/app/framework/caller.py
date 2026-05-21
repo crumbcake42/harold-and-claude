@@ -2,7 +2,7 @@
 
 Resolves ADR-0059's "Caller concrete shape" carry-forward. The dispatcher
 (app.framework.dispatcher) and ADR-0047 authorization predicates consume the
-concrete Caller produced by app.framework.auth.current_user; the Protocol stub
+concrete Caller produced by app.auth.current_user; the Protocol stub
 that previously lived in app.framework.command is removed in this commit.
 
 Role catalog per ADR-0040: superadmin > admin > coordinator > auditor (linear
@@ -40,7 +40,7 @@ _CHAIN_RANK: dict[Role, int] = {role: idx for idx, role in enumerate(_CHAIN_ORDE
 class Caller(BaseModel):
     """The actor on whose behalf a command runs.
 
-    Constructed by app.framework.auth.current_user from the session lookup.
+    Constructed by app.auth.current_user from the session lookup.
     Passed to Dispatcher.dispatch and consumed by ADR-0047 authorization
     predicates. Frozen so callers cannot be mutated mid-pipeline.
     """

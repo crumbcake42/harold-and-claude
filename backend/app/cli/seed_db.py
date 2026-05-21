@@ -56,7 +56,7 @@ from app.features.contracts.entities import Contract
 from app.framework.caller import Caller, Role
 from app.framework.command import Command
 from app.framework.dispatcher import Dispatcher
-from app.framework.runtime import build_dispatcher
+from app.runtime import build_dispatcher
 
 DEFAULT_SEED_DIR = Path(__file__).resolve().parent / "seeds"
 

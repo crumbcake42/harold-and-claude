@@ -8,11 +8,11 @@ SameSite=Lax cookie; 12h sliding TTL).
 Schema notes:
   - User.employee_id is a plain UUID column (no FK constraint) at M1.1; the
     Employee table lands in M1.2 and its migration will add the FK + UNIQUE
-    constraint then. Same pattern as app.framework.history's deferred FKs.
+    constraint then. Same pattern as app.adapters.history's deferred FKs.
   - UserRole is a composite-key associative entity per ADR-0036; role-grant
     commands (grant_user_role / revoke_user_role) land in M1.3.
   - Session.id IS the opaque session token (PK); lookup is by token. Tokens
-    are produced via secrets.token_urlsafe(32) in app.framework.auth.
+    are produced via secrets.token_urlsafe(32) in app.auth.security.
 
 History pattern:
   - User uses the audit_log pattern (it's one of ADR-0052's 7 audit-log

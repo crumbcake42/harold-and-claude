@@ -31,7 +31,7 @@ from app.features.contracts.commands import (
 from app.features.contracts.schemas import ContractRead, ContractWriteRequest
 from app.framework.caller import Caller
 from app.framework.dispatcher import Dispatcher
-from app.framework.runtime import get_dispatcher
+from app.runtime import get_dispatcher
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
 

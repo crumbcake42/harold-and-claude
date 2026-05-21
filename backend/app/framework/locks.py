@@ -4,7 +4,7 @@ This module is policy: the set of named advisory-lock namespaces and the per-
 namespace key-builder functions that produce concrete lock keys for the
 dispatcher to acquire. The acquisition mechanism itself (the PostgreSQL
 `pg_try_advisory_xact_lock` call and its SQLite degraded fallback) lives in
-`app.framework.adapter` per ADR-0051 + ADR-0052's adapter-boundary discipline.
+`app.adapters.postgres` per ADR-0051 + ADR-0052's adapter-boundary discipline.
 
 Per ADR-0056: SERIALIZABLE is the default isolation primitive for cross-entity
 invariant revalidation; invariants whose conflict surface is wide enough to

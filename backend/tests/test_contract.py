@@ -30,7 +30,7 @@ from app.framework.exceptions import (
     EntityNotFound,
     InvariantViolation,
 )
-from app.framework.runtime import build_dispatcher
+from app.runtime import build_dispatcher
 
 ADMIN = Caller(id=uuid4(), username="admin", roles=frozenset({Role.ADMIN}))
 COORDINATOR = Caller(id=uuid4(), username="coord", roles=frozenset({Role.COORDINATOR}))

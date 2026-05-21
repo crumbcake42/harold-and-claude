@@ -57,7 +57,7 @@ def json_column() -> JSON:
     `with_variant`s to JSONB on PostgreSQL; SQLite gets text-backed JSON.
 
     Used at table-declaration time -- the returned type is consumed by
-    `mapped_column(json_column(), ...)` in `app.framework.history`.
+    `mapped_column(json_column(), ...)` in `app.adapters.history`.
     """
     return JSON().with_variant(JSONB(), "postgresql")
 

@@ -9,7 +9,7 @@ export type ClientOptions = {
  *
  * The actor on whose behalf a command runs.
  *
- * Constructed by app.framework.auth.current_user from the session lookup.
+ * Constructed by app.auth.current_user from the session lookup.
  * Passed to Dispatcher.dispatch and consumed by ADR-0047 authorization
  * predicates. Frozen so callers cannot be mutated mid-pipeline.
  */

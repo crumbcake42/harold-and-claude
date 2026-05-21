@@ -15,7 +15,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.framework.caller import Caller, Role
-from app.framework.runtime import build_dispatcher
+from app.runtime import build_dispatcher
 
 
 @pytest.fixture
@@ -25,8 +25,8 @@ def admin_client(
     from app.adapters.db import Base, get_db
     from app.auth import current_user
     from app.config import settings
-    from app.framework.runtime import get_dispatcher
     from app.main import app
+    from app.runtime import get_dispatcher
 
     Base.metadata.create_all(sqlite_engine)
     test_dispatcher = build_dispatcher(sqlite_session_factory)

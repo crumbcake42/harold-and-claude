@@ -13,7 +13,7 @@ from app.adapters.db import Base
 from app.cli.seed_db import run_seed
 from app.features.contracts.entities import Contract
 from app.framework.caller import Caller, Role
-from app.framework.runtime import build_dispatcher
+from app.runtime import build_dispatcher
 
 SEEDER = Caller(id=uuid4(), username="seed", roles=frozenset({Role.SUPERADMIN}))
 
