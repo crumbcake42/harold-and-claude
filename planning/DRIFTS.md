@@ -23,6 +23,7 @@
 | ID | Name | Cause | Pre-identified remedy | Count | Status |
 |----|------|-------|-----------------------|------:|--------|
 | DRIFT-001 | Parallel-definition drift | Two or more deliberately-separate declarations of one underlying shape, kept in sync by hand — they can silently diverge. | Adopt a shared `*WriteFields` base in the domain module, or generate the transport DTOs from the command `Payload`s (remedies weighed under ADR-0070). | 1 | tracking |
+| DRIFT-002 | Layer-charter erosion | A module is placed in an architectural layer (`framework/`, `adapters/`, `auth/`) whose documented `PATTERNS.md` charter it does not fit — usually because it is broadly useful and the layer is the nearest "shared" home. Each misplacement is individually minor; unchecked they blur the layer boundary until the charter stops meaning anything. | Check a new module against the target layer's `PATTERNS.md` charter before placing it; a module that fits no layer cleanly earns an explicit, reviewable placement decision, not a default to the nearest shared folder. | 1 | tracking |
 
 ---
 
@@ -31,3 +32,4 @@
 | Date | ID | Location | Description |
 |------|-----|----------|-------------|
 | 2026-05-20 | DRIFT-001 | `features/contracts` — `schemas` ↔ `commands` | Route DTO `ContractWriteRequest` and `CreateContract.Payload` declare the same field set independently. Founding instance — ADR-0070 confirmed DTO/`Payload` separation and accepted the duplication rather than deriving one from the other. |
+| 2026-05-21 | DRIFT-002 | `app/framework/pagination.py` | `pagination.py` imports `fastapi.Query` — the sole FastAPI import in `framework/`, an otherwise transport-agnostic command engine; pagination is also a read-side concern in a write-side engine. Founding instance — a near-miss caught in a `/assess` review during Step 2.2d-1a. Post-registry recurrence of the Session-40 failure mode (concrete I/O accreting into `framework/`) that forced Step 2.2b. |

@@ -8,7 +8,7 @@ off without escape-hatch parameters. This module holds the genuinely
 repeated mechanics so each Command class stays thin and idiomatic
 (ADR-0059) while the non-uniform parts stay explicit at the command.
 
-Three helpers, reused across every roster entity's edit / delete commands:
+Four helpers, reused across the roster entities' CRUD commands:
 
   resolve_for_command  -- get-by-id, raising EntityNotFound on a missing or
                           soft-deleted row (so edit / delete reject cleanly).
@@ -17,16 +17,19 @@ Three helpers, reused across every roster entity's edit / delete commands:
                           explicitly at the command (they need conversion
                           out of their Pydantic sub-models).
   soft_delete          -- stamp deleted_at for the soft-delete policy.
+  require_unique       -- the natural-key uniqueness pre-check (ADR-0071),
+                          run in create / edit handlers before flush.
 """
 
 from collections.abc import Iterable
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.framework.exceptions import EntityNotFound
+from app.framework.exceptions import EntityNotFound, InvariantViolation
 
 
 def resolve_for_command[T](session: Session, model: type[T], entity_id: UUID) -> T:
@@ -60,3 +63,32 @@ def soft_delete(entity: object) -> None:
     UTC time. The row is retained; history / audit references stay valid.
     """
     setattr(entity, "deleted_at", datetime.now(UTC))  # noqa: B010
+
+
+def require_unique(
+    session: Session,
+    model: type[Any],
+    field: str,
+    value: object,
+    *,
+    exclude_id: UUID | None = None,
+) -> None:
+    """Natural-key uniqueness pre-check (ADR-0071): raise InvariantViolation
+    if a live row of `model` already holds `value` in `field`. Run inside a
+    create / edit handler *before* session.add / flush -- the pipeline
+    flushes before its invariant step, so the DB UNIQUE constraint would
+    otherwise fire a raw IntegrityError first. `exclude_id` skips the
+    entity's own row so an edit can keep its current value.
+
+    The DB UNIQUE constraint stays as the hard backstop: a violation that
+    slips past this check under a concurrent race surfaces as
+    IntegrityError -> 409. Extracted from Contract's private
+    `_require_unique_number` when Employee's `username` became the second
+    uniqueness consumer.
+    """
+    field_column = getattr(model, field)
+    query = session.query(model.id).filter(field_column == value)
+    if exclude_id is not None:
+        query = query.filter(model.id != exclude_id)
+    if query.first() is not None:
+        raise InvariantViolation(f"{model.__name__}.{field} {value!r} already exists")

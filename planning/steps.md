@@ -534,19 +534,65 @@ Each new entity is born with `AuditMetadataMixin` + a `creates`-flagged create c
 
 **Done when:** four entities full-stack — backend CRUD + read routes + seed coverage on the settled pattern, plus frontend admin pages — work through the dispatcher and through the browser; the `User.employee_id` FK/UNIQUE is migrated; the shared frontend abstractions are extracted; backend tests + ruff + pyright green; `pnpm lint` / `typecheck` / `test` / `build` green; migration(s) applied to Neon; FF-merge `m1/02-flat-roster` → `m1/roster` (closes Step 2.2 / M1.2; Step 2.3 / M1.3 next).
 
-##### Step 2.2d-1 — Roster backend: Employee / School / Contractor / User-admin-CRUD (M–L)
+##### Step 2.2d-1 — Roster backend: Employee / School / Contractor / User-admin-CRUD (M–L, partitioned)
+
+**Partitioned 2026-05-21 (Session 51, Case 2) into 2.2d-1a / 2.2d-1b.** The mandated session-head 7-signal check fired two signals: signal 3 (duration — four entity backends + migration + `require_unique` extraction + pagination-contract deliberation + OpenAPI regen ≈ L, ~80+ min) and signal 2 (from-scratch artifacts — three new `features/` slices + the User-admin-CRUD extension into `auth/`). Signals 1/4/5/6/7 did not fire: the four backends are mechanical applications of 2.2a's settled factory + `crud.py` + the Contract template, the lone genuine decision is the pagination contract, all inputs exist, one concern only. The `architecture.md` out-of-band cross-check came back clean. Seam: **2+2 by entity** (Option A) — {Employee, Contractor} (the two near-identical `audit_log` slices) then {School, User-admin-CRUD} (the no-history slice + the non-uniform `auth/`-resident one). Single shared branch `m1/02-flat-roster`; per-entity checkpoint commits (1.3a/1.3b + 2.1b-A/B + 2.2b precedent).
 
 **Goal:** Build the four roster entities' backends on 2.2a's settled `require_role` factory + `crud.py` helpers + the ADR-0070 vertical-slice structure. The abstractions are fixed — this is the "mechanical" application 2.2a's hardest-first strategy set up.
 
 **Scope:** umbrella In-scope items 1–6 — the four entity backends (Employee, School, Contractor, User-admin-CRUD), the shared `require_unique` extraction (ADR-0071), `seed_db` coverage for all four, and the Alembic migration(s) including the `User.employee_id` FK + UNIQUE alter (ADR-0061). Each new entity born with `AuditMetadataMixin` + a `creates`-flagged create command (ADR-0072 / ADR-0075).
 
-**Head decision (STOP-AND-CONFIRM):** the pagination **contract** — read-route query-param + response-envelope shape, uniform across all four entities (School carries a few hundred rows; the pagination *UI* is 2.2d-2, but the *contract* must be settled here so the backend emits it). Possibly ADR-worthy. Whether to retrofit Contract's `GET /contracts` onto the same envelope is a sub-decision.
+**Head decision — settled Session 51 (ADR-0078).** The pagination contract: page-based wire, offset-based internals, wrapped `Page[T]` envelope, uniform across roster read routes. Contract's `GET /contracts` is left exempt (≈2 rows).
 
 **Out of scope:** all frontend (2.2d-2 / 2.2d-3); routing (the dedicated follow-up slot).
 
-**Estimate:** M–L — **yellow on signal 3** (four entities); the mandatory session-head 7-signal check may split it 2+2.
+###### Step 2.2d-1a — Roster backend: Employee + Contractor (M)
 
-**Done when:** the four entity backends flow through the dispatcher; `require_unique` extracted; `seed_db` covers all four; the `User.employee_id` FK/UNIQUE is migrated; backend tests + ruff + pyright green; migration(s) applied to Neon; OpenAPI contract + client regenerated.
+**Partially complete — Session 51 (2026-05-21).** Landed on `m1/02-flat-roster` (uncommitted at wrap): the pagination substrate — `app/framework/pagination.py` (`Page` / `PaginationParams` / `paginate`) + `tests/test_pagination.py` — settling the pagination contract as **ADR-0078**; and the shared `require_unique` helper extracted into `app/framework/crud.py` with Contract retrofitted onto it (ADR-0071 — Employee's `username` will be the second consumer). **Remaining:** the Employee + Contractor slices, the Alembic migration (+ `User.employee_id` FK/UNIQUE), `seed_db` coverage, OpenAPI regen — these **resume after the inserted `engine`/`http` rename slot** (see below) so the new slices are built on the post-rename structure.
+
+**Concrete attributes** (settled Session 51 — `data-model.md` § Employee/Contractor leaves HR attrs to implementation): **Employee** — `first_name`, `last_name`, `username` (DB `NOT NULL UNIQUE`; wire-optional on create, handler derives `{first_name}.{last_name}` + zero-padded `01`/`02`… collision suffix; required on edit — two write DTOs), `email?`, `phone?`, `adp_id?`. **Contractor** — `name`, `address`, `city`, `state`, `zip`, `phone?`, `contact_email?`, `description?`; one symmetric write DTO; no uniqueness constraint. `seed_db` skip-key: Employee `username`, Contractor `name`.
+
+**Goal:** Build the Employee and Contractor backend slices — the two near-identical `command_audit_log` roster entities — and settle the pagination contract the whole roster batch emits.
+
+**Head decision (STOP-AND-CONFIRM) — settled Session 51 as ADR-0078.** The pagination contract: a page-based wire (`page`/`page_size`) over offset-based internals, a wrapped `Page[T]` envelope; Contract's `GET /contracts` left exempt (not retrofitted).
+
+**In scope:** `features/employees/` + `features/contractors/` slices (entities / commands / routes / schemas / queries) — `name` + intrinsic attrs, `AuditMetadataMixin`, `command_audit_log` history, `Create`/`Edit`/`Delete` commands + read routes; the pagination substrate (`Page`/`PaginationParams`/`paginate`, ADR-0078) applied to the new read routes; the shared `require_unique` helper extracted to `crud.py` (ADR-0071, Contract retrofitted); `seed_db` coverage for both; one Alembic migration creating the `employee` + `contractor` tables **and** adding the `User.employee_id` FK + UNIQUE alter (ADR-0061 — the Employee table is its precondition); OpenAPI contract + client regenerated.
+
+**Out of scope:** School + User-admin-CRUD (2.2d-1b); all frontend. Contract's `GET /contracts` is exempt from the pagination envelope (ADR-0078) — not retrofitted.
+
+**Estimate:** M.
+
+**Done when:** Employee + Contractor backends flow through the dispatcher; the pagination contract is settled and emitted; `seed_db` covers both; the `User.employee_id` FK/UNIQUE is migrated; backend tests + ruff + pyright green; migration applied to Neon; OpenAPI regenerated.
+
+###### Step 2.2d-1b — Roster backend: School + User-admin-CRUD (M)
+
+**Goal:** Build the School backend slice (the no-history roster entity) and the User-admin-CRUD commands in `auth/`; extract the shared `require_unique` helper.
+
+**In scope:** `features/schools/` slice — `name` + identifying attrs, `AuditMetadataMixin`, **no history surface** (`history_pattern = "none"`), `Create`/`Edit`/`Delete` commands + read routes; User-admin-CRUD in `auth/` — `CreateUser` (password hashing via `hash_password`), `EditUser` (password reset + `employee_id` link), `DeleteUser` (soft delete), all `require_role(Role.ADMIN)` per ADR-0047 Cluster 1, plus User read routes; User's `username` consumes the shared `require_unique` helper (extracted into `crud.py` in 2.2d-1a, ADR-0071); the pagination contract (ADR-0078) applied to the new read routes; `seed_db` coverage for School + User; one Alembic migration creating the `school` table; OpenAPI contract + client regenerated.
+
+**Out of scope:** Employee + Contractor (2.2d-1a); all frontend.
+
+**Estimate:** M.
+
+**Done when:** School + User-admin-CRUD backends flow through the dispatcher; User's `username` consumes the shared `require_unique` (extracted in 2.2d-1a); `seed_db` covers School + User; backend tests + ruff + pyright green; migration applied to Neon; OpenAPI regenerated. Closes Step 2.2d-1.
+
+##### Inserted slot — `engine` / `http` layer rename (non-milestone)
+
+**Inserted 2026-05-21 (Session 51)** — a non-milestone structural slot, the root-cause remedy for `DRIFT-002` (layer-charter erosion). Step 2.2d-1a's pagination substrate landed in `app/framework/` and surfaced both the drift and the naming irony underneath it: the framework-*agnostic* command engine lives in a folder named `framework/`, and `PATTERNS.md` already calls its contents "the engine." **Runs next**, before the remainder of Step 2.2d-1a, so the Employee/Contractor slices are built on the post-rename structure.
+
+**Goal:** Rename `app/framework/` → `app/engine/` (the framework-agnostic command engine), and create `app/http/` for cross-cutting FastAPI / transport code. Behaviour-preserving — no logic change, no migration, no OpenAPI surface change (the 2.2b-C-1 refactor is the precedent).
+
+**In scope:** the `framework/` → `engine/` rename + the new `app/http/` layer; relocate `error_handlers.py` + `pagination.py` into `app/http/`; update every import across `app/` + `tests/` + `migrations/env.py` + the CLIs; rewrite `backend/app/PATTERNS.md` + `backend/CLAUDE.md` for the new taxonomy; amend ADR-0070 (layer set + names) and write the taxonomy ADR (**ADR-0079**); set `DRIFT-002`'s catalog status to resolved; update planning-doc references to `framework/`.
+
+**Out of scope:** any behaviour change; the remainder of Step 2.2d-1a; the frontend (it has no `framework/`).
+
+**Branch:** `m1/engine-http-rename` off `m1/02-flat-roster`; `--no-ff` merge back (precedent: `m1/admin-followups`).
+
+**Estimate:** M — behaviour-preserving mechanical refactor + one ADR. Run the session-head 7-signal fit check (likely one session).
+
+**Done when:** the backend runs on `engine/` + `http/` (+ `adapters/` / `auth/` / `features/`); backend tests + ruff + pyright green; `PATTERNS.md` / `CLAUDE.md` / ADR-0070 updated; ADR-0079 written; `DRIFT-002` resolved; `--no-ff` merge back to `m1/02-flat-roster`. Step 2.2d-1a then resumes.
+
+---
 
 ##### Step 2.2d-2 — Frontend shared abstractions: design + build (L)
 

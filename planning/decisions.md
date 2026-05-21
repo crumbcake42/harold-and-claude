@@ -2577,3 +2577,24 @@ Entries are numbered sequentially. Once `accepted`, do not edit in place — sup
   - **ADR-0063 § Consequences "Route topology".** ADR-0063 placed the admin shell at `_authenticated/index.tsx` (URL `/`) with M1.2+ pages directly under `_authenticated/<page>.tsx`. Superseded here: the admin shell moves to the path-bearing `_authenticated/admin` surface layout route, admin pages nest under `_authenticated/admin/`, and `_authenticated/index.tsx` becomes a redirect. ADR-0063's **guard mechanism is unchanged** — `_authenticated.beforeLoad` + `ensureQueryData` session validation, `setQueryData` (not `invalidateQueries`) cache priming on login, no 401 interceptor — and ADR-0063 stays `accepted`. Its Carry-forward sketch of a nested `_authenticated/_admin.tsx` admin subtree is realized here as the path-bearing `_authenticated/admin.tsx` surface layout. ADR-0063's "Route topology" bullet is annotated in place.
 
 ---
+
+## ADR-0078 — Uniform read-API pagination contract: page-based wire, offset-based internals, wrapped envelope
+
+- **Date:** 2026-05-21
+- **Status:** accepted
+- **Decision:** Roster read routes — and read routes generally, from M1.2 onward — paginate with a uniform contract. The **wire idiom is page-based**: query params `page` (default 1, `>= 1`) and `page_size` (default 50, range `1..200`), and a wrapped response envelope `Page[T]` = `{items: list[T], total: int, page: int, page_size: int}`. The **internal idiom is offset-based**: `limit` / `offset`, mapping 1:1 to SQL. The conversion is a single seam — the `PaginationParams` FastAPI dependency parses the page-based params and exposes computed `limit` / `offset`; nothing downstream of it sees `page`. A `paginate(query, params)` helper runs the `COUNT` + slice. The substrate (`Page`, `PaginationParams`, `paginate`) is engine-shared. **Contract's `GET /contracts` is a deliberate exemption** — it holds a handful of rows growing ~1 every few years; it keeps its bare-array shape.
+- **Context:** The head decision of Step 2.2d-1 (roster backend). School carries a few hundred rows, so the roster read routes need pagination; the pagination *UI* is Step 2.2d-2, but the *contract* had to be settled in 2.2d-1 so the backend emits it. Canvassed at the 2.2d-1a session head. The user chose the mixed idiom — a frontend-friendly page-based wire over a standard offset-based internal — explicitly: the route consumed by the generated client and the DataTable speaks `page` / `page_size`; the query layer and SQL speak `limit` / `offset`.
+- **Alternatives considered:**
+  - *Bare array + `X-Total-Count` header.* Rejected — the generated openapi-ts client surfaces a typed JSON body far more ergonomically than response headers; the DataTable would read `total` off a header rather than the typed payload.
+  - *`limit` / `offset` on the wire too.* Rejected in favor of the mixed idiom — `page` / `page_size` is the friendlier wire shape for the frontend route and pager UI; `PaginationParams` converts at the boundary, mirroring the route-DTO-vs-command-`Payload` wire/internal separation ADR-0070 already draws.
+  - *`page` / `page_size` everywhere, internals included.* Rejected — `offset` / `limit` maps 1:1 to SQL; keeping the query layer offset-native avoids scattering a page->offset conversion through every `queries` module.
+  - *Cursor-based pagination.* Rejected — overkill for a small admin roster; cursors earn their complexity on large, deep-scrolled, frequently-mutated datasets.
+  - *Retrofit Contract's `GET /contracts` onto the envelope.* Rejected — Contract holds ~2 rows growing ~1 every few years, so pagination is pure ceremony for it; retrofitting would also change its OpenAPI surface and break the already-green Step 2.2c frontend. Whether Contract's *frontend* later consumes the shared `EntityListPage` (a bare array suffices there) stays a Step 2.2d-2 question.
+- **Consequences:**
+  - `pagination.py` provides `Page[T]`, `PaginationParams`, `paginate`. Roster read routes declare `response_model=Page[EntityRead]` and depend on `PaginationParams`.
+  - An over-cap `page_size` (> 200) or `page < 1` is a 422 (FastAPI-enforced via `Query()`), not a silent clamp.
+  - `total` is a second `COUNT` query — cheap at roster scale; revisit if a high-cardinality table ever consumes this.
+  - Contract's `GET /contracts` stays bare-array as the documented exemption; every other read route from M1.2 onward uses the envelope.
+  - **Placement caveat:** the substrate landed at `app/framework/pagination.py`, which surfaced `DRIFT-002` (`PaginationParams` brings FastAPI into the otherwise transport-agnostic command engine). The inserted `engine` / `http` layer-rename slot relocates it to `app/http/`. No amendment — a tracked follow-up.
+
+---

@@ -15,13 +15,12 @@ JSON column -- stays explicit here rather than disappearing into a
 factory parameter.
 
 Natural-key uniqueness note: `contract_number` is checked in the handler,
-*before* session.add/flush. It cannot be a dispatcher Invariant -- the
-pipeline flushes after the handler but before its invariant step, so the
-DB UNIQUE constraint would fire at flush before any Invariant could run.
-The handler pre-check yields a clean InvariantViolation; the DB UNIQUE
-constraint stays as the hard backstop against a concurrent race. (2.2b
-extracts a shared `require_unique` helper once User's `username` is the
-second consumer.)
+*before* session.add/flush, via the shared `require_unique` helper
+(ADR-0071). It cannot be a dispatcher Invariant -- the pipeline flushes
+after the handler but before its invariant step, so the DB UNIQUE
+constraint would fire at flush before any Invariant could run. The handler
+pre-check yields a clean InvariantViolation; the DB UNIQUE constraint stays
+as the hard backstop against a concurrent race.
 """
 
 from datetime import date
@@ -34,8 +33,12 @@ from sqlalchemy.orm import Session
 from app.features.contracts.entities import Contract
 from app.framework.caller import Role
 from app.framework.command import Command, register
-from app.framework.crud import apply_scalar_fields, resolve_for_command, soft_delete
-from app.framework.exceptions import InvariantViolation
+from app.framework.crud import (
+    apply_scalar_fields,
+    require_unique,
+    resolve_for_command,
+    soft_delete,
+)
 from app.framework.predicates import require_role
 
 # Scalar (non-JSONB) columns copied straight from payload to entity by both
@@ -59,21 +62,6 @@ def _schedule_to_json(items: list[CodeFlatFee]) -> list[dict]:
     return [item.model_dump(mode="json") for item in items]
 
 
-def _require_unique_number(
-    session: Session, contract_number: str, *, exclude_id: UUID | None = None
-) -> None:
-    """Raise InvariantViolation if another contract already has this
-    contract_number. `exclude_id` lets an edit keep its own number.
-    """
-    query = session.query(Contract.id).filter(
-        Contract.contract_number == contract_number
-    )
-    if exclude_id is not None:
-        query = query.filter(Contract.id != exclude_id)
-    if query.first() is not None:
-        raise InvariantViolation(f"contract_number {contract_number!r} already exists")
-
-
 class CreateContract(Command):
     target_entity = Contract
     authorization = require_role(Role.ADMIN)
@@ -88,7 +76,7 @@ class CreateContract(Command):
 
     def handler(self, session: Session, payload: BaseModel) -> Contract:
         assert isinstance(payload, CreateContract.Payload)
-        _require_unique_number(session, payload.contract_number)
+        require_unique(session, Contract, "contract_number", payload.contract_number)
         contract = Contract()
         apply_scalar_fields(contract, payload, _SCALAR_FIELDS)
         contract.code_flat_fee_schedule = _schedule_to_json(payload.code_flat_fee_schedule)
@@ -111,7 +99,13 @@ class EditContract(Command):
     def handler(self, session: Session, payload: BaseModel) -> Contract:
         assert isinstance(payload, EditContract.Payload)
         contract = resolve_for_command(session, Contract, payload.id)
-        _require_unique_number(session, payload.contract_number, exclude_id=payload.id)
+        require_unique(
+            session,
+            Contract,
+            "contract_number",
+            payload.contract_number,
+            exclude_id=payload.id,
+        )
         apply_scalar_fields(contract, payload, _SCALAR_FIELDS)
         contract.code_flat_fee_schedule = _schedule_to_json(payload.code_flat_fee_schedule)
         return contract
