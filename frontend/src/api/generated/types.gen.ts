@@ -64,7 +64,9 @@ export type CodeFlatFeeOutput = {
  * ContractRead
  *
  * Contract as returned by the read + write routes. `validity` and
- * `display_label` are ADR-0043 derivations read off the entity.
+ * `display_label` are ADR-0043 derivations read off the entity; the four
+ * `created_*` / `updated_*` fields are the ADR-0072 audit-metadata columns,
+ * a dispatcher-maintained projection surfaced directly.
  */
 export type ContractRead = {
   /**
@@ -99,6 +101,22 @@ export type ContractRead = {
    * Display Label
    */
   display_label: string;
+  /**
+   * Created At
+   */
+  created_at: string;
+  /**
+   * Created By
+   */
+  created_by: string;
+  /**
+   * Updated At
+   */
+  updated_at: string;
+  /**
+   * Updated By
+   */
+  updated_by: string;
 };
 
 /**

@@ -222,16 +222,28 @@ the second consumer (a Step 2.2c carry-forward).
 
 Every domain entity carries four **audit-metadata columns** — `created_at`,
 `created_by`, `updated_at`, `updated_by` — written **uniformly by the
-dispatcher** (ADR-0072): `created_*` on the creating command, `updated_*` on
-every later mutating command. **Do not set them in a handler.**
+dispatcher** (ADR-0072 / ADR-0075). An entity opts in by mixing in
+`AuditMetadataMixin` from `app.framework.audit` alongside `Base`; the
+dispatcher stamps any command target it recognizes. **Do not set them in a
+handler.**
+
+The dispatcher stamps `created_*` only when the command **creates** its
+target and `updated_*` on **every** command — so at creation
+`created_* == updated_*`, and every later mutating command (including a soft
+delete) refreshes `updated_*` only. A creating command signals itself by
+declaring `creates = True` on the Command class (ADR-0075); the default is
+`False`.
 
 They are a dispatcher-maintained **read projection** — a denormalized
 convenience surfaced directly in read schemas — over the authoritative
 who / what / when record in `command_audit_log` and the per-entity history
-tables. They are reproducible from those; they are not a rival source of truth.
+tables. They are reproducible from those; they are not a rival source of
+truth: the command clock stamped here is the same instant written to the
+matching `command_audit_log` / history row.
 
-Contract and User predate this decision and gain the columns in the Step
-2.2b-C refactor; entities authored from Step 2.2c onward are born with them.
+Contract and User gained the columns in Step 2.2b-C-2; every entity authored
+from Step 2.2c onward is born with the mixin and a `creates`-flagged create
+command.
 
 ---
 

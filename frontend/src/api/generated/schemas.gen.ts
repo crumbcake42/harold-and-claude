@@ -125,6 +125,26 @@ export const ContractReadSchema = {
       type: "string",
       title: "Display Label",
     },
+    created_at: {
+      type: "string",
+      format: "date-time",
+      title: "Created At",
+    },
+    created_by: {
+      type: "string",
+      format: "uuid",
+      title: "Created By",
+    },
+    updated_at: {
+      type: "string",
+      format: "date-time",
+      title: "Updated At",
+    },
+    updated_by: {
+      type: "string",
+      format: "uuid",
+      title: "Updated By",
+    },
   },
   type: "object",
   required: [
@@ -136,10 +156,14 @@ export const ContractReadSchema = {
     "code_flat_fee_schedule",
     "validity",
     "display_label",
+    "created_at",
+    "created_by",
+    "updated_at",
+    "updated_by",
   ],
   title: "ContractRead",
   description:
-    "Contract as returned by the read + write routes. `validity` and\n`display_label` are ADR-0043 derivations read off the entity.",
+    "Contract as returned by the read + write routes. `validity` and\n`display_label` are ADR-0043 derivations read off the entity; the four\n`created_*` / `updated_*` fields are the ADR-0072 audit-metadata columns,\na dispatcher-maintained projection surfaced directly.",
 } as const;
 
 export const ContractWriteRequestSchema = {

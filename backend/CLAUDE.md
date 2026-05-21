@@ -30,9 +30,6 @@ Non-obvious points:
   pipeline — never a direct ORM `INSERT` / `UPDATE`. Login is the one
   documented exception (it produces the `Caller` the pipeline requires).
   `seed_db` is *not* an exception — it dispatches `create_*` commands.
-- **`app/PATTERNS.md` describes the ADR-0070 target structure.** Until the
-  Step 2.2b-C refactor lands, the code still has the M1.1/M1.2 layout
-  (`app/domain/`, `app/routes/`, concrete I/O inside `app/framework/`).
 - **Migrations apply to Neon immediately.** Author the migration, run
   `uv run alembic upgrade head` against the Neon dev DB, then commit — the
   dev DB stays at Alembic head. Throwaway SQLite is for pre-commit shape

@@ -10,7 +10,7 @@ shared by both the command Payloads and these DTOs; it is defined once in
 `commands.py` and imported here.
 """
 
-from datetime import date
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -33,7 +33,9 @@ class ContractWriteRequest(BaseModel):
 
 class ContractRead(BaseModel):
     """Contract as returned by the read + write routes. `validity` and
-    `display_label` are ADR-0043 derivations read off the entity.
+    `display_label` are ADR-0043 derivations read off the entity; the four
+    `created_*` / `updated_*` fields are the ADR-0072 audit-metadata columns,
+    a dispatcher-maintained projection surfaced directly.
     """
 
     model_config = ConfigDict(from_attributes=True)
@@ -46,3 +48,7 @@ class ContractRead(BaseModel):
     code_flat_fee_schedule: list[CodeFlatFee]
     validity: Literal["pending", "active", "expired"]
     display_label: str
+    created_at: datetime
+    created_by: UUID
+    updated_at: datetime
+    updated_by: UUID
