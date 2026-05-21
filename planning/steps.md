@@ -367,7 +367,7 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 | **2.2c** | Backend remainder — Employee / School / Contractor / User-admin-CRUD | M | 0–1 (factory amendment if a non-uniform entity pressures the pattern) |
 | **2.2d** | Frontend admin pages (5 entities) | M | 0 |
 
-**Execution order:** 2.2a ✓ (Session 39) → 2.2b (2.2b-A → 2.2b-B) → 2.2c → 2.2d. Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity checkpoint commits within 2.2c and 2.2d (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
+**Execution order:** 2.2a ✓ (Session 39) → 2.2b (2.2b-A → 2.2b-B → 2.2b-C) → 2.2c → 2.2d. Single shared branch `m1/02-flat-roster` off `m1/roster`; FF-merge to `m1/roster` at M1.2 close. Per-entity checkpoint commits within 2.2c and 2.2d (commit after each entity's additions, not only at sub-step close — per [[preserve-incremental-commits]]).
 
 **Roadmap pointer:** `planning/roadmap.md` § M1.
 
@@ -406,31 +406,43 @@ Administrative bookkeeping branch from the 2026-05-18 deferral session: `m0/admi
 
 **Inserted 2026-05-20 (Session 40)** — an insertion, not a milestone sub-step; the backend twin of Step 2.1b. A Session 40 backend-structure review found M1.1/M1.2 drifted from the Session-32 hexagonal `app/` design (`planning/follow-ups/backend-directory-structure-rewind.md`): `domain/` landed flat with a `domain/commands/` type-bucket instead of per-entity folders; `adapters/` was left empty while concrete-I/O code piled into `framework/`; route files carry transport DTOs + cookie helpers. **Renumbered:** old 2.2b → 2.2c, old 2.2c → 2.2d.
 
-**Goal:** Correct the drift, write the deferred M1.2 closeout ADRs (from ADR-0067), produce `backend/CLAUDE.md` + `backend/app/PATTERNS.md` (the backend twin of the frontend pair), and refactor the existing Contract + auth + framework + routes code into the settled shape — so 2.2c builds its four entities on the corrected structure.
+**Goal:** Settle the backend architecture, write the deferred M1.2 closeout ADRs, produce `backend/CLAUDE.md` + `backend/app/PATTERNS.md` (the backend twin of the frontend pair), and refactor the existing code onto the settled structure — so 2.2c builds its four entities on it.
 
-**Settled at the Session 40 review** (write up in the ADRs; do not re-deliberate): plural naming for all folders + type-noun files; per-entity domain folders (`domain/<entity-plural>/{__init__.py, entities.py, commands.py}`, `domain/auth/` the User/UserRole/Session cluster, `domain/predicates.py` a cross-cutting peer); routes hold no transport DTOs/helpers (they move to a transport-layer module, not into `domain/`); Session 39's five in-flight decisions ratified — #1/#3/#4/#5 as-is, **#2 reversed** (materialize `created_*/updated_*` columns as a dispatcher-maintained read projection).
+**Architecture settled — Session 41 / ADR-0070** (do not re-deliberate): the backend moved from hexagonal horizontal layers to **vertical feature slices over a shared command engine** — `framework/` (engine) + `adapters/` (shared concrete I/O) + `auth/` (top-level identity module) + `features/<entity>/` (per-entity slices; submodules file-or-package with uniform import paths). Route DTOs stay separate from command `Payload`s. This reversed the Session-32/40 hexagonal direction; the rewind follow-up doc is annotated superseded. **ADR-0067–0074** record the full M1.2 closeout — admin-CRUD authoring, `require_role` factory, `seed_db`, backend architecture, uniqueness pre-check, uniform audit-metadata columns, `EntityNotFound`→404, Cluster 1 → Contract.
 
-**Intent:** the structure is and stays hexagonal — 2.2b-A corrects the drift to *accurately* hexagonal; not a rewind, not a hybrid (per-entity `domain/` folders are plain hexagonal). **Open forks for 2.2b-A** (STOP-AND-CONFIRM, all line-drawing *within* hexagonal): `framework/` — the engine/`adapters`/transport boundary is established (drift correction); settle where the lines fall; `routes/` shape (per-resource folders vs. flat + schemas module); DTO vs command `Payload` (keep separate — agent rec ~70% — vs. collapse); `entities.py` vs `models.py`; audit-column scope. Full framing: `handoff.md` § Open questions "For Step 2.2b-A".
+**Partitioned into 2.2b-A / 2.2b-B / 2.2b-C** — original 2.2b-A further split 2026-05-20 (Session 41, Case 2; 5 of 7 fit signals — multiple deliberable decisions, 2 from-scratch docs, >60 min, input reading, cross-concern). Seam: architecture deliberation (structure forks + ADRs, 2.2b-A) vs. conventions-doc authoring (2.2b-B); old 2.2b-B refactor → 2.2b-C. Single shared branch `m1/02-flat-roster`; commits land sequentially (1.3a/1.3b + 2.1b-A/B precedent).
 
-**Partitioned into 2.2b-A / 2.2b-B.** Single shared branch `m1/02-flat-roster`; commits land sequentially (1.3a/1.3b + 2.1b-A/B precedent).
+##### Step 2.2b-A — Structure forks + M1.2 ADRs (M–L) ✓ COMPLETE
 
-##### Step 2.2b-A — M1.2 closeout + backend conventions (M–L)
+**✓ COMPLETE 2026-05-20 (Session 41).** The structure forks reopened the topology itself — settled (ADR-0070) as a reversal from hexagonal horizontal layers to **vertical feature slices over a shared command engine**. Wrote **ADR-0067–0074** (M1.2 closeout). Also created `planning/DRIFTS.md` (drift registry, seeded `DRIFT-001` — parallel-definition drift) and added a drift-logging pointer to `_workflow.md`. Planning/ADR work only — no conventions docs (2.2b-B), no code refactor (2.2b-C).
 
-**Goal:** Settle the open structure forks, write all deferred M1.2 ADRs from ADR-0067, produce `backend/CLAUDE.md` + `backend/app/PATTERNS.md`. Planning + documentation only — no code refactor.
+**Split out 2026-05-20 (Session 41, Case 2)** from the original 2.2b-A — 5 of 7 fit signals fired. Seam: architecture deliberation here; conventions-doc authoring → the new 2.2b-B.
 
-**In scope:** (1) settle the four structure forks (STOP-AND-CONFIRM canvass); (2) write the M1.2 ADRs — three Session-39 approved abstractions + five ratified in-flight decisions + a backend-architecture ADR (twin of ADR-0064); (3) write `backend/CLAUDE.md` (thin, auto-loaded) + `backend/app/PATTERNS.md` (the conventions doc 2.2c+ consumes).
+**Goal:** Settle the open structure forks and write all deferred M1.2 ADRs from ADR-0067. Planning only — no conventions docs (→ 2.2b-B), no code refactor (→ 2.2b-C).
 
-**Case 2 check at session head:** big — four independent forks + ~8 ADRs + 2 docs; run the 7-signal checklist, likely seam forks+ADRs vs. docs.
+**In scope:** (1) settle the four structure forks (STOP-AND-CONFIRM canvass); (2) write the M1.2 ADRs — three Session-39 approved abstractions + five ratified in-flight decisions + a backend-architecture ADR (twin of ADR-0064).
 
-**Inputs:** `handoff.md` § Session 40 summary + § Open questions "For Step 2.2b-A"; `planning/follow-ups/backend-directory-structure-rewind.md`; the Session 39 commits (`git log m1/roster..HEAD`); `frontend/CLAUDE.md` + `frontend/src/PATTERNS.md` + ADR-0064 (doc/ADR model).
+**Inputs:** `handoff.md` § Session 40 summary + § Open questions "For Step 2.2b-A"; `planning/follow-ups/backend-directory-structure-rewind.md`; the Session 39 commits (`git log origin/m1/roster..HEAD`); ADR-0064 (ADR model).
 
-**Done when:** structure forks settled; M1.2 ADRs written from ADR-0067; `backend/CLAUDE.md` + `backend/app/PATTERNS.md` land.
+**Done when:** structure forks settled; M1.2 ADRs written from ADR-0067.
 
-##### Step 2.2b-B — Backend structure refactor (M, Case 2)
+##### Step 2.2b-B — Backend conventions docs (M)
+
+**Split out 2026-05-20 (Session 41, Case 2)** from the original 2.2b-A — the conventions-doc authoring half of the seam.
+
+**Goal:** Produce `backend/CLAUDE.md` (thin, auto-loaded) + `backend/app/PATTERNS.md` (the conventions doc 2.2c+ consumes), synthesizing 2.2b-A's settled ADRs into prescriptive conventions. Modeled on the frontend `CLAUDE.md` + `src/PATTERNS.md` pair.
+
+**In scope:** `backend/CLAUDE.md` + `backend/app/PATTERNS.md`. Documentation only — no code refactor (→ 2.2b-C).
+
+**Inputs:** 2.2b-A's ADRs (esp. the backend-architecture ADR); `frontend/CLAUDE.md` + `frontend/src/PATTERNS.md` + ADR-0064 (doc model); the Session 39 backend code.
+
+**Done when:** `backend/CLAUDE.md` + `backend/app/PATTERNS.md` land.
+
+##### Step 2.2b-C — Backend structure refactor (M, Case 2)
 
 **Goal:** Execute 2.2b-A's settled patterns against the existing backend code. Behaviour-preserving refactor + the audit-column materialization.
 
-**In scope:** (1) `domain/` → per-entity folders; `framework/` split/relocate per the settled fork; extract route transport DTOs + helpers; update all imports, the command-registry barrel, tests, the OpenAPI export; (2) materialize `created_*/updated_*` columns on Contract + User — Alembic migration + dispatcher stamping step + a create-vs-update signal + read-schema fields; (3) green — backend tests + ruff + pyright, migration applied to Neon, OpenAPI contract + client regenerated.
+**In scope:** (1) reorganize `app/` into the ADR-0070 vertical-slice layout — `framework/` + `adapters/` + `auth/` + `features/<entity>/`; move concrete I/O out of `framework/` into `adapters/`; consolidate auth into `app/auth/`; extract route DTOs into each slice's `schemas`; hoist `runtime.py` to `app/` root; update all imports, the command registry, tests, the OpenAPI export; (2) materialize `created_*/updated_*` columns on Contract + User — Alembic migration + dispatcher stamping step + a create-vs-update signal + read-schema fields; (3) green — backend tests + ruff + pyright, migration applied to Neon, OpenAPI contract + client regenerated.
 
 **Case 2 check at session head** (per the user's explicit request): run the 7-signal checklist on the full refactor + migration scope; split if it fires.
 

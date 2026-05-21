@@ -2362,3 +2362,156 @@ Entries are numbered sequentially. Once `accepted`, do not edit in place — sup
   - Pure domain logic, when it appears, gets a concretely-named module, never a `services/` folder.
 
 ---
+
+## ADR-0067 — Admin-CRUD authoring shape: hand-authored Command classes over shared `crud.py` helpers
+
+- **Date:** 2026-05-20
+- **Status:** accepted
+- **Decision:** M1.2's admin-roster CRUD commands are **hand-authored `Command` subclasses** — one class per (entity, operation) — over a small set of shared mechanics in `framework/crud.py` (`resolve_for_command`, `apply_scalar_fields`, `soft_delete`), **not** a generalized class factory (`make_create_command(Entity, Payload)`). The repeated mechanics live in the helpers; the non-uniform parts (Contract's JSONB schedule conversion, User's password hashing, School's delete policy) stay explicit at the command. Command classes are named in **PascalCase verb-then-noun** (`CreateContract`, `EditContract`, `DeleteContract`); `Command.name()` returns the class name, and that string is both the registry key and the `command_name` recorded in every history / `command_audit_log` row.
+- **Context:** M1.2 introduces admin CRUD over five roster entities × three operations. Step 2.2a chose an authoring shape and proved it against Contract — the most non-uniform entity. A factory wins on raw volume (~15 command classes); hand-authoring wins when the entities are non-uniform enough that a factory needs escape-hatch parameters. Contract proved the latter: its JSONB `code_flat_fee_schedule` needs explicit conversion a factory could not absorb cleanly.
+- **Alternatives considered:**
+  - *Generalized class factory (`make_create_command(Entity, Payload, ...)`).* Rejected — the five roster entities are not uniform (User hashes a password, Contract carries a JSONB collection, School's delete differs); a factory covering them needs an escape-hatch parameter surface wide enough that it stops being simpler than an explicit class, and it collapses pyright's per-command type information.
+  - *Fully bespoke commands with no shared helpers.* Rejected — resolve-by-id, scalar-field-copy, and soft-delete genuinely repeat across every entity; leaving them un-extracted invites drift.
+  - *snake_case or noun-first command names.* Rejected — PascalCase verb-first matches Python class convention and reads as an imperative; the class name doubles as a stable identifier, so it must be a clean one.
+- **Consequences:**
+  - `framework/crud.py` holds the three shared helpers; each slice's `commands` module holds explicit `Create*/Edit*/Delete*` classes that call them.
+  - Each entity's non-uniform surface is visible at its command, not hidden behind factory parameters.
+  - The command-name string is a stable public identifier — registry key and `command_name` in audit rows; an audit row retains the name in force when it was written.
+  - 2.2c authors Employee / School / Contractor / User CRUD on this pattern; if a non-uniform entity pressures the helpers, the helper set is amended — a factory is not introduced.
+
+---
+
+## ADR-0068 — Admin auth-predicate factory: `require_role(minimum)`
+
+- **Date:** 2026-05-20
+- **Status:** accepted
+- **Decision:** ADR-0047's chain-level **class-rule** authorization predicates are encoded once as a factory, `require_role(minimum: Role) -> AuthPredicate`, in `framework/predicates.py`. It returns the `(caller, command_cls, payload, session) -> bool` callable the dispatcher reads off `Command.authorization`, admitting any caller holding `minimum` or higher in ADR-0040's linear hierarchy (via `has_role_at_least`, ADR-0062). M1.2's admin-roster CRUD uses `require_role(Role.ADMIN)` verbatim (ADR-0047 Cluster 1); later clusters use `require_role(Role.COORDINATOR)` etc. **Non-uniform** predicates — ADR-0040's parameterized grant/revoke authority, the creator-only `edit_note` rule — are NOT this factory's job: per ADR-0062 they are authored inline at their command.
+- **Context:** ADR-0047's per-command predicate table has two row types — explicit per-command rows and class-rule clauses for unnamed commands. The class rules ("role >= admin" for admin-roster CRUD, "role >= coordinator" for project-tracking) are uniform across many commands. Inlining the same role check at 15+ commands is duplication that can drift; a factory encodes the rule once.
+- **Alternatives considered:**
+  - *Inline the role check at each command.* Rejected — the class rule is uniform by definition; repeating it 15+ times is exactly the duplication a one-line factory removes, and an inline check can silently diverge from the ADR-0047 class rule.
+  - *A factory covering non-uniform predicates too.* Rejected — grant/revoke authority depends on the target role and is genuinely per-command; forcing it through a factory needs a parameter surface wider than the inline code. ADR-0062 already rules these stay inline.
+- **Consequences:**
+  - Every admin-roster command sets `authorization = require_role(Role.ADMIN)`; the predicate carries a legible `__name__` (`require_role_admin`) for registry / introspection dumps.
+  - The factory is the single place the chain-level class rule is expressed; an ADR-0047 class-rule change is a one-line edit.
+  - Non-uniform predicates remain inline — M1.3's grant/revoke commands author their own.
+
+---
+
+## ADR-0069 — Seed tooling: `seed_db` dispatches redacted CSVs through the Command pipeline
+
+- **Date:** 2026-05-20
+- **Status:** accepted
+- **Decision:** The dev seed tool (`app/cli/seed_db.py`, stdlib `argparse`, `python -m app.cli.seed_db`) loads redacted CSV files by **dispatching `create_*` commands through the Command pipeline** — not by direct ORM `INSERT`. A per-entity `SeedSpec` registry maps each entity to its CSV file, its `create_*` command, and the CSV-row→`Payload` mapping; entities seed in dependency order. Idempotency is **skip-existing**, keyed on the entity's natural key (re-running adds only missing rows; it never wipes). A JSONB collection column is represented by a **sidecar CSV** joined on the natural key (Contract's `code_flat_fee_schedule` ← `contract_code_fees.csv` joined on `contract_number`). `run_seed()` is the testable core; `main()` resolves the bootstrap superadmin as the dispatch `Caller`. Seed CSVs live in `app/cli/seeds/` and are **gitignored** (redacted real data, kept local); only a `README.md` describing the formats is committed. **Standing requirement:** every entity-adding sub-step from M1.2 onward maintains `seed_db` coverage for the entities it introduces.
+- **Context:** M1.2 needs realistic seed data for browser-dogfooding the admin dashboard. Direct ORM inserts would bypass invariants and write no history / audit rows — seeded data would not match a DB built by real use, and it would add a second carve-out from the every-state-change-is-a-Command rule. A `Caller` exists post-`bootstrap_admin`, so seeding can go through the pipeline. The tool pairs with `redact_csv.py` (real spreadsheet → redacted CSV → seed folder).
+- **Alternatives considered:**
+  - *Direct ORM `INSERT` of seed rows.* Rejected — bypasses the dispatcher, so invariants do not run and no history / audit rows are written; the seeded DB would not match a real-use DB, and it adds a second exception to the Command rule.
+  - *Wipe-and-reload idempotency.* Rejected — destructive; skip-existing lets a developer top up a partially-seeded DB and never clobbers local edits.
+  - *Click for the CLI (ADR-0061's "3rd command" trigger).* Deferred — `seed_db` uses `argparse`, matching `redact_csv` and `export_openapi`; the real Click trigger is restated as "when a unified `app.cli` subcommand group is wanted" — a clean standalone step.
+  - *A nested-JSON seed format instead of a sidecar CSV.* Rejected — flat CSV is what `redact_csv` produces from real spreadsheets; a sidecar CSV joined on the natural key keeps the whole pipeline CSV-shaped.
+- **Consequences:**
+  - `just` recipes split idempotent env setup (`install` + `alembic upgrade head`) from interactive / destructive data init (`bootstrap-admin`, `seed`); an optional `first-run` chains them.
+  - Seeded data carries full history + `command_audit_log` rows — identical to data created through the UI.
+  - 2.2c and every later entity-adding sub-step extend the `SeedSpec` registry for their entities.
+
+---
+
+## ADR-0070 — Backend architecture: vertical feature slices over a shared command engine
+
+- **Date:** 2026-05-20
+- **Status:** accepted
+- **Decision:** The backend `app/` is organized as **vertical feature slices over a shared command engine** — not horizontal hexagonal layers. Top-level structure:
+  - **`framework/`** — the command engine: `Command`/`Invariant` base + registry, the dispatcher pipeline, `Caller`/`Role`, the `CaptureSink` port + record types, exceptions, the `require_role` predicate factory, CRUD authoring helpers, lock-key policy. Domain-agnostic; **imports nothing from `adapters/`, `auth/`, or `features/`**.
+  - **`adapters/`** — shared concrete I/O: the SQLAlchemy engine / `Base` / session factory, the Postgres-specific primitives (`json_column`, advisory lock, SERIALIZABLE), the history tables + `command_audit_log` + the concrete `SqlAlchemyCaptureSink`. Imports `framework/` only.
+  - **`features/<entity>/`** — one vertical slice per concern, each a Python *module* whose submodules — `entities`, `commands`, `routes`, `schemas` (and `queries` for reads) — are each **a file or a package**, addressed by a uniform import path (`app.features.<entity>.entities`). A submodule grows file→package with no consumer-import change. The submodule vocabulary is closed; none are mandatory; a package `__init__.py` is re-exports + `__all__` only; non-uniform domain logic gets a concretely-named module.
+  - **`auth/`** — a top-level module (peer of `features/`) owning the entire identity concern: User / UserRole / Session entities, login / logout / me routes, user-admin CRUD, password hashing, session lifecycle, and the `current_user` dependency. It is **not** a feature: it is identity infrastructure every request resolves and every slice's routes import.
+  - `cli/`, plus `runtime.py` (composition root), `error_handlers.py`, `config.py`, `main.py` at `app/` root.
+
+  **Dependency rule** (the backend twin of ADR-0064's frontend layering): `framework/` imports nothing internal · `adapters/` imports `framework/` only · `auth/` and `features/*` import `framework/` + `adapters/` · `features/*` may import `auth/` but **not** each other (an entity class may be cross-imported where an FK relationship requires it — provisional, firmed at M1.4's first relationship) · `runtime.py` / `main.py` import everything.
+
+  **Route DTOs are kept separate from command `Payload`s** (a slice's `schemas` vs. its `commands`): the HTTP wire contract and the command input contract are distinct layer artifacts that evolve independently. The field duplication this creates is accepted, not derived away.
+- **Context:** The Session-32 follow-up (`planning/follow-ups/backend-directory-structure-rewind.md`) committed the backend to a horizontal hexagonal layout (`domain/ framework/ adapters/ routes/`) at ~70/30 confidence, *before* the runtime framework was concrete. The Session-40 review found M1.1/M1.2 had drifted from it. Step 2.2b-A re-examined the topology with FastAPI now committed and the engine built. The finding: the **command engine is a genuine domain-agnostic substrate** that earns a horizontal `framework/` folder — but organizing the *per-entity* code horizontally (`domain/contracts/` + `routes/contracts/` as separate trees) scatters every concern across folders and forces a translation object at each layer crossing. The mainstream FastAPI convention for non-trivial apps is vertical slices; the frontend (ADR-0064) is already vertical. Principle adopted: **horizontal where the code is genuinely cross-cutting and reusable (the engine, the I/O adapters); vertical where it is per-concern.** This **supersedes the Session-32/40 hexagonal-horizontal direction**, recorded in the follow-up doc, which carried no ADR.
+- **Alternatives considered:**
+  - *Strict horizontal hexagonal layers (`domain/ framework/ adapters/ routes/`) — the Session-32 plan.* Rejected — organizing per-entity code horizontally scatters one concern across ≥2 trees, makes a DTO/Payload translation object structural at every layer crossing, and diverges from the frontend's vertical layout in the same repo. Horizontal layering earns its keep only for the cross-cutting engine and I/O adapters, which this layout keeps.
+  - *Flat slices directly in `app/` (the Netflix-Dispatch layout), no `features/` parent.* Rejected — at 21 entities plus infrastructure, `app/` becomes ~27 top-level entries: fuzzy-find-navigable but not *legible*, and the thick `framework/` engine ends up interleaved alphabetically among thin feature folders, mixing levels of abstraction. A `features/` parent keeps `app/` ~7 entries — the system's shape is visible at a glance.
+  - *Drop the command engine; use plain FastAPI service / CRUD functions.* Rejected — the domain requires enforced, unskippable history / audit on every write, per-command authorization, lifecycle gating, cross-entity invariants under SERIALIZABLE / advisory locks, and cascades. The service-function convention enforces none of that; the dispatcher exists so it cannot be forgotten.
+  - *`auth/` as a `features/auth/` slice.* Rejected — auth has no domain-feature character: it is consumed by every request (`current_user`) and every slice's routes. The frontend's ADR-0066 made the identical call (`src/auth/`, not `src/features/auth/`). Top-level `auth/` also removes the need for an "exempt slice" exception to the no-cross-slice-import rule.
+  - *Collapse the route DTO into the command `Payload`.* Rejected — `EditContract.Payload` carries `id` (from the URL path); the write DTO is body-only. They are genuinely different shapes, and the DTO is the OpenAPI surface the frontend client consumes, which must evolve independently of the internal command contract.
+  - *Derive the DTO from the `Payload` (subclass or shared base).* Rejected as the default — inheritance re-binds the two, trading away the independent evolution that "keep separate" exists to buy; for identical models it degenerates to an empty subclass or an alias (collapse). The duplication *is* the decoupling.
+- **Consequences:**
+  - **Step 2.2b-C** moves the M1.1/M1.2 code onto this structure: `domain/` flat files → `features/<entity>/` slices; concrete I/O out of `framework/` into `adapters/`; route DTOs / helpers out of handler files into each slice's `schemas` / `routes`; `runtime.py` hoisted to `app/` root; the auth code consolidated into `app/auth/`.
+  - **`backend/app/PATTERNS.md`** (written in Step 2.2b-B) is the authoritative convention doc — slice vocabulary, the dependency rule, file-or-package submodules; **`backend/CLAUDE.md`** is the thin auto-loaded pointer. The pair is the backend twin of ADR-0064's `frontend/src/PATTERNS.md` + `frontend/CLAUDE.md`.
+  - **The dependency rule** is enforced by convention + review for now; mechanical enforcement (an import-linter contract or a test) is a candidate follow-up — the backend analogue of the frontend's ESLint `no-restricted-imports`.
+  - **The DTO/Payload duplication is tracked, not eliminated** — logged as `DRIFT-001` ("parallel-definition drift") in `planning/DRIFTS.md`; if its recurrence threshold is reached, the shared-base remedy is revisited.
+  - **`User` has no `features/users/` slice** — the User entity, its admin CRUD, and login all live in `auth/`, because login needs the User entity and splitting it would re-create the scatter this layout removes. M1.2's five roster entities land as four `features/` slices + `auth/`.
+  - The Session-32 follow-up doc is annotated as superseded by this ADR.
+  - **Cross-slice imports** are provisionally constrained (entity classes may be cross-imported where an FK requires the referenced class; commands / routes may not); the rule is firmed when M1.4 introduces the first FK relationship (EmployeeRole → Contract).
+
+---
+
+## ADR-0071 — Natural-key uniqueness is a handler pre-check, not a dispatcher `Invariant`
+
+- **Date:** 2026-05-20
+- **Status:** accepted
+- **Decision:** A uniqueness rule backed by a DB `UNIQUE` constraint (e.g. Contract's `contract_number`, User's `username`) is enforced by an explicit **pre-check inside the command handler**, before `session.add` / `flush` — not as a dispatcher `Invariant`. The handler queries for an existing row with the candidate value (excluding the entity's own id on edit) and raises `InvariantViolation` if found. The DB `UNIQUE` constraint stays as the hard backstop against a concurrent race; a violation that slips past the pre-check surfaces as `IntegrityError` → HTTP 409.
+- **Context:** The dispatcher pipeline flushes after the handler but before its `Invariant` step (invariant checks must see the pending mutation). A uniqueness rule expressed as an `Invariant` would therefore run *after* the flush — and a DB `UNIQUE` constraint fires *at* the flush, so the raw `IntegrityError` would be raised before any `Invariant` could produce a clean rejection. The check must run pre-flush to yield a typed, message-bearing rejection.
+- **Alternatives considered:**
+  - *Express uniqueness as a dispatcher `Invariant`.* Rejected — the pipeline flushes before the invariant step; the DB `UNIQUE` constraint would raise `IntegrityError` at flush before the invariant runs, defeating the point.
+  - *Drop the DB `UNIQUE` constraint, rely solely on the handler pre-check.* Rejected — the pre-check has a check-then-insert race; the DB constraint is the only correct backstop under concurrency.
+  - *Rely solely on the DB constraint and translate `IntegrityError`.* Rejected — a raw `IntegrityError` carries no clean domain reason; the pre-check yields a typed `InvariantViolation` with a user-facing message on the common (uncontended) path.
+- **Consequences:**
+  - Each entity with a uniqueness-constrained natural key carries a `_require_unique_*`-style pre-check in its commands.
+  - This is **provisional** — revisit if it proves insufficient.
+  - Once User's `username` is the second consumer, a shared `require_unique` helper is extracted from Contract's `_require_unique_number` (a 2.2c carry-forward).
+  - The `IntegrityError` → 409 handler remains the backstop for the lost-race case.
+
+---
+
+## ADR-0072 — Materialize `created_*/updated_*` audit-metadata columns uniformly on every entity
+
+- **Date:** 2026-05-20
+- **Status:** accepted
+- **Decision:** Every domain entity carries four **audit-metadata columns** — `created_at`, `created_by`, `updated_at`, `updated_by` — written **uniformly by the dispatcher**, per `data-model.md` § Conventions. `created_*` are stamped on the creating command; `updated_*` on every subsequent mutating command. The columns are a **dispatcher-maintained read projection** — a denormalized convenience surfaced directly in read schemas — over the authoritative who/did/what/when record in `command_audit_log` and the per-entity history tables; they are not a rival source of truth. This **reverses** the Step 2.2a in-flight decision that omitted `created_*/updated_*` from audit-log entities (Contract, and M1.1's User) on the grounds the audit log already records who/when.
+- **Context:** Step 2.2a built Contract (and M1.1 built User) with no `created_*/updated_*` columns — the reasoning being that `command_audit_log` already records who-did-what-when, making per-row columns redundant. The Session 40 review reversed this: `data-model.md` § Conventions defines the `audit-metadata` kind as four columns "the dispatcher writes uniformly," and every per-entity section in `data-model.md` — including no-history entities like School — lists "(standard audit-metadata)". Surfacing creation/update metadata in a read response should not require a join against the audit log or a history table; and a no-history entity has *no* audit-log or history surface at all, so without materialized columns it would carry no who/when record whatsoever.
+- **Alternatives considered:**
+  - *Omit `created_*/updated_*`; derive who/when from `command_audit_log` (the Step 2.2a position).* Rejected — forces a join for every read that wants creation/update metadata, and leaves no-history entities (School) with no who/when record at all. It also diverged from `data-model.md` § Conventions.
+  - *Materialize only on audit-log-pattern entities.* Rejected — the read-convenience rationale applies equally to lifecycle- and no-history-pattern entities; `data-model.md` § Conventions mandates uniformity, and School (no history) is the entity that needs it most.
+- **Consequences:**
+  - The dispatcher gains a stamping step: it sets `created_*` when a command creates an entity and `updated_*` on every mutating command, using the `Caller` id and the command clock — needing a create-vs-update signal (a 2.2b-C implementation detail).
+  - Read schemas surface the four columns directly.
+  - **Step 2.2b-C** materializes the columns on the existing entities (Contract, User) — an Alembic migration + the dispatcher stamping step + read-schema fields. Entities added from 2.2c onward are born with the columns.
+  - The columns are a projection, not authoritative — `command_audit_log` and the history tables remain the source of truth; the columns must be reproducible from them.
+
+---
+
+## ADR-0073 — `EntityNotFound` is a `CommandRejected` subclass mapping to HTTP 404
+
+- **Date:** 2026-05-20
+- **Status:** accepted
+- **Decision:** When an edit/delete command resolves its target by id and finds no live row (missing, or soft-deleted), the handler raises **`EntityNotFound`**, a subclass of `CommandRejected`. It shares the pipeline's rollback and typed-rejection handling like any other rejection, and the transport layer maps it specifically to **HTTP 404** (the generic `CommandRejected` maps to 409; `AuthorizationDenied` to 403). FastAPI resolves the handler by walking the exception MRO, so the `EntityNotFound` handler takes precedence over the `CommandRejected` base handler.
+- **Context:** M1.2's edit/delete commands resolve an entity by id via `resolve_for_command`. A missing or soft-deleted target is a caller error distinct from a lifecycle/invariant rejection — it should read as 404, not 409. The rejection family already existed (`CommandRejected` → 409); a "not found" rejection needed a typed home and an HTTP mapping.
+- **Alternatives considered:**
+  - *Raise a bare `CommandRejected` for not-found.* Rejected — would map to 409; a missing resource is conventionally 404, and conflating the two loses information for the client.
+  - *Raise FastAPI's `HTTPException(404)` from the handler.* Rejected — handlers run inside the dispatcher pipeline, below the transport layer; they must raise domain exceptions and let the route layer own HTTP mapping (ADR-0011). A handler reaching for `HTTPException` couples the domain to FastAPI.
+  - *Check existence in the route before dispatch.* Rejected — duplicates the resolve, and a separate read is racy against the dispatch; resolving inside the handler is the single authoritative lookup.
+- **Consequences:**
+  - `framework/exceptions.py` carries `EntityNotFound(CommandRejected)`; `resolve_for_command` raises it.
+  - The transport error-handler set maps `AuthorizationDenied`→403, `EntityNotFound`→404, `CommandRejected`→409, `TransientContention`→503, `IntegrityError`→409.
+  - Every edit/delete command across the roster gets clean 404 behavior via `resolve_for_command`.
+
+---
+
+## ADR-0074 — ADR-0047 Cluster 1 (`role >= admin` admin-roster CRUD) extends to Contract
+
+- **Date:** 2026-05-20
+- **Status:** accepted
+- **Decision:** ADR-0047's **Cluster 1** class rule — admin-roster CRUD is authorized by `role >= admin` — applies to **Contract**. ADR-0047 named Cluster 1's entity set as {Employee, School, Contractor, User}; Contract was an M2 entity at the time. Contract was hoisted into M1.2 (ADR-0045 makes EmployeeRole's `contract_id` mandatory, so Contract must precede the roster), and it is admin-roster CRUD in character. `create/edit/delete_contract` therefore carry `require_role(Role.ADMIN)` (ADR-0068).
+- **Context:** ADR-0047 wrote the per-command authorization predicate table before Contract was hoisted from M2 to M1.2. Contract's create/edit/delete commands are the first ADR-0047 Cluster 1 predicate landing in M1+ code and needed an explicit authorization assignment. Contract is contractual-roster master data administered by admins — the same character as Employee / School / Contractor / User.
+- **Alternatives considered:**
+  - *Give Contract a bespoke per-command predicate.* Rejected — Contract's CRUD has no non-uniform authorization; it is plain admin-roster CRUD, and the Cluster 1 class rule already describes it exactly.
+  - *Leave Contract outside Cluster 1 and document it separately.* Rejected — that fragments the class rule; Contract belongs to the same cluster, and ADR-0047's class rules exist precisely so unnamed admin-CRUD commands need no individual rows.
+- **Consequences:**
+  - `create/edit/delete_contract` use `require_role(Role.ADMIN)`; 2.2c's Employee / School / Contractor / User CRUD do the same.
+  - ADR-0047's Cluster 1 entity set is read as {Employee, School, Contractor, User, Contract}.
+- **Amendments to other ADRs:** ADR-0047 — Cluster 1's entity set is widened to include Contract; the class rule itself is unchanged. ADR-0047's `Status` stays `accepted` (per the decisions.md amendment convention).
+
+---

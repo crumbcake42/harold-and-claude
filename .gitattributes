@@ -1,0 +1,20 @@
+# Line endings: every text file is stored and checked out as LF on all
+# platforms, overriding each contributor's core.autocrlf. Tooling output
+# (pnpm, Vite, TanStack Router's routeTree.gen.ts) is LF, so this stops the
+# working tree from churning whenever those files are regenerated.
+* text=auto eol=lf
+
+# Generated file — collapse in GitHub diffs, exclude from language stats.
+routeTree.gen.ts linguist-generated=true
+
+# Binary assets — no line-ending or text conversion.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.webp  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.pdf   binary

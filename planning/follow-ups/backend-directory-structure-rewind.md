@@ -2,6 +2,8 @@
 
 Generated 2026-05-19 at user request. Documents the hexagonal `app/` layout commitment and the rewind tag pointing at the pre-build-out state, so this choice can be revisited if it ages badly.
 
+> **SUPERSEDED 2026-05-20 (Session 41) by ADR-0070.** Step 2.2b-A re-examined the backend topology with FastAPI committed and the command engine built, and replaced the hexagonal horizontal layout described below with **vertical feature slices over a shared `framework/` engine** (`framework/` + `adapters/` + `auth/` + `features/<entity>/`). The reasoning and the new structure are in ADR-0070. This document is retained for trace continuity; the layout, alternatives, and revisit criteria below describe the superseded decision. The rewind tag `rewind/2026-05-19-hexagonal-commit` still exists but no longer marks an active commitment.
+
 ---
 
 ## The decision

@@ -155,6 +155,8 @@ Run checks (a), (b), (c) in order. Plan-internal drift is the dominant case; pla
 
 **Surfacing order.** Pickup-point proposal first (steps (a) resolution or proposal); drift findings second, tagged by check (a/b/c) and category.
 
+**Logging.** Log every surfaced drift instance to `planning/DRIFTS.md` per that file's protocol — under an existing `DRIFT-NNN` label, or propose a new one if it fits no catalogued kind.
+
 ---
 
 ## `_file-rules.md` regeneration procedure

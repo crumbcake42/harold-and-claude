@@ -2,7 +2,7 @@
 
 *Generated index — do not edit manually. Regenerate by following the procedure in `planning/_workflow.md` (`_file-rules.md` regeneration procedure). Trigger: any `## File contract` block changes, or stale detection during Path B.*
 
-*Last regenerated: 2026-05-18*
+*Last regenerated: 2026-05-20*
 
 ---
 
@@ -108,3 +108,10 @@
 
 **Holds:** Session-resumption protocol — case detection logic, sub-protocols for Cases 1/2/3, ambiguous-handoff paths, and the `_file-rules.md` regeneration procedure.
 **Update when:** Workflow rules change (user explicitly requests an update); deferred sections are resolved in follow-up sessions.
+
+---
+
+## DRIFTS.md
+
+**Holds:** A registry of surfaced drift — code or work that diverges from a written reference (`backend/app/PATTERNS.md`, `frontend/src/PATTERNS.md`, the `CLAUDE.md` files, `planning/roadmap.md`), and structural hazards where two artifacts that should stay congruent can silently diverge. Two tables: a catalog of drift kinds (`DRIFT-NNN` label → cause → remedy → count → status) and a log of instances (date, id, location, description).
+**Update when:** A drift instance is surfaced (append to the log; bump the kind's count). A drift surfaces that fits no catalogued kind (propose a `DRIFT-NNN` label + cause + remedy; add the catalog row only after the user confirms the label — never log an instance under an unconfirmed label). A kind reaches its recurrence threshold (set its status to `flagged` and surface it for a root-cause review). A flagged kind's root cause is addressed (set status `resolved`).
