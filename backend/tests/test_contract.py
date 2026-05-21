@@ -16,13 +16,13 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.db import Base
 from app.adapters.history import CommandAuditLog
-from app.domain.commands.contract import (
+from app.features.contracts.commands import (
     CodeFlatFee,
     CreateContract,
     DeleteContract,
     EditContract,
 )
-from app.domain.contract import Contract
+from app.features.contracts.entities import Contract
 from app.framework.caller import Caller, Role
 from app.framework.dispatcher import Dispatcher
 from app.framework.exceptions import (

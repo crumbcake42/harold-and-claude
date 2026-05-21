@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.db import Base
 from app.cli.seed_db import run_seed
-from app.domain.contract import Contract
+from app.features.contracts.entities import Contract
 from app.framework.caller import Caller, Role
 from app.framework.runtime import build_dispatcher
 

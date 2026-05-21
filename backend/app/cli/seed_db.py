@@ -51,8 +51,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.adapters.db import SessionFactory
 from app.auth.entities import User, UserRole
-from app.domain.commands.contract import CodeFlatFee, CreateContract
-from app.domain.contract import Contract
+from app.features.contracts.commands import CodeFlatFee, CreateContract
+from app.features.contracts.entities import Contract
 from app.framework.caller import Caller, Role
 from app.framework.command import Command
 from app.framework.dispatcher import Dispatcher

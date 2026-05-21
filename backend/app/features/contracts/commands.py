@@ -31,12 +31,12 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from app.domain.contract import Contract
-from app.domain.predicates import require_role
+from app.features.contracts.entities import Contract
 from app.framework.caller import Role
 from app.framework.command import Command, register
 from app.framework.crud import apply_scalar_fields, resolve_for_command, soft_delete
 from app.framework.exceptions import InvariantViolation
+from app.framework.predicates import require_role
 
 # Scalar (non-JSONB) columns copied straight from payload to entity by both
 # create and edit. code_flat_fee_schedule is handled explicitly -- see below.

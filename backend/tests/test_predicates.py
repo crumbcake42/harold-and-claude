@@ -6,8 +6,8 @@ import pytest
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-from app.domain.predicates import require_role
 from app.framework.caller import Caller, Role
+from app.framework.predicates import require_role
 from tests.fixtures.smoketest.commands import CreateSmoke
 
 
