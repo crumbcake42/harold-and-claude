@@ -20,7 +20,7 @@ export function ContractCreatePage() {
     try {
       await createContract.mutateAsync({ body: formValuesToWriteRequest(values) });
       toast.success("Contract created");
-      await navigate({ to: "/contracts" });
+      await navigate({ to: "/admin/contracts" });
     } catch (error) {
       toast.error(apiErrorMessage(error, "Could not create the contract."));
     }
@@ -29,7 +29,7 @@ export function ContractCreatePage() {
   return (
     <div className="max-w-2xl">
       <Link
-        to="/contracts"
+        to="/admin/contracts"
         className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
       >
         <CaretLeftIcon />
@@ -41,7 +41,7 @@ export function ContractCreatePage() {
           <ContractForm
             defaultValues={emptyContractForm()}
             onSubmit={handleSubmit}
-            onCancel={() => navigate({ to: "/contracts" })}
+            onCancel={() => navigate({ to: "/admin/contracts" })}
             isPending={createContract.isPending}
             submitLabel="Create contract"
           />

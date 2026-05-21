@@ -12,9 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
-import { Route as AuthenticatedContractsIndexRouteImport } from './routes/_authenticated/contracts/index'
-import { Route as AuthenticatedContractsNewRouteImport } from './routes/_authenticated/contracts/new'
-import { Route as AuthenticatedContractsContractIdRouteImport } from './routes/_authenticated/contracts/$contractId'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
+import { Route as AuthenticatedAdminDashboardRouteImport } from './routes/_authenticated/admin/dashboard'
+import { Route as AuthenticatedAdminContractsIndexRouteImport } from './routes/_authenticated/admin/contracts/index'
+import { Route as AuthenticatedAdminContractsNewRouteImport } from './routes/_authenticated/admin/contracts/new'
+import { Route as AuthenticatedAdminContractsContractIdRouteImport } from './routes/_authenticated/admin/contracts/$contractId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -30,71 +33,103 @@ const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
-const AuthenticatedContractsIndexRoute =
-  AuthenticatedContractsIndexRouteImport.update({
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAdminRoute,
+} as any)
+const AuthenticatedAdminDashboardRoute =
+  AuthenticatedAdminDashboardRouteImport.update({
+    id: '/dashboard',
+    path: '/dashboard',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminContractsIndexRoute =
+  AuthenticatedAdminContractsIndexRouteImport.update({
     id: '/contracts/',
     path: '/contracts/',
-    getParentRoute: () => AuthenticatedRoute,
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedContractsNewRoute =
-  AuthenticatedContractsNewRouteImport.update({
+const AuthenticatedAdminContractsNewRoute =
+  AuthenticatedAdminContractsNewRouteImport.update({
     id: '/contracts/new',
     path: '/contracts/new',
-    getParentRoute: () => AuthenticatedRoute,
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
-const AuthenticatedContractsContractIdRoute =
-  AuthenticatedContractsContractIdRouteImport.update({
+const AuthenticatedAdminContractsContractIdRoute =
+  AuthenticatedAdminContractsContractIdRouteImport.update({
     id: '/contracts/$contractId',
     path: '/contracts/$contractId',
-    getParentRoute: () => AuthenticatedRoute,
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthenticatedIndexRoute
   '/login': typeof LoginRoute
-  '/contracts/$contractId': typeof AuthenticatedContractsContractIdRoute
-  '/contracts/new': typeof AuthenticatedContractsNewRoute
-  '/contracts/': typeof AuthenticatedContractsIndexRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/admin/contracts/$contractId': typeof AuthenticatedAdminContractsContractIdRoute
+  '/admin/contracts/new': typeof AuthenticatedAdminContractsNewRoute
+  '/admin/contracts/': typeof AuthenticatedAdminContractsIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AuthenticatedIndexRoute
-  '/contracts/$contractId': typeof AuthenticatedContractsContractIdRoute
-  '/contracts/new': typeof AuthenticatedContractsNewRoute
-  '/contracts': typeof AuthenticatedContractsIndexRoute
+  '/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/admin': typeof AuthenticatedAdminIndexRoute
+  '/admin/contracts/$contractId': typeof AuthenticatedAdminContractsContractIdRoute
+  '/admin/contracts/new': typeof AuthenticatedAdminContractsNewRoute
+  '/admin/contracts': typeof AuthenticatedAdminContractsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/': typeof AuthenticatedIndexRoute
-  '/_authenticated/contracts/$contractId': typeof AuthenticatedContractsContractIdRoute
-  '/_authenticated/contracts/new': typeof AuthenticatedContractsNewRoute
-  '/_authenticated/contracts/': typeof AuthenticatedContractsIndexRoute
+  '/_authenticated/admin/dashboard': typeof AuthenticatedAdminDashboardRoute
+  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/_authenticated/admin/contracts/$contractId': typeof AuthenticatedAdminContractsContractIdRoute
+  '/_authenticated/admin/contracts/new': typeof AuthenticatedAdminContractsNewRoute
+  '/_authenticated/admin/contracts/': typeof AuthenticatedAdminContractsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/login'
-    | '/contracts/$contractId'
-    | '/contracts/new'
-    | '/contracts/'
+    | '/admin'
+    | '/admin/dashboard'
+    | '/admin/'
+    | '/admin/contracts/$contractId'
+    | '/admin/contracts/new'
+    | '/admin/contracts/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/'
-    | '/contracts/$contractId'
-    | '/contracts/new'
-    | '/contracts'
+    | '/admin/dashboard'
+    | '/admin'
+    | '/admin/contracts/$contractId'
+    | '/admin/contracts/new'
+    | '/admin/contracts'
   id:
     | '__root__'
     | '/_authenticated'
     | '/login'
+    | '/_authenticated/admin'
     | '/_authenticated/'
-    | '/_authenticated/contracts/$contractId'
-    | '/_authenticated/contracts/new'
-    | '/_authenticated/contracts/'
+    | '/_authenticated/admin/dashboard'
+    | '/_authenticated/admin/'
+    | '/_authenticated/admin/contracts/$contractId'
+    | '/_authenticated/admin/contracts/new'
+    | '/_authenticated/admin/contracts/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -125,42 +160,79 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/contracts/': {
-      id: '/_authenticated/contracts/'
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/admin/': {
+      id: '/_authenticated/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/dashboard': {
+      id: '/_authenticated/admin/dashboard'
+      path: '/dashboard'
+      fullPath: '/admin/dashboard'
+      preLoaderRoute: typeof AuthenticatedAdminDashboardRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/contracts/': {
+      id: '/_authenticated/admin/contracts/'
       path: '/contracts'
-      fullPath: '/contracts/'
-      preLoaderRoute: typeof AuthenticatedContractsIndexRouteImport
-      parentRoute: typeof AuthenticatedRoute
+      fullPath: '/admin/contracts/'
+      preLoaderRoute: typeof AuthenticatedAdminContractsIndexRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/contracts/new': {
-      id: '/_authenticated/contracts/new'
+    '/_authenticated/admin/contracts/new': {
+      id: '/_authenticated/admin/contracts/new'
       path: '/contracts/new'
-      fullPath: '/contracts/new'
-      preLoaderRoute: typeof AuthenticatedContractsNewRouteImport
-      parentRoute: typeof AuthenticatedRoute
+      fullPath: '/admin/contracts/new'
+      preLoaderRoute: typeof AuthenticatedAdminContractsNewRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
-    '/_authenticated/contracts/$contractId': {
-      id: '/_authenticated/contracts/$contractId'
+    '/_authenticated/admin/contracts/$contractId': {
+      id: '/_authenticated/admin/contracts/$contractId'
       path: '/contracts/$contractId'
-      fullPath: '/contracts/$contractId'
-      preLoaderRoute: typeof AuthenticatedContractsContractIdRouteImport
-      parentRoute: typeof AuthenticatedRoute
+      fullPath: '/admin/contracts/$contractId'
+      preLoaderRoute: typeof AuthenticatedAdminContractsContractIdRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
     }
   }
 }
 
+interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminDashboardRoute: typeof AuthenticatedAdminDashboardRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminContractsContractIdRoute: typeof AuthenticatedAdminContractsContractIdRoute
+  AuthenticatedAdminContractsNewRoute: typeof AuthenticatedAdminContractsNewRoute
+  AuthenticatedAdminContractsIndexRoute: typeof AuthenticatedAdminContractsIndexRoute
+}
+
+const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminDashboardRoute: AuthenticatedAdminDashboardRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedAdminContractsContractIdRoute:
+    AuthenticatedAdminContractsContractIdRoute,
+  AuthenticatedAdminContractsNewRoute: AuthenticatedAdminContractsNewRoute,
+  AuthenticatedAdminContractsIndexRoute: AuthenticatedAdminContractsIndexRoute,
+}
+
+const AuthenticatedAdminRouteWithChildren =
+  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
+
 interface AuthenticatedRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
-  AuthenticatedContractsContractIdRoute: typeof AuthenticatedContractsContractIdRoute
-  AuthenticatedContractsNewRoute: typeof AuthenticatedContractsNewRoute
-  AuthenticatedContractsIndexRoute: typeof AuthenticatedContractsIndexRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
-  AuthenticatedContractsContractIdRoute: AuthenticatedContractsContractIdRoute,
-  AuthenticatedContractsNewRoute: AuthenticatedContractsNewRoute,
-  AuthenticatedContractsIndexRoute: AuthenticatedContractsIndexRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

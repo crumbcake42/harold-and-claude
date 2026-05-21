@@ -1,6 +1,6 @@
-// The authenticated landing page — the `_authenticated` index route. A
-// minimal placeholder for now; it grows into a real dashboard as more of
-// the admin surface lands. The navigation is the way into each section.
+// The admin surface's dashboard page (`/admin/dashboard`). A minimal
+// placeholder for now; it grows into a real dashboard as more of the admin
+// surface lands. The navigation is the way into each section.
 export function DashboardPage() {
   return (
     <div className="max-w-prose">

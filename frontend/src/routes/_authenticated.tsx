@@ -1,8 +1,11 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 
 import { currentUserQueryOptions } from "@/auth/api";
-import { AdminShellLayout } from "@/pages/admin-shell";
 
+// Pathless route -- the authentication guard for the whole app. It contributes
+// no URL segment and renders no chrome: a component-less route defaults to an
+// <Outlet/>, and per-surface chrome lives on each surface layout route (the
+// `admin` layout renders AdminShellLayout). See ADR-0077.
 export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ context }) => {
     // ensureQueryData reads the cache when fresh, fetches when stale --
@@ -13,7 +16,4 @@ export const Route = createFileRoute("/_authenticated")({
     }
     return { user };
   },
-  // AdminShellLayout renders the persistent chrome + an <Outlet/> for the
-  // matched child page.
-  component: AdminShellLayout,
 });

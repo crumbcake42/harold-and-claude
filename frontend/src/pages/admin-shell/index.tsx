@@ -5,13 +5,15 @@ import { useCurrentUser } from "@/auth/hooks/useCurrentUser";
 import { useLogout } from "@/auth/hooks/useLogout";
 import { Button } from "@/components/ui/button";
 
-// The admin shell — the persistent chrome for every authenticated page.
-// It is the component of the `_authenticated` route: the auth guard wraps
-// it, and each page renders into the <Outlet/>. Per-entity nav entries are
-// added here as features land (Contracts now; the roster batch follows).
+// The admin shell — the persistent chrome for the `/admin/*` surface. It is
+// the component of the `_authenticated/admin` layout route; each admin page
+// renders into the <Outlet/>. NAV_ITEMS is the within-surface nav; per-entity
+// entries are added as features land (Contracts now; the roster batch
+// follows). The cross-surface switcher (admin / tracker / review, gated by
+// role) is deferred until those surfaces exist — see ADR-0077.
 const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", icon: HouseIcon },
-  { to: "/contracts", label: "Contracts", icon: FileTextIcon },
+  { to: "/admin/dashboard", label: "Dashboard", icon: HouseIcon },
+  { to: "/admin/contracts", label: "Contracts", icon: FileTextIcon },
 ] as const;
 
 export function AdminShellLayout() {
@@ -42,7 +44,6 @@ export function AdminShellLayout() {
               <li key={to}>
                 <Link
                   to={to}
-                  activeOptions={{ exact: to === "/" }}
                   className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                   activeProps={{ className: "bg-muted font-medium text-foreground" }}
                 >

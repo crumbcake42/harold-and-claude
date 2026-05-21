@@ -124,18 +124,46 @@ helpers).
 
 ## Routing policy
 
-- `/login` is the only public route. Everything else lives under
-  `_authenticated/`.
-- `_authenticated.tsx`'s `beforeLoad` validates the session via
-  `queryClient.ensureQueryData(currentUserQueryOptions())`; on miss it throws
-  `redirect({ to: '/login' })`.
-- Auth is **cookie-session**, not token-based: an `httpOnly` session cookie
-  with `credentials: 'include'` (set in `src/api/configure.ts`). There is no
-  token store and no 401 interceptor — ADR-0063 records why both were rejected.
-- The login mutation primes the cache with `queryClient.setQueryData(...)`
-  before navigating — **not** `invalidateQueries`. See ADR-0063.
-- Pages read typed search/loader data via `getRouteApi('/path')`, never by
-  importing `Route` from a route file (that creates a circular dependency).
+**URL space (ADR-0077).** `/login` is the only public route. The authenticated
+app is partitioned into function-named, role-owned **surfaces**:
+
+| Surface | Segment      | Owned by      | Reachable by                    |
+| ------- | ------------ | ------------- | ------------------------------- |
+| Admin   | `/admin/*`   | `admin`       | `admin`, `superadmin`           |
+| Tracker | `/tracker/*` | `coordinator` | `coordinator` and up *(future)* |
+| Review  | `/review/*`  | `auditor`     | `auditor` and up *(future)*     |
+
+A role reaches its own surface and every lower role's surface (hierarchy:
+`superadmin > admin > coordinator > auditor`). Only `/admin/*` exists today;
+`/tracker/*` and `/review/*` land with their milestones.
+
+**Route tree.** `routes/_authenticated.tsx` is a pathless route carrying only
+the auth guard: its `beforeLoad` validates the session via
+`queryClient.ensureQueryData(currentUserQueryOptions())`, throws
+`redirect({ to: '/login' })` on miss, and renders no chrome (a component-less
+route defaults to `<Outlet/>`). Each surface is a child **layout route** owning
+that surface's chrome — `_authenticated/admin.tsx` renders `AdminShellLayout`,
+and admin pages nest under it (`/admin/dashboard`, `/admin/contracts`,
+`/admin/contracts/new`, `/admin/contracts/$contractId`).
+`_authenticated/index.tsx` (`/`) redirects to the caller's highest accessible
+dashboard (currently always `/admin/dashboard`).
+
+**Role gating** (deferred — design in ADR-0077). Per-surface access will be
+enforced by a `beforeLoad` guard `requireMinRole(user, role, redirectTo)` on
+each surface layout route, built on a pure predicate
+`hasRoleAtLeast(user, role)` over `Caller.roles` — the frontend twin of the
+backend `has_role_at_least` (ADR-0062). The predicate is redirect-free so the
+cross-surface navbar can use it to decide which surface links to show. Not
+built while `/admin/*` is the only surface.
+
+**Auth** is cookie-session, not token-based: an `httpOnly` session cookie with
+`credentials: 'include'` (set in `src/api/configure.ts`). There is no token
+store and no 401 interceptor — ADR-0063 records why both were rejected. The
+login mutation primes the cache with `queryClient.setQueryData(...)` before
+navigating — **not** `invalidateQueries`. See ADR-0063.
+
+Pages read typed search/loader data via `getRouteApi('/path')`, never by
+importing `Route` from a route file (that creates a circular dependency).
 
 `src/auth/` is the cross-cutting **auth/session module** — not a feature. It
 owns the whole session surface: the current-user query (`api/currentUser.ts` —

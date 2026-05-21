@@ -37,7 +37,7 @@ export function ContractsListPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold">Contracts</h1>
         <Button asChild>
-          <Link to="/contracts/new">
+          <Link to="/admin/contracts/new">
             <PlusIcon />
             New contract
           </Link>
@@ -57,7 +57,7 @@ export function ContractsListPage() {
         <div className="rounded-md border border-border p-8 text-center">
           <p className="text-sm text-muted-foreground">No contracts yet.</p>
           <Button asChild variant="outline" size="sm" className="mt-3">
-            <Link to="/contracts/new">
+            <Link to="/admin/contracts/new">
               <PlusIcon />
               New contract
             </Link>
@@ -68,7 +68,7 @@ export function ContractsListPage() {
           contracts={contracts}
           onEdit={(contract) =>
             navigate({
-              to: "/contracts/$contractId",
+              to: "/admin/contracts/$contractId",
               params: { contractId: contract.id },
             })
           }

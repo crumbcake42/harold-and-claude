@@ -13,7 +13,10 @@ export function LoginPage() {
   async function onSubmit(values: LoginFormValues) {
     try {
       await login.mutateAsync({ body: values });
-      await navigate({ to: "/" });
+      // Post-login lands on the caller's highest accessible dashboard. Only the
+      // /admin surface exists today, so this targets /admin/dashboard directly;
+      // ADR-0077 records the role-dispatch design.
+      await navigate({ to: "/admin/dashboard" });
     } catch {
       // Server-side rejection (bad credentials). Client-side validation is
       // already handled inside LoginForm by the Zod resolver.
