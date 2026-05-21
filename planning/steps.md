@@ -576,7 +576,9 @@ Each new entity is born with `AuditMetadataMixin` + a `creates`-flagged create c
 
 **Done when:** School + User-admin-CRUD backends flow through the dispatcher; User's `username` consumes the shared `require_unique` (extracted in 2.2d-1a); `seed_db` covers School + User; backend tests + ruff + pyright green; migration applied to Neon; OpenAPI regenerated. Closes Step 2.2d-1.
 
-##### Inserted slot — `engine` / `http` layer rename (non-milestone)
+##### Inserted slot — `engine` / `http` layer rename (non-milestone) ✓ COMPLETE
+
+**✓ COMPLETE Session 52 (2026-05-21).** Behaviour-preserving, three commits on `m1/engine-http-rename`: `app/framework/` → `app/engine/` (all `app.framework` imports updated across 38 files); the new `app/http/` transport layer with `error_handlers.py` / `pagination.py` / `health.py` moved in (the engine is now FastAPI-free); docs + ADRs. **ADR-0079** written (five-layer taxonomy + charter-check placement rule); ADR-0070 amended in place; ADR-0078's placement caveat closed; `DRIFT-002` resolved. `backend/app/PATTERNS.md` rewritten; `backend/CLAUDE.md` left unchanged (it carries no layer names). 79 backend tests + 1 skipped, ruff + pyright green; `app.main` assembles unchanged. `--no-ff` merged back to `m1/02-flat-roster`.
 
 **Inserted 2026-05-21 (Session 51)** — a non-milestone structural slot, the root-cause remedy for `DRIFT-002` (layer-charter erosion). Step 2.2d-1a's pagination substrate landed in `app/framework/` and surfaced both the drift and the naming irony underneath it: the framework-*agnostic* command engine lives in a folder named `framework/`, and `PATTERNS.md` already calls its contents "the engine." **Runs next**, before the remainder of Step 2.2d-1a, so the Employee/Contractor slices are built on the post-rename structure.
 
