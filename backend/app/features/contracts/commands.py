@@ -77,6 +77,7 @@ def _require_unique_number(
 class CreateContract(Command):
     target_entity = Contract
     authorization = require_role(Role.ADMIN)
+    creates = True  # dispatcher stamps created_* on this command (ADR-0075)
 
     class Payload(BaseModel):
         contract_number: str

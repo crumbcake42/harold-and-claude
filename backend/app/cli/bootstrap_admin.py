@@ -17,6 +17,7 @@ export_openapi).
 import getpass
 import sys
 from datetime import UTC, datetime
+from uuid import uuid4
 
 from app.adapters.db import SessionFactory
 from app.auth.entities import User, UserRole
@@ -57,14 +58,29 @@ def main() -> int:
             )
             return 2
 
-        user = User(username=username, password_hash=hash_password(password))
+        # Bootstrap is the documented exception to the every-state-change-is-
+        # a-Command rule (alongside login), so it stamps the ADR-0072 audit
+        # columns itself -- the dispatcher is not in the loop. created_by /
+        # updated_by are self-attributed: no prior caller exists. The id is
+        # generated up front so it can fill the self-referencing columns.
+        now = datetime.now(UTC)
+        user_id = uuid4()
+        user = User(
+            id=user_id,
+            username=username,
+            password_hash=hash_password(password),
+            created_at=now,
+            created_by=user_id,
+            updated_at=now,
+            updated_by=user_id,
+        )
         db.add(user)
         db.flush()
 
         grant = UserRole(
             user_id=user.id,
             role=Role.SUPERADMIN.value,
-            granted_at=datetime.now(UTC),
+            granted_at=now,
             granted_by=user.id,  # self-granted at bootstrap (no prior caller exists)
         )
         db.add(grant)

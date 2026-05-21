@@ -86,6 +86,11 @@ class Command(ABC):
       cascade_allowed_destructive: parents legitimately invoking a
           destructive sub-command must declare this True to satisfy the
           ADR-0060 registry-load-time check. Default False.
+      creates: True for commands that create their target entity, False
+          for commands that mutate an existing one (ADR-0075). The
+          dispatcher reads it to stamp the ADR-0072 audit-metadata columns
+          -- created_* only when creates is True, updated_* always. Default
+          False (most commands mutate).
 
     Subclasses declare Payload as a nested Pydantic model and implement
     handler(self, session, payload) -> target_entity_instance.
@@ -99,6 +104,7 @@ class Command(ABC):
     cascade: ClassVar[list[type["Command"]]] = []
     destructive: ClassVar[bool] = False
     cascade_allowed_destructive: ClassVar[bool] = False
+    creates: ClassVar[bool] = False
 
     # Nested payload schema -- subclasses MUST override with a Pydantic model.
     Payload: ClassVar[type[BaseModel]]

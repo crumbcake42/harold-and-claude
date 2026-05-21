@@ -19,6 +19,11 @@ History pattern:
     entities). UserRole has no entity-level history in MVP -- grants/revokes
     surface via the User audit log per ADR-0040.
   - Session is substrate, not a domain entity; no history.
+
+Audit metadata:
+  - User carries the four created_*/updated_* columns via AuditMetadataMixin
+    (ADR-0072). UserRole and Session do not -- UserRole is a composite-key
+    associative entity and Session is auth substrate, not domain entities.
 """
 
 from datetime import datetime
@@ -29,9 +34,10 @@ from sqlalchemy import DateTime, ForeignKey, Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.adapters.db import Base
+from app.framework.audit import AuditMetadataMixin
 
 
-class User(Base):
+class User(Base, AuditMetadataMixin):
     __tablename__ = "user"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)

@@ -23,7 +23,9 @@ from app.features.contracts.commands import (
     EditContract,
 )
 from app.features.contracts.entities import Contract
+from app.framework.audit import AuditMetadataMixin
 from app.framework.caller import Caller, Role
+from app.framework.command import registered_commands
 from app.framework.dispatcher import Dispatcher
 from app.framework.exceptions import (
     AuthorizationDenied,
@@ -207,4 +209,90 @@ def test_deleted_contract_is_not_resolvable(dispatcher: Dispatcher) -> None:
     with pytest.raises(EntityNotFound):
         dispatcher.dispatch(
             DeleteContract, DeleteContract.Payload(id=created.id), ADMIN
+        )
+
+
+# ---- audit-metadata columns (ADR-0072 / ADR-0075) ----
+
+# A second admin: edit/delete attribution is asserted by caller id, which is
+# clock-resolution-independent (two dispatches can share a microsecond).
+ADMIN_TWO = Caller(id=uuid4(), username="admin2", roles=frozenset({Role.ADMIN}))
+
+
+def test_create_contract_stamps_all_four_audit_columns(
+    dispatcher: Dispatcher, sqlite_session_factory: sessionmaker[Session]
+) -> None:
+    """A creating command stamps created_* and updated_* to the same instant
+    and the same caller -- the dispatcher writes them, not the handler."""
+    result = dispatcher.dispatch(CreateContract, _create_payload(), ADMIN)
+    with sqlite_session_factory() as s:
+        row = s.get(Contract, result.id)
+        assert row is not None
+        assert row.created_by == ADMIN.id
+        assert row.updated_by == ADMIN.id
+        assert row.created_at is not None
+        # One command clock: at creation created_* == updated_*.
+        assert row.created_at == row.updated_at
+
+
+def test_edit_contract_refreshes_updated_only(
+    dispatcher: Dispatcher, sqlite_session_factory: sessionmaker[Session]
+) -> None:
+    """A mutating command refreshes updated_* and leaves created_* intact."""
+    created = dispatcher.dispatch(CreateContract, _create_payload(), ADMIN)
+    with sqlite_session_factory() as s:
+        original_created_at = s.get(Contract, created.id).created_at  # type: ignore[union-attr]
+
+    dispatcher.dispatch(
+        EditContract,
+        EditContract.Payload(
+            id=created.id,
+            contract_number="SCA-2026-001",
+            name="Renamed",
+            start_date=date(2026, 1, 1),
+            end_date=None,
+            code_flat_fee_schedule=[],
+        ),
+        ADMIN_TWO,
+    )
+    with sqlite_session_factory() as s:
+        row = s.get(Contract, created.id)
+        assert row is not None
+        # created_* untouched by the edit.
+        assert row.created_by == ADMIN.id
+        assert row.created_at == original_created_at
+        # updated_* refreshed to the editing caller.
+        assert row.updated_by == ADMIN_TWO.id
+        assert row.updated_at >= original_created_at
+
+
+def test_delete_contract_refreshes_updated(
+    dispatcher: Dispatcher, sqlite_session_factory: sessionmaker[Session]
+) -> None:
+    """A soft delete is a mutation: updated_* is refreshed, created_* is not."""
+    created = dispatcher.dispatch(CreateContract, _create_payload(), ADMIN)
+    dispatcher.dispatch(
+        DeleteContract, DeleteContract.Payload(id=created.id), ADMIN_TWO
+    )
+    with sqlite_session_factory() as s:
+        row = s.get(Contract, created.id)
+        assert row is not None
+        assert row.created_by == ADMIN.id
+        assert row.updated_by == ADMIN_TWO.id
+
+
+def test_creates_flag_consistent_for_audited_commands() -> None:
+    """Every registered command targeting an audit-metadata entity declares
+    `creates` in line with the Create/Edit/Delete naming convention. The
+    dispatcher reads the flag to stamp created_* (ADR-0075); a forgotten or
+    mis-set flag silently corrupts the audit-metadata projection.
+    """
+    for name, command_cls in registered_commands().items():
+        target = command_cls.target_entity
+        if not (isinstance(target, type) and issubclass(target, AuditMetadataMixin)):
+            continue
+        expected = name.startswith("Create")
+        assert command_cls.creates is expected, (
+            f"{name}.creates={command_cls.creates}, but the name implies "
+            f"creates={expected}"
         )

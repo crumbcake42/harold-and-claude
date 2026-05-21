@@ -29,6 +29,7 @@ from pydantic import BaseModel
 from sqlalchemy.exc import DBAPIError, OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.framework.audit import AuditMetadataMixin
 from app.framework.caller import Caller
 from app.framework.capture import (
     AuditLogRecord,
@@ -268,6 +269,22 @@ class Dispatcher:
         # operated on (created or mutated); the history step uses this as
         # the capture target.
         target = command.handler(session, payload)
+
+        # Step 3b — Audit-metadata stamping (ADR-0072 / ADR-0075). The
+        # dispatcher writes created_*/updated_* uniformly; handlers never
+        # touch them. created_* is stamped only when the command creates its
+        # target (the declared `creates` flag); updated_* on every command,
+        # so at creation created_* == updated_*. `now` is the single command
+        # clock -- reused for the capture record's `at` below so the columns
+        # stay an exactly reproducible projection over the audit log.
+        now = datetime.now(UTC)
+        if isinstance(target, AuditMetadataMixin):
+            if command_cls.creates:
+                target.created_at = now
+                target.created_by = caller.id
+            target.updated_at = now
+            target.updated_by = caller.id
+
         # Make pending state visible to invariant queries.
         session.flush()
 
@@ -296,6 +313,7 @@ class Dispatcher:
             target=target,
             command_id=command_id,
             from_state=from_state,
+            at=now,
         )
         if record is not None:
             self.sink.emit(record, session)
@@ -313,10 +331,13 @@ class Dispatcher:
         target: Any,
         command_id: uuid.UUID,
         from_state: str | None,
+        at: datetime,
     ) -> HistoryRecord | None:
         """Construct the per-pattern HistoryRecord variant or return None for
         no-history entities. Pattern is read from `target.history_pattern`
-        (class attr on the SQLAlchemy model).
+        (class attr on the SQLAlchemy model). `at` is the command clock --
+        the same instant stamped onto the entity's audit-metadata columns --
+        so the columns reproduce as a projection over this record.
         """
         history_pattern = getattr(type(target), "history_pattern", "none")
         if history_pattern == "none":
@@ -328,7 +349,7 @@ class Dispatcher:
             "command_id": command_id,
             "command_name": command_cls.name(),
             "caller_id": caller.id,
-            "at": datetime.now(UTC),
+            "at": at,
         }
         if history_pattern == "comprehensive":
             return ComprehensiveRecord(**common, snapshot=_snapshot_entity(target))

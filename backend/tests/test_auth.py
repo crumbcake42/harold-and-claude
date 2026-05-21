@@ -14,6 +14,7 @@ for this slice.
 """
 
 from datetime import UTC, datetime, timedelta
+from uuid import uuid4
 
 import pytest
 from fastapi.testclient import TestClient
@@ -27,8 +28,22 @@ from app.framework.caller import Role
 
 
 def _seed_admin(session_factory: sessionmaker[Session], username: str = "admin") -> User:
+    # Creates a User directly -- the M1.1 bootstrap path, not a Command (the
+    # create_user command lands in Step 2.2c). The four ADR-0072 audit
+    # columns are stamped here the way bootstrap_admin does it: a generated
+    # id, self-attributed created_by / updated_by, one clock for all four.
     with session_factory() as db:
-        user = User(username=username, password_hash=hash_password("correct-horse"))
+        now = datetime.now(UTC)
+        user_id = uuid4()
+        user = User(
+            id=user_id,
+            username=username,
+            password_hash=hash_password("correct-horse"),
+            created_at=now,
+            created_by=user_id,
+            updated_at=now,
+            updated_by=user_id,
+        )
         db.add(user)
         db.flush()
         db.add(

@@ -18,9 +18,11 @@ Schema notes:
     no state machine, never stored.
 
 History: command_audit_log (audit_log pattern) -- Contract is one of
-ADR-0052's 7 audit-log entities. Like User (M1.1) it carries no
-created_*/updated_* columns: the audit log already records who-did-what-
-when per command, so per-row audit-metadata columns would be redundant.
+ADR-0052's 7 audit-log entities.
+
+Audit metadata: the four created_*/updated_* columns via AuditMetadataMixin
+(ADR-0072) -- a dispatcher-maintained read projection, stamped by the
+pipeline, never by a handler.
 
 Delete: soft delete (deleted_at) per ADR-0043.
 """
@@ -34,9 +36,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.adapters.db import Base
 from app.adapters.postgres import json_column
+from app.framework.audit import AuditMetadataMixin
 
 
-class Contract(Base):
+class Contract(Base, AuditMetadataMixin):
     __tablename__ = "contract"
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
