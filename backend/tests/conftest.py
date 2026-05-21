@@ -8,7 +8,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-import app.domain.auth  # noqa: F401 -- registers auth tables on Base.metadata
+import app.auth.entities  # noqa: F401 -- registers auth tables on Base.metadata
 from app.adapters.db import json_serializer
 
 
@@ -102,7 +102,7 @@ def _override_current_user_with(role_value: str):
     """Return a (cleanup, caller) pair: cleanup pops the override, caller is
     the synthetic Caller the override returns.
     """
-    from app.framework.auth import current_user
+    from app.auth import current_user
     from app.framework.caller import Caller, Role
     from app.main import app
 

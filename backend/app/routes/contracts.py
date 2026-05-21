@@ -24,6 +24,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session as DbSession
 
 from app.adapters.db import get_db
+from app.auth import current_user
 from app.domain.commands.contract import (
     CodeFlatFee,
     CreateContract,
@@ -31,7 +32,6 @@ from app.domain.commands.contract import (
     EditContract,
 )
 from app.domain.contract import Contract
-from app.framework.auth import current_user
 from app.framework.caller import Caller
 from app.framework.dispatcher import Dispatcher
 from app.framework.runtime import get_dispatcher

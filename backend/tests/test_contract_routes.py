@@ -23,8 +23,8 @@ def admin_client(
     sqlite_engine: Engine, sqlite_session_factory: sessionmaker[Session]
 ) -> Iterator[TestClient]:
     from app.adapters.db import Base, get_db
+    from app.auth import current_user
     from app.config import settings
-    from app.framework.auth import current_user
     from app.framework.runtime import get_dispatcher
     from app.main import app
 
@@ -67,7 +67,7 @@ def _body(contract_number: str = "SCA-2026-001", **over: object) -> dict[str, ob
 
 def _as_role(*roles: Role) -> None:
     """Swap the current_user override to a caller holding `roles`."""
-    from app.framework.auth import current_user
+    from app.auth import current_user
     from app.main import app
 
     caller = Caller(id=uuid4(), username="test", roles=frozenset(roles))
@@ -124,7 +124,7 @@ def test_get_missing_404(admin_client: TestClient) -> None:
 
 
 def test_reads_require_auth_401(admin_client: TestClient) -> None:
-    from app.framework.auth import current_user
+    from app.auth import current_user
     from app.main import app
 
     app.dependency_overrides.pop(current_user, None)

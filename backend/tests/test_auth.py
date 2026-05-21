@@ -19,10 +19,10 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.auth.entities import Session as SessionRow
+from app.auth.entities import User, UserRole
+from app.auth.security import hash_password
 from app.config import settings
-from app.domain.auth import Session as SessionRow
-from app.domain.auth import User, UserRole
-from app.framework.auth import hash_password
 from app.framework.caller import Role
 
 

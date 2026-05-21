@@ -12,26 +12,21 @@ no user-existence signal — defensive against enumeration.
 """
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
-from pydantic import BaseModel
 from sqlalchemy.orm import Session as DbSession
 
 from app.adapters.db import get_db
-from app.config import settings
-from app.domain.auth import User, UserRole
-from app.framework.auth import (
+from app.auth.entities import User, UserRole
+from app.auth.schemas import LoginRequest
+from app.auth.security import (
     create_session,
     current_user,
     revoke_session,
     verify_password,
 )
+from app.config import settings
 from app.framework.caller import Caller, Role
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-class LoginRequest(BaseModel):
-    username: str
-    password: str
 
 
 def _set_session_cookie(response: Response, token: str) -> None:

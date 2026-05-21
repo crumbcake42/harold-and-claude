@@ -2,10 +2,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.domain.commands  # noqa: F401  -- imports register every domain command (ADR-0059)
+from app.auth.routes import router as auth_router
 from app.config import settings
 from app.framework.command import validate_registry
 from app.framework.error_handlers import register_error_handlers
-from app.routes import auth, contracts, healthcheck
+from app.routes import contracts, healthcheck
 
 # Registry-load-time guard (ADR-0060): fails loudly at import if a
 # destructive command is cascaded without an explicit opt-in.
@@ -29,5 +30,5 @@ app.add_middleware(
 register_error_handlers(app)
 
 app.include_router(healthcheck.router)
-app.include_router(auth.router)
+app.include_router(auth_router)
 app.include_router(contracts.router)

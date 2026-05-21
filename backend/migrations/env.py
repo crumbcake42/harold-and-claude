@@ -9,7 +9,7 @@ config = context.config
 
 # Pull database URL from app settings (env-driven per ADR-0051)
 import app.adapters.history  # noqa: E402, F401  -- populates Base.metadata
-import app.domain.auth  # noqa: E402, F401  -- populates Base.metadata (M1.1 auth tables)
+import app.auth.entities  # noqa: E402, F401  -- populates Base.metadata (M1.1 auth tables)
 import app.domain.contract  # noqa: E402, F401  -- populates Base.metadata (M1.2 Contract)
 from app.adapters.db import Base  # noqa: E402
 from app.config import settings  # noqa: E402
